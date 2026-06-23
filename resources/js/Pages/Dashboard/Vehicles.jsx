@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import { Plus, Settings, Trash2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
