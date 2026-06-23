@@ -4,11 +4,11 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { Car } from 'lucide-react';
 
 export default function FleetMap({ vehicles, onSelectVehicle }) {
-    // Default viewport roughly over US
+    // Default viewport over Lagos, Nigeria
     const [viewState, setViewState] = useState({
-        longitude: -98.5795,
-        latitude: 39.8283,
-        zoom: 4
+        longitude: 3.3792,
+        latitude: 6.5244,
+        zoom: 11
     });
 
     return (

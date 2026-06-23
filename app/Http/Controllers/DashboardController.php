@@ -26,8 +26,8 @@ class DashboardController extends Controller
                 'make' => $vehicle->make,
                 'model' => $vehicle->model,
                 'license_plate' => $vehicle->license_plate,
-                'latitude' => $latestLocation ? $latestLocation->latitude : 39.8283, // Default US
-                'longitude' => $latestLocation ? $latestLocation->longitude : -98.5795,
+                'latitude' => $latestLocation ? $latestLocation->latitude : 6.5244, // Default Lagos
+                'longitude' => $latestLocation ? $latestLocation->longitude : 3.3792,
                 'speed' => $latestLocation ? $latestLocation->speed : 0,
                 'active_driver' => $activeTrip && $activeTrip->driver && $activeTrip->driver->user 
                     ? $activeTrip->driver->user->name 
