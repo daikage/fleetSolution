@@ -22,4 +22,14 @@ class Vehicle extends Model
     {
         return $this->hasMany(Maintenance::class);
     }
+
+    public function latestLocation()
+    {
+        return $this->hasOne(Location::class)->latestOfMany();
+    }
+
+    public function currentTrip()
+    {
+        return $this->hasOne(Trip::class)->whereNull('end_time')->latestOfMany();
+    }
 }

@@ -11,15 +11,11 @@ class DashboardController extends Controller
     {
         // Get all vehicles with their latest location and active trip driver
         $vehicles = Vehicle::with([
-            'locations' => function($query) {
-                $query->latest()->limit(1);
-            },
-            'trips' => function($query) {
-                $query->whereNull('end_time')->latest()->limit(1)->with('driver.user');
-            }
+            'latestLocation',
+            'currentTrip.driver.user'
         ])->get()->map(function($vehicle) {
-            $latestLocation = $vehicle->locations->first();
-            $activeTrip = $vehicle->trips->first();
+            $latestLocation = $vehicle->latestLocation;
+            $activeTrip = $vehicle->currentTrip;
             
             return [
                 'id' => $vehicle->id,
@@ -42,9 +38,7 @@ class DashboardController extends Controller
 
     public function vehicles()
     {
-        $vehicles = Vehicle::with(['trips' => function($query) {
-            $query->whereNull('end_time')->latest()->limit(1)->with('driver.user');
-        }])->latest()->get();
+        $vehicles = Vehicle::with(['currentTrip.driver.user'])->latest()->get();
         
         $drivers = \App\Models\Driver::with('user')->get();
 
