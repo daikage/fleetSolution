@@ -170,4 +170,85 @@ class DashboardController extends Controller
 
         return back();
     }
+    public function fuel()
+    {
+        $fuelLogs = \App\Models\FuelLog::with(['vehicle', 'driver.user'])->latest()->get();
+        $vehicles = Vehicle::latest()->get();
+        $drivers = \App\Models\Driver::with('user')->get();
+
+        return Inertia::render('Dashboard/Fuel', [
+            'fuelLogs' => $fuelLogs,
+            'vehicles' => $vehicles,
+            'drivers' => $drivers
+        ]);
+    }
+
+    public function storeFuel(\Illuminate\Http\Request $request)
+    {
+        $validated = $request->validate([
+            'vehicle_id' => 'required|exists:vehicles,id',
+            'driver_id' => 'nullable|exists:drivers,id',
+            'date' => 'required|date',
+            'liters' => 'required|numeric|min:0',
+            'cost' => 'required|numeric|min:0',
+            'odometer_at_fill' => 'required|numeric|min:0',
+        ]);
+
+        \App\Models\FuelLog::create($validated);
+
+        return back();
+    }
+
+    public function compliance()
+    {
+        // For compliance, since documentable is polymorphic, we can load it to get the vehicle or driver info.
+        $documents = \App\Models\Document::with('documentable')->latest()->get();
+        // Load the vehicles and drivers specifically to show more details or for forms.
+        $vehicles = Vehicle::latest()->get();
+        $drivers = \App\Models\Driver::with('user')->get();
+
+        // Transform documents to include readable names
+        $documents = $documents->map(function ($doc) {
+            $docName = 'Unknown';
+            if ($doc->documentable_type === \App\Models\Vehicle::class && $doc->documentable) {
+                $docName = $doc->documentable->make . ' ' . $doc->documentable->model . ' (' . $doc->documentable->license_plate . ')';
+            } elseif ($doc->documentable_type === \App\Models\Driver::class && $doc->documentable && $doc->documentable->user) {
+                $docName = $doc->documentable->user->name;
+            }
+            $doc->entity_name = $docName;
+            return $doc;
+        });
+
+        return Inertia::render('Dashboard/Compliance', [
+            'documents' => $documents,
+            'vehicles' => $vehicles,
+            'drivers' => $drivers
+        ]);
+    }
+
+    public function storeCompliance(\Illuminate\Http\Request $request)
+    {
+        $validated = $request->validate([
+            'documentable_type' => 'required|in:vehicle,driver',
+            'documentable_id' => 'required|integer',
+            'document_type' => 'required|string|max:255',
+            'expiry_date' => 'nullable|date',
+            'url' => 'nullable|string',
+        ]);
+
+        $typeMap = [
+            'vehicle' => \App\Models\Vehicle::class,
+            'driver' => \App\Models\Driver::class,
+        ];
+
+        \App\Models\Document::create([
+            'documentable_type' => $typeMap[$validated['documentable_type']],
+            'documentable_id' => $validated['documentable_id'],
+            'document_type' => $validated['document_type'],
+            'expiry_date' => $validated['expiry_date'],
+            'url' => $validated['url'],
+        ]);
+
+        return back();
+    }
 }

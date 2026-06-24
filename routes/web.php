@@ -41,6 +41,20 @@ Route::post('/dashboard/maintenance', [\App\Http\Controllers\DashboardController
     ->middleware(['auth', 'verified'])
     ->name('dashboard.maintenance.store');
 
+Route::get('/dashboard/fuel', [\App\Http\Controllers\DashboardController::class, 'fuel'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.fuel');
+Route::post('/dashboard/fuel', [\App\Http\Controllers\DashboardController::class, 'storeFuel'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.fuel.store');
+
+Route::get('/dashboard/compliance', [\App\Http\Controllers\DashboardController::class, 'compliance'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.compliance');
+Route::post('/dashboard/compliance', [\App\Http\Controllers\DashboardController::class, 'storeCompliance'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.compliance.store');
+
 Route::get('/dashboard/drivers', [\App\Http\Controllers\DashboardController::class, 'drivers'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.drivers');

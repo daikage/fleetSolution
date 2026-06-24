@@ -17,4 +17,19 @@ class Driver extends Model
     {
         return $this->hasMany(Trip::class);
     }
+
+    public function fuelLogs()
+    {
+        return $this->hasMany(FuelLog::class);
+    }
+
+    public function documents()
+    {
+        return $this->morphMany(Document::class, 'documentable');
+    }
+
+    public function inspections()
+    {
+        return $this->hasMany(Inspection::class);
+    }
 }
