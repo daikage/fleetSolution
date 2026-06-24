@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Head, useForm, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
-import { Plus, User as UserIcon, X, Trash2 } from 'lucide-react';
+import BulkImportModal from '@/Components/BulkImportModal';
+import { Plus, User as UserIcon, X, Trash2, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ExportButtons from '@/Components/ExportButtons';
 
 export default function Drivers({ drivers }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
         email: '',
@@ -47,10 +49,17 @@ export default function Drivers({ drivers }) {
                 <div className="flex justify-between items-center mb-8">
                     <div>
                         <h1 className="text-3xl font-bold text-white tracking-tight">Drivers</h1>
-                        <p className="text-gray-400 mt-1">Manage personnel and licenses</p>
+                        <p className="text-gray-400 mt-1">Manage personnel and assignments</p>
                     </div>
-                    <div className="flex gap-4 items-center">
+                    <div className="flex items-center gap-3">
                         <ExportButtons data={exportData} columns={exportColumns} filename="Fleet_Drivers" title="Fleet Drivers Registry" />
+                        <button 
+                            onClick={() => setIsImportModalOpen(true)}
+                            className="bg-white/5 hover:bg-white/10 text-white px-4 py-2.5 rounded-full font-medium transition-colors border border-white/10 flex items-center gap-2"
+                        >
+                            <FileText className="w-5 h-5 text-emerald-400" />
+                            <span className="hidden sm:inline">Import Bulk</span>
+                        </button>
                         <button 
                             onClick={() => setIsModalOpen(true)}
                             className="bg-electric-blue hover:bg-sky-400 text-white px-6 py-2.5 rounded-full font-medium transition-colors shadow-lg shadow-electric-blue/20 flex items-center gap-2"
@@ -165,6 +174,15 @@ export default function Drivers({ drivers }) {
                     </div>
                 )}
             </AnimatePresence>
+
+            <BulkImportModal 
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                title="Import Drivers"
+                importRoute="dashboard.drivers.import"
+                templateHeaders={['name', 'email', 'password', 'license_no', 'license_exp']}
+                templateFilename="fleetos_drivers_template.csv"
+            />
         </DashboardLayout>
     );
 }

@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Head, useForm, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
-import { Plus, Settings, Trash2, X, Navigation } from 'lucide-react';
+import BulkImportModal from '@/Components/BulkImportModal';
+import { Plus, Settings, Trash2, X, Navigation, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ExportButtons from '@/Components/ExportButtons';
 
 export default function Vehicles({ vehicles, drivers }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
     const [selectedVehicle, setSelectedVehicle] = useState(null);
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -64,7 +66,14 @@ export default function Vehicles({ vehicles, drivers }) {
                         <h1 className="text-3xl font-bold text-white tracking-tight">Vehicles</h1>
                         <p className="text-gray-400 mt-1">Manage your fleet registry</p>
                     </div>
-                    <div className="flex gap-4 items-center">
+                    <div className="flex items-center gap-3">
+                        <button 
+                            onClick={() => setIsImportModalOpen(true)}
+                            className="bg-white/5 hover:bg-white/10 text-white px-4 py-2.5 rounded-full font-medium transition-colors border border-white/10 flex items-center gap-2"
+                        >
+                            <FileText className="w-5 h-5 text-emerald-400" />
+                            <span className="hidden sm:inline">Import Bulk</span>
+                        </button>
                         <ExportButtons data={vehicles} columns={exportColumns} filename="Fleet_Vehicles" title="Fleet Vehicles Registry" />
                         <button 
                             onClick={() => setIsModalOpen(true)}
@@ -277,6 +286,15 @@ export default function Vehicles({ vehicles, drivers }) {
                     </div>
                 )}
             </AnimatePresence>
+
+            <BulkImportModal 
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                title="Import Vehicles"
+                importRoute="dashboard.vehicles.import"
+                templateHeaders={['make', 'model', 'year', 'vin', 'license_plate', 'odometer']}
+                templateFilename="fleetos_vehicles_template.csv"
+            />
         </DashboardLayout>
     );
 }

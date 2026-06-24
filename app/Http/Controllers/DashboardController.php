@@ -170,6 +170,178 @@ class DashboardController extends Controller
 
         return back();
     }
+
+    private function parseCsv($file)
+    {
+        $data = [];
+        if (($handle = fopen($file->getRealPath(), 'r')) !== false) {
+            $headers = fgetcsv($handle, 1000, ',');
+            // Sanitize headers (lowercase, trim spaces)
+            $headers = array_map(function($header) {
+                return trim(strtolower($header));
+            }, $headers);
+
+            while (($row = fgetcsv($handle, 1000, ',')) !== false) {
+                if (count($headers) == count($row)) {
+                    $data[] = array_combine($headers, $row);
+                }
+            }
+            fclose($handle);
+        }
+        return $data;
+    }
+
+    public function importVehicles(\Illuminate\Http\Request $request)
+    {
+        $request->validate(['file' => 'required|mimes:csv,txt|max:2048']);
+        $rows = $this->parseCsv($request->file('file'));
+
+        foreach ($rows as $row) {
+            if (!isset($row['vin']) || !isset($row['license_plate'])) continue;
+            
+            Vehicle::updateOrCreate(
+                ['vin' => $row['vin']],
+                [
+                    'make' => $row['make'] ?? 'Unknown',
+                    'model' => $row['model'] ?? 'Unknown',
+                    'year' => $row['year'] ?? date('Y'),
+                    'license_plate' => $row['license_plate'],
+                    'odometer' => $row['odometer'] ?? 0,
+                    'status' => 'active'
+                ]
+            );
+        }
+
+        return back();
+    }
+
+    public function importDrivers(\Illuminate\Http\Request $request)
+    {
+        $request->validate(['file' => 'required|mimes:csv,txt|max:2048']);
+        $rows = $this->parseCsv($request->file('file'));
+
+        foreach ($rows as $row) {
+            if (!isset($row['email']) || !isset($row['license_no'])) continue;
+
+            $user = \App\Models\User::firstOrCreate(
+                ['email' => $row['email']],
+                [
+                    'name' => $row['name'] ?? 'Unknown',
+                    'password' => \Illuminate\Support\Facades\Hash::make($row['password'] ?? 'password'),
+                    'role' => 'driver',
+                ]
+            );
+
+            \App\Models\Driver::updateOrCreate(
+                ['license_no' => $row['license_no']],
+                [
+                    'user_id' => $user->id,
+                    'license_exp' => $row['license_exp'] ?? now()->addYears(1)->format('Y-m-d'),
+                ]
+            );
+        }
+
+        return back();
+    }
+
+    public function importMaintenance(\Illuminate\Http\Request $request)
+    {
+        $request->validate(['file' => 'required|mimes:csv,txt|max:2048']);
+        $rows = $this->parseCsv($request->file('file'));
+
+        foreach ($rows as $row) {
+            if (!isset($row['license_plate'])) continue;
+
+            $vehicle = Vehicle::where('license_plate', $row['license_plate'])->first();
+            if (!$vehicle) continue;
+
+            \App\Models\Maintenance::create([
+                'vehicle_id' => $vehicle->id,
+                'service_type' => $row['service_type'] ?? 'General Service',
+                'cost' => $row['cost'] ?? 0,
+                'date' => $row['date'] ?? now()->format('Y-m-d'),
+            ]);
+        }
+
+        return back();
+    }
+
+    public function importFuel(\Illuminate\Http\Request $request)
+    {
+        $request->validate(['file' => 'required|mimes:csv,txt|max:2048']);
+        $rows = $this->parseCsv($request->file('file'));
+
+        foreach ($rows as $row) {
+            if (!isset($row['license_plate']) || !isset($row['liters']) || !isset($row['cost'])) continue;
+
+            $vehicle = Vehicle::where('license_plate', $row['license_plate'])->first();
+            if (!$vehicle) continue;
+
+            $driverId = null;
+            if (!empty($row['driver_email'])) {
+                $user = \App\Models\User::where('email', $row['driver_email'])->first();
+                if ($user) {
+                    $driver = \App\Models\Driver::where('user_id', $user->id)->first();
+                    if ($driver) $driverId = $driver->id;
+                }
+            }
+
+            \App\Models\FuelLog::create([
+                'vehicle_id' => $vehicle->id,
+                'driver_id' => $driverId,
+                'liters' => $row['liters'],
+                'cost' => $row['cost'],
+                'odometer_at_fill' => $row['odometer_at_fill'] ?? $vehicle->odometer,
+                'date' => $row['date'] ?? now()->format('Y-m-d'),
+            ]);
+        }
+
+        return back();
+    }
+
+    public function importCompliance(\Illuminate\Http\Request $request)
+    {
+        $request->validate(['file' => 'required|mimes:csv,txt|max:2048']);
+        $rows = $this->parseCsv($request->file('file'));
+
+        foreach ($rows as $row) {
+            if (!isset($row['entity_type']) || !isset($row['entity_identifier']) || !isset($row['document_type'])) continue;
+
+            $type = strtolower($row['entity_type']);
+            $morphClass = null;
+            $morphId = null;
+
+            if ($type === 'vehicle' || $type === 'v') {
+                $vehicle = Vehicle::where('license_plate', $row['entity_identifier'])->first();
+                if ($vehicle) {
+                    $morphClass = \App\Models\Vehicle::class;
+                    $morphId = $vehicle->id;
+                }
+            } elseif ($type === 'driver' || $type === 'd') {
+                $user = \App\Models\User::where('email', $row['entity_identifier'])->first();
+                if ($user) {
+                    $driver = \App\Models\Driver::where('user_id', $user->id)->first();
+                    if ($driver) {
+                        $morphClass = \App\Models\Driver::class;
+                        $morphId = $driver->id;
+                    }
+                }
+            }
+
+            if (!$morphClass || !$morphId) continue;
+
+            \App\Models\ComplianceDocument::create([
+                'documentable_type' => $morphClass,
+                'documentable_id' => $morphId,
+                'document_type' => $row['document_type'],
+                'expiry_date' => !empty($row['expiry_date']) ? $row['expiry_date'] : null,
+                'url' => null,
+            ]);
+        }
+
+        return back();
+    }
+
     public function fuel()
     {
         $fuelLogs = \App\Models\FuelLog::with(['vehicle', 'driver.user'])->latest()->get();

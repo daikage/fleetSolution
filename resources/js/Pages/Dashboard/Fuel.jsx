@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Head, useForm } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
-import { Plus, X, Fuel as FuelIcon, Calendar, Droplet } from 'lucide-react';
+import BulkImportModal from '@/Components/BulkImportModal';
+import { Plus, X, Fuel as FuelIcon, Calendar, Droplet, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ExportButtons from '@/Components/ExportButtons';
 
 export default function Fuel({ fuelLogs, vehicles, drivers }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const { data, setData, post, processing, errors, reset } = useForm({
         vehicle_id: '',
         driver_id: '',
@@ -56,6 +58,13 @@ export default function Fuel({ fuelLogs, vehicles, drivers }) {
                     </div>
                     <div className="flex gap-4 items-center">
                         <ExportButtons data={exportData} columns={exportColumns} filename="Fuel_Logs" title="Fuel Logs" />
+                        <button 
+                            onClick={() => setIsImportModalOpen(true)}
+                            className="bg-white/5 hover:bg-white/10 text-white px-4 py-2.5 rounded-full font-medium transition-colors border border-white/10 flex items-center gap-2"
+                        >
+                            <FileText className="w-5 h-5 text-emerald-400" />
+                            <span className="hidden sm:inline">Import Bulk</span>
+                        </button>
                         <button 
                             onClick={() => setIsModalOpen(true)}
                             className="bg-electric-blue hover:bg-sky-400 text-white px-6 py-2.5 rounded-full font-medium transition-colors shadow-lg shadow-electric-blue/20 flex items-center gap-2"
@@ -221,6 +230,15 @@ export default function Fuel({ fuelLogs, vehicles, drivers }) {
                     </div>
                 )}
             </AnimatePresence>
+
+            <BulkImportModal 
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                title="Import Fuel Logs"
+                importRoute="dashboard.fuel.import"
+                templateHeaders={['license_plate', 'driver_email', 'liters', 'cost', 'odometer_at_fill', 'date']}
+                templateFilename="fleetos_fuel_template.csv"
+            />
         </DashboardLayout>
     );
 }

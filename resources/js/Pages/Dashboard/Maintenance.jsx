@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Head, useForm } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
-import { Plus, X, Wrench, Calendar } from 'lucide-react';
+import BulkImportModal from '@/Components/BulkImportModal';
+import { Plus, X, Wrench, Calendar, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ExportButtons from '@/Components/ExportButtons';
 
 export default function Maintenance({ maintenances, vehicles }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const { data, setData, post, processing, errors, reset } = useForm({
         vehicle_id: '',
         service_type: '',
@@ -50,8 +52,15 @@ export default function Maintenance({ maintenances, vehicles }) {
                         <h1 className="text-3xl font-bold text-white tracking-tight">Maintenance Logs</h1>
                         <p className="text-gray-400 mt-1">Track vehicle repairs and financial costs</p>
                     </div>
-                    <div className="flex gap-4 items-center">
+                    <div className="flex items-center gap-3">
                         <ExportButtons data={exportData} columns={exportColumns} filename="Maintenance_Logs" title="Maintenance Logs" />
+                        <button 
+                            onClick={() => setIsImportModalOpen(true)}
+                            className="bg-white/5 hover:bg-white/10 text-white px-4 py-2.5 rounded-full font-medium transition-colors border border-white/10 flex items-center gap-2"
+                        >
+                            <FileText className="w-5 h-5 text-emerald-400" />
+                            <span className="hidden sm:inline">Import Bulk</span>
+                        </button>
                         <button 
                             onClick={() => setIsModalOpen(true)}
                             className="bg-electric-blue hover:bg-sky-400 text-white px-6 py-2.5 rounded-full font-medium transition-colors shadow-lg shadow-electric-blue/20 flex items-center gap-2"
@@ -196,6 +205,15 @@ export default function Maintenance({ maintenances, vehicles }) {
                     </div>
                 )}
             </AnimatePresence>
+
+            <BulkImportModal 
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                title="Import Maintenance Logs"
+                importRoute="dashboard.maintenance.import"
+                templateHeaders={['license_plate', 'service_type', 'cost', 'date']}
+                templateFilename="fleetos_maintenance_template.csv"
+            />
         </DashboardLayout>
     );
 }

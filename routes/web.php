@@ -23,6 +23,9 @@ Route::get('/dashboard/vehicles', [\App\Http\Controllers\DashboardController::cl
     ->name('dashboard.vehicles');
 Route::post('/dashboard/vehicles', [\App\Http\Controllers\DashboardController::class, 'storeVehicle'])
     ->middleware(['auth', 'verified']);
+Route::post('/dashboard/vehicles/import', [\App\Http\Controllers\DashboardController::class, 'importVehicles'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.vehicles.import');
 Route::delete('/dashboard/vehicles/{vehicle}', [\App\Http\Controllers\DashboardController::class, 'destroyVehicle'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.vehicles.destroy');
@@ -40,6 +43,9 @@ Route::get('/dashboard/maintenance', [\App\Http\Controllers\DashboardController:
 Route::post('/dashboard/maintenance', [\App\Http\Controllers\DashboardController::class, 'storeMaintenance'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.maintenance.store');
+Route::post('/dashboard/maintenance/import', [\App\Http\Controllers\DashboardController::class, 'importMaintenance'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.maintenance.import');
 
 Route::get('/dashboard/fuel', [\App\Http\Controllers\DashboardController::class, 'fuel'])
     ->middleware(['auth', 'verified'])
@@ -47,6 +53,9 @@ Route::get('/dashboard/fuel', [\App\Http\Controllers\DashboardController::class,
 Route::post('/dashboard/fuel', [\App\Http\Controllers\DashboardController::class, 'storeFuel'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.fuel.store');
+Route::post('/dashboard/fuel/import', [\App\Http\Controllers\DashboardController::class, 'importFuel'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.fuel.import');
 
 Route::get('/dashboard/compliance', [\App\Http\Controllers\DashboardController::class, 'compliance'])
     ->middleware(['auth', 'verified'])
@@ -54,12 +63,18 @@ Route::get('/dashboard/compliance', [\App\Http\Controllers\DashboardController::
 Route::post('/dashboard/compliance', [\App\Http\Controllers\DashboardController::class, 'storeCompliance'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.compliance.store');
+Route::post('/dashboard/compliance/import', [\App\Http\Controllers\DashboardController::class, 'importCompliance'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.compliance.import');
 
 Route::get('/dashboard/drivers', [\App\Http\Controllers\DashboardController::class, 'drivers'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.drivers');
 Route::post('/dashboard/drivers', [\App\Http\Controllers\DashboardController::class, 'storeDriver'])
     ->middleware(['auth', 'verified']);
+Route::post('/dashboard/drivers/import', [\App\Http\Controllers\DashboardController::class, 'importDrivers'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.drivers.import');
 Route::delete('/dashboard/drivers/{driver}', [\App\Http\Controllers\DashboardController::class, 'destroyDriver'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.drivers.destroy');
