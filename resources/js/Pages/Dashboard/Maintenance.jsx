@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Head, useForm } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
-import { Plus, X, Wrench, DollarSign, Calendar } from 'lucide-react';
+import { Plus, X, Wrench, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Maintenance({ maintenances, vehicles }) {
@@ -71,8 +71,8 @@ export default function Maintenance({ maintenances, vehicles }) {
                                             </div>
                                         </td>
                                         <td className="p-4 text-emerald-400 font-mono flex items-center gap-1">
-                                            <DollarSign className="w-4 h-4" />
-                                            {Number(log.cost).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            <span className="font-semibold text-sm">₦</span>
+                                            {Number(log.cost).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </td>
                                     </tr>
                                 ))}
@@ -140,7 +140,7 @@ export default function Maintenance({ maintenances, vehicles }) {
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-300 mb-1">Cost ($)</label>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Cost (₦)</label>
                                         <input 
                                             type="number" 
                                             step="0.01"
