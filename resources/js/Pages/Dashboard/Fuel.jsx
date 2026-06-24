@@ -50,26 +50,26 @@ export default function Fuel({ fuelLogs, vehicles, drivers }) {
         <DashboardLayout>
             <Head title="Fuel Logs - FleetOS" />
             
-            <div className="p-8 max-w-7xl mx-auto">
-                <div className="flex justify-between items-center mb-8">
+            <div className="p-4 md:p-8 max-w-7xl mx-auto">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                     <div>
-                        <h1 className="text-3xl font-bold text-white tracking-tight">Fuel Management</h1>
-                        <p className="text-gray-400 mt-1">Track fuel consumption and detect inefficiencies</p>
+                        <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">Fuel Management</h1>
+                        <p className="text-gray-400 mt-1 text-sm md:text-base">Track fuel consumption and detect inefficiencies</p>
                     </div>
-                    <div className="flex gap-4 items-center">
+                    <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
                         <ExportButtons data={exportData} columns={exportColumns} filename="Fuel_Logs" title="Fuel Logs" />
                         <button 
                             onClick={() => setIsImportModalOpen(true)}
-                            className="bg-white/5 hover:bg-white/10 text-white px-4 py-2.5 rounded-full font-medium transition-colors border border-white/10 flex items-center gap-2"
+                            className="bg-white/5 hover:bg-white/10 text-white px-3 md:px-4 py-2 md:py-2.5 rounded-full font-medium transition-colors border border-white/10 flex items-center gap-2 whitespace-nowrap"
                         >
-                            <FileText className="w-5 h-5 text-emerald-400" />
-                            <span className="hidden sm:inline">Import Bulk</span>
+                            <FileText className="w-4 h-4 md:w-5 md:h-5 text-emerald-400" />
+                            <span className="inline">Import Bulk</span>
                         </button>
                         <button 
                             onClick={() => setIsModalOpen(true)}
-                            className="bg-electric-blue hover:bg-sky-400 text-white px-6 py-2.5 rounded-full font-medium transition-colors shadow-lg shadow-electric-blue/20 flex items-center gap-2"
+                            className="bg-electric-blue hover:bg-sky-400 text-white px-4 md:px-6 py-2 md:py-2.5 rounded-full font-medium transition-colors shadow-lg shadow-electric-blue/20 flex items-center gap-2 whitespace-nowrap"
                         >
-                            <Plus className="w-5 h-5" />
+                            <Plus className="w-4 h-4 md:w-5 md:h-5" />
                             Log Fuel Receipt
                         </button>
                     </div>

@@ -75,7 +75,7 @@ export default function Welcome({ canLogin, canRegister, laravelVersion, phpVers
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2, duration: 0.8 }}
-                    className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6"
+                    className="text-4xl sm:text-5xl md:text-7xl font-extrabold tracking-tight mb-6"
                 >
                     Next-Gen <span className="text-transparent bg-clip-text bg-gradient-to-r from-electric-blue to-purple-500">Command Center</span>
                 </motion.h1>
