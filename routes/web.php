@@ -27,6 +27,20 @@ Route::delete('/dashboard/vehicles/{vehicle}', [\App\Http\Controllers\DashboardC
     ->middleware(['auth', 'verified'])
     ->name('dashboard.vehicles.destroy');
 
+Route::post('/dashboard/trips', [\App\Http\Controllers\DashboardController::class, 'storeTrip'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.trips.store');
+Route::put('/dashboard/trips/{trip}/end', [\App\Http\Controllers\DashboardController::class, 'endTrip'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.trips.end');
+
+Route::get('/dashboard/maintenance', [\App\Http\Controllers\DashboardController::class, 'maintenances'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.maintenance');
+Route::post('/dashboard/maintenance', [\App\Http\Controllers\DashboardController::class, 'storeMaintenance'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.maintenance.store');
+
 Route::get('/dashboard/drivers', [\App\Http\Controllers\DashboardController::class, 'drivers'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.drivers');

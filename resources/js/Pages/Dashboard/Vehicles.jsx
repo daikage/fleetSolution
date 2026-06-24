@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Head, useForm, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
-import { Plus, Settings, Trash2, X } from 'lucide-react';
+import { Plus, Settings, Trash2, X, Navigation } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export default function Vehicles({ vehicles }) {
+export default function Vehicles({ vehicles, drivers }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
+    const [selectedVehicle, setSelectedVehicle] = useState(null);
     const { data, setData, post, processing, errors, reset } = useForm({
         make: '',
         model: '',
@@ -15,12 +17,28 @@ export default function Vehicles({ vehicles }) {
         odometer: '',
     });
 
+    const dispatchForm = useForm({
+        vehicle_id: '',
+        driver_id: '',
+    });
+
     const submit = (e) => {
         e.preventDefault();
         post(route('dashboard.vehicles'), {
             onSuccess: () => {
                 setIsModalOpen(false);
                 reset();
+            },
+        });
+    };
+
+    const submitDispatch = (e) => {
+        e.preventDefault();
+        dispatchForm.post(route('dashboard.trips.store'), {
+            onSuccess: () => {
+                setIsDispatchModalOpen(false);
+                dispatchForm.reset();
+                setSelectedVehicle(null);
             },
         });
     };
@@ -78,6 +96,29 @@ export default function Vehicles({ vehicles }) {
                                         <td className="p-4 text-gray-300">{vehicle.odometer.toLocaleString()} mi</td>
                                         <td className="p-4 text-right">
                                             <div className="flex items-center justify-end gap-2">
+                                                {!vehicle.trips || vehicle.trips.length === 0 ? (
+                                                    <button 
+                                                        onClick={() => {
+                                                            setSelectedVehicle(vehicle);
+                                                            dispatchForm.setData('vehicle_id', vehicle.id);
+                                                            setIsDispatchModalOpen(true);
+                                                        }}
+                                                        className="p-2 text-gray-400 hover:text-emerald-400 bg-white/5 rounded-lg hover:bg-emerald-500/10 transition-colors"
+                                                        title="Start Trip"
+                                                    >
+                                                        <Navigation className="w-4 h-4" />
+                                                    </button>
+                                                ) : (
+                                                    <Link
+                                                        href={route('dashboard.trips.end', vehicle.trips[0].id)}
+                                                        method="put"
+                                                        as="button"
+                                                        className="px-3 py-1 text-xs font-bold text-white bg-rose-500/20 border border-rose-500/30 rounded-lg hover:bg-rose-500/40 transition-colors"
+                                                        title="End Trip"
+                                                    >
+                                                        End Trip
+                                                    </Link>
+                                                )}
                                                 <button className="p-2 text-gray-400 hover:text-white bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
                                                     <Settings className="w-4 h-4" />
                                                 </button>
@@ -164,6 +205,57 @@ export default function Vehicles({ vehicles }) {
                                     <button type="button" onClick={() => { setIsModalOpen(false); reset(); }} className="px-4 py-2 text-gray-400 hover:text-white transition-colors">Cancel</button>
                                     <button type="submit" disabled={processing} className="bg-electric-blue hover:bg-sky-400 text-white px-6 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-electric-blue/20 disabled:opacity-50">
                                         {processing ? 'Saving...' : 'Save Vehicle'}
+                                    </button>
+                                </div>
+                            </form>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {isDispatchModalOpen && selectedVehicle && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="glass-panel w-full max-w-md overflow-hidden flex flex-col"
+                        >
+                            <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/20">
+                                <h2 className="text-xl font-bold text-white">Start New Trip</h2>
+                                <button onClick={() => { setIsDispatchModalOpen(false); dispatchForm.reset(); }} className="p-2 rounded-full hover:bg-white/10 text-gray-400 transition-colors">
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+                            
+                            <form onSubmit={submitDispatch} className="p-6 flex flex-col gap-4">
+                                <div>
+                                    <p className="text-gray-300 text-sm mb-4">
+                                        Assigning driver to: <strong className="text-white">{selectedVehicle.make} {selectedVehicle.model} ({selectedVehicle.license_plate})</strong>
+                                    </p>
+                                    
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Select Driver</label>
+                                    <select 
+                                        value={dispatchForm.data.driver_id} 
+                                        onChange={e => dispatchForm.setData('driver_id', e.target.value)} 
+                                        className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" 
+                                        required
+                                    >
+                                        <option value="">-- Choose a Driver --</option>
+                                        {drivers.map(driver => (
+                                            <option key={driver.id} value={driver.id}>
+                                                {driver.user?.name} ({driver.license_no})
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {dispatchForm.errors.driver_id && <div className="text-rose-400 text-xs mt-1">{dispatchForm.errors.driver_id}</div>}
+                                </div>
+
+                                <div className="mt-4 flex justify-end gap-3">
+                                    <button type="button" onClick={() => { setIsDispatchModalOpen(false); dispatchForm.reset(); }} className="px-4 py-2 text-gray-400 hover:text-white transition-colors">Cancel</button>
+                                    <button type="submit" disabled={dispatchForm.processing} className="bg-emerald-500 hover:bg-emerald-400 text-white px-6 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-emerald-500/20 disabled:opacity-50">
+                                        {dispatchForm.processing ? 'Starting...' : 'Start Trip'}
                                     </button>
                                 </div>
                             </form>

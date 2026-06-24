@@ -42,9 +42,15 @@ class DashboardController extends Controller
 
     public function vehicles()
     {
-        $vehicles = Vehicle::latest()->get();
+        $vehicles = Vehicle::with(['trips' => function($query) {
+            $query->whereNull('end_time')->latest()->limit(1)->with('driver.user');
+        }])->latest()->get();
+        
+        $drivers = \App\Models\Driver::with('user')->get();
+
         return Inertia::render('Dashboard/Vehicles', [
-            'vehicles' => $vehicles
+            'vehicles' => $vehicles,
+            'drivers' => $drivers
         ]);
     }
 
@@ -118,6 +124,56 @@ class DashboardController extends Controller
             $user->delete();
         }
         
+        return back();
+    }
+
+    public function storeTrip(\Illuminate\Http\Request $request)
+    {
+        $validated = $request->validate([
+            'vehicle_id' => 'required|exists:vehicles,id',
+            'driver_id' => 'required|exists:drivers,id',
+        ]);
+
+        \App\Models\Trip::create([
+            'vehicle_id' => $validated['vehicle_id'],
+            'driver_id' => $validated['driver_id'],
+            'start_time' => now(),
+        ]);
+
+        return back();
+    }
+
+    public function endTrip(\App\Models\Trip $trip)
+    {
+        $trip->update([
+            'end_time' => now(),
+        ]);
+
+        return back();
+    }
+
+    public function maintenances()
+    {
+        $maintenances = \App\Models\Maintenance::with('vehicle')->latest()->get();
+        $vehicles = Vehicle::latest()->get();
+
+        return Inertia::render('Dashboard/Maintenance', [
+            'maintenances' => $maintenances,
+            'vehicles' => $vehicles
+        ]);
+    }
+
+    public function storeMaintenance(\Illuminate\Http\Request $request)
+    {
+        $validated = $request->validate([
+            'vehicle_id' => 'required|exists:vehicles,id',
+            'service_type' => 'required|string|max:255',
+            'cost' => 'required|numeric|min:0',
+            'date' => 'required|date',
+        ]);
+
+        \App\Models\Maintenance::create($validated);
+
         return back();
     }
 }

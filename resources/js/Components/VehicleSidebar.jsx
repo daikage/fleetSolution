@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Battery, Activity, AlertCircle, User as UserIcon } from 'lucide-react';
+import { Link } from '@inertiajs/react';
 
 export default function VehicleSidebar({ vehicle, onClose }) {
     return (
@@ -56,17 +57,29 @@ export default function VehicleSidebar({ vehicle, onClose }) {
                             <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Current Driver</h3>
                             
                             {vehicle.active_driver ? (
-                                <div className="flex items-center gap-4 bg-white/5 rounded-xl p-4 border border-white/5">
+                                <div className="flex items-center gap-4 bg-white/5 rounded-xl p-4 border border-white/5 relative">
                                     <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-electric-blue to-purple-500 flex items-center justify-center text-lg font-bold">
                                         {vehicle.active_driver.substring(0, 2).toUpperCase()}
                                     </div>
-                                    <div>
+                                    <div className="flex-1">
                                         <div className="text-white font-medium">{vehicle.active_driver}</div>
                                         <div className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
                                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></div>
                                             Active Trip
                                         </div>
                                     </div>
+                                    {vehicle.trips && vehicle.trips[0] && (
+                                        <Link
+                                            href={route('dashboard.trips.end', vehicle.trips[0].id)}
+                                            method="put"
+                                            as="button"
+                                            onClick={onClose}
+                                            className="px-3 py-1.5 text-xs font-bold text-white bg-rose-500/20 border border-rose-500/30 rounded-lg hover:bg-rose-500/40 transition-colors absolute right-4 top-1/2 -translate-y-1/2"
+                                            title="End Trip"
+                                        >
+                                            End Trip
+                                        </Link>
+                                    )}
                                 </div>
                             ) : (
                                 <div className="flex items-center gap-4 bg-white/5 rounded-xl p-4 border border-white/5 border-dashed">
