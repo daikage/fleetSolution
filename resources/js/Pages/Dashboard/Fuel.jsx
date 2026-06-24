@@ -3,6 +3,7 @@ import { Head, useForm } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import { Plus, X, Fuel as FuelIcon, Calendar, Droplet } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import ExportButtons from '@/Components/ExportButtons';
 
 export default function Fuel({ fuelLogs, vehicles, drivers }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -25,6 +26,24 @@ export default function Fuel({ fuelLogs, vehicles, drivers }) {
         });
     };
 
+    const exportColumns = [
+        { header: 'Date', key: 'date' },
+        { header: 'Vehicle', key: 'vehicle_name' },
+        { header: 'Odometer', key: 'odometer_at_fill' },
+        { header: 'Driver', key: 'driver_name' },
+        { header: 'Volume (L)', key: 'liters' },
+        { header: 'Cost (₦)', key: 'cost' }
+    ];
+
+    const exportData = fuelLogs.map(log => ({
+        date: new Date(log.date).toLocaleDateString(),
+        vehicle_name: `${log.vehicle?.make || ''} ${log.vehicle?.model || ''}`.trim() || 'Unknown',
+        odometer_at_fill: log.odometer_at_fill,
+        driver_name: log.driver?.user?.name || 'N/A',
+        liters: log.liters,
+        cost: log.cost
+    }));
+
     return (
         <DashboardLayout>
             <Head title="Fuel Logs - FleetOS" />
@@ -35,13 +54,16 @@ export default function Fuel({ fuelLogs, vehicles, drivers }) {
                         <h1 className="text-3xl font-bold text-white tracking-tight">Fuel Management</h1>
                         <p className="text-gray-400 mt-1">Track fuel consumption and detect inefficiencies</p>
                     </div>
-                    <button 
-                        onClick={() => setIsModalOpen(true)}
-                        className="bg-electric-blue hover:bg-sky-400 text-white px-6 py-2.5 rounded-full font-medium transition-colors shadow-lg shadow-electric-blue/20 flex items-center gap-2"
-                    >
-                        <Plus className="w-5 h-5" />
-                        Log Fuel Receipt
-                    </button>
+                    <div className="flex gap-4 items-center">
+                        <ExportButtons data={exportData} columns={exportColumns} filename="Fuel_Logs" title="Fuel Logs" />
+                        <button 
+                            onClick={() => setIsModalOpen(true)}
+                            className="bg-electric-blue hover:bg-sky-400 text-white px-6 py-2.5 rounded-full font-medium transition-colors shadow-lg shadow-electric-blue/20 flex items-center gap-2"
+                        >
+                            <Plus className="w-5 h-5" />
+                            Log Fuel Receipt
+                        </button>
+                    </div>
                 </div>
 
                 <div className="glass-panel overflow-hidden">

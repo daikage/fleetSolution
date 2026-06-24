@@ -3,6 +3,7 @@ import { Head, useForm, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import { Plus, User as UserIcon, X, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import ExportButtons from '@/Components/ExportButtons';
 
 export default function Drivers({ drivers }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -24,6 +25,20 @@ export default function Drivers({ drivers }) {
         });
     };
 
+    const exportColumns = [
+        { header: 'Name', key: 'name' },
+        { header: 'Email', key: 'email' },
+        { header: 'License No', key: 'license_no' },
+        { header: 'License Expiry', key: 'license_exp' }
+    ];
+
+    const exportData = drivers.map(d => ({
+        name: d.user?.name || 'Unknown',
+        email: d.user?.email || 'N/A',
+        license_no: d.license_no,
+        license_exp: new Date(d.license_exp).toLocaleDateString()
+    }));
+
     return (
         <DashboardLayout>
             <Head title="Drivers - FleetOS" />
@@ -34,13 +49,16 @@ export default function Drivers({ drivers }) {
                         <h1 className="text-3xl font-bold text-white tracking-tight">Drivers</h1>
                         <p className="text-gray-400 mt-1">Manage personnel and licenses</p>
                     </div>
-                    <button 
-                        onClick={() => setIsModalOpen(true)}
-                        className="bg-electric-blue hover:bg-sky-400 text-white px-6 py-2.5 rounded-full font-medium transition-colors shadow-lg shadow-electric-blue/20 flex items-center gap-2"
-                    >
-                        <Plus className="w-5 h-5" />
-                        Assign Driver
-                    </button>
+                    <div className="flex gap-4 items-center">
+                        <ExportButtons data={exportData} columns={exportColumns} filename="Fleet_Drivers" title="Fleet Drivers Registry" />
+                        <button 
+                            onClick={() => setIsModalOpen(true)}
+                            className="bg-electric-blue hover:bg-sky-400 text-white px-6 py-2.5 rounded-full font-medium transition-colors shadow-lg shadow-electric-blue/20 flex items-center gap-2"
+                        >
+                            <Plus className="w-5 h-5" />
+                            Assign Driver
+                        </button>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

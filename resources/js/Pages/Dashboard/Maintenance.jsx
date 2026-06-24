@@ -3,6 +3,7 @@ import { Head, useForm } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import { Plus, X, Wrench, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import ExportButtons from '@/Components/ExportButtons';
 
 export default function Maintenance({ maintenances, vehicles }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -23,6 +24,22 @@ export default function Maintenance({ maintenances, vehicles }) {
         });
     };
 
+    const exportColumns = [
+        { header: 'Date', key: 'date' },
+        { header: 'Vehicle', key: 'vehicle_name' },
+        { header: 'License Plate', key: 'license_plate' },
+        { header: 'Service Type', key: 'service_type' },
+        { header: 'Cost (₦)', key: 'cost' }
+    ];
+
+    const exportData = maintenances.map(log => ({
+        date: new Date(log.date).toLocaleDateString(),
+        vehicle_name: `${log.vehicle?.make || ''} ${log.vehicle?.model || ''}`.trim() || 'Unknown',
+        license_plate: log.vehicle?.license_plate || 'N/A',
+        service_type: log.service_type,
+        cost: log.cost
+    }));
+
     return (
         <DashboardLayout>
             <Head title="Maintenance - FleetOS" />
@@ -33,13 +50,16 @@ export default function Maintenance({ maintenances, vehicles }) {
                         <h1 className="text-3xl font-bold text-white tracking-tight">Maintenance Logs</h1>
                         <p className="text-gray-400 mt-1">Track vehicle repairs and financial costs</p>
                     </div>
-                    <button 
-                        onClick={() => setIsModalOpen(true)}
-                        className="bg-electric-blue hover:bg-sky-400 text-white px-6 py-2.5 rounded-full font-medium transition-colors shadow-lg shadow-electric-blue/20 flex items-center gap-2"
-                    >
-                        <Plus className="w-5 h-5" />
-                        Log Service
-                    </button>
+                    <div className="flex gap-4 items-center">
+                        <ExportButtons data={exportData} columns={exportColumns} filename="Maintenance_Logs" title="Maintenance Logs" />
+                        <button 
+                            onClick={() => setIsModalOpen(true)}
+                            className="bg-electric-blue hover:bg-sky-400 text-white px-6 py-2.5 rounded-full font-medium transition-colors shadow-lg shadow-electric-blue/20 flex items-center gap-2"
+                        >
+                            <Plus className="w-5 h-5" />
+                            Log Service
+                        </button>
+                    </div>
                 </div>
 
                 <div className="glass-panel overflow-hidden">

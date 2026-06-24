@@ -3,6 +3,7 @@ import { Head, useForm } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import { Plus, X, FileText, Calendar, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import ExportButtons from '@/Components/ExportButtons';
 
 export default function Compliance({ documents, vehicles, drivers }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -24,6 +25,25 @@ export default function Compliance({ documents, vehicles, drivers }) {
         });
     };
 
+    const exportColumns = [
+        { header: 'Entity', key: 'entity_name' },
+        { header: 'Type', key: 'entity_type' },
+        { header: 'Document Type', key: 'document_type' },
+        { header: 'Expiry Date', key: 'expiry_date' },
+        { header: 'Status', key: 'status' }
+    ];
+
+    const exportData = documents.map(doc => {
+        const isExpired = doc.expiry_date && new Date(doc.expiry_date) < new Date();
+        return {
+            entity_name: doc.entity_name,
+            entity_type: doc.documentable_type.includes('Vehicle') ? 'Vehicle' : 'Driver',
+            document_type: doc.document_type,
+            expiry_date: doc.expiry_date ? new Date(doc.expiry_date).toLocaleDateString() : 'N/A',
+            status: isExpired ? 'Expired' : 'Valid'
+        };
+    });
+
     return (
         <DashboardLayout>
             <Head title="Compliance & Documents - FleetOS" />
@@ -34,13 +54,16 @@ export default function Compliance({ documents, vehicles, drivers }) {
                         <h1 className="text-3xl font-bold text-white tracking-tight">Compliance Management</h1>
                         <p className="text-gray-400 mt-1">Track document expirations for drivers and vehicles</p>
                     </div>
-                    <button 
-                        onClick={() => setIsModalOpen(true)}
-                        className="bg-electric-blue hover:bg-sky-400 text-white px-6 py-2.5 rounded-full font-medium transition-colors shadow-lg shadow-electric-blue/20 flex items-center gap-2"
-                    >
-                        <Plus className="w-5 h-5" />
-                        Add Document
-                    </button>
+                    <div className="flex gap-4 items-center">
+                        <ExportButtons data={exportData} columns={exportColumns} filename="Compliance_Documents" title="Compliance Documents" />
+                        <button 
+                            onClick={() => setIsModalOpen(true)}
+                            className="bg-electric-blue hover:bg-sky-400 text-white px-6 py-2.5 rounded-full font-medium transition-colors shadow-lg shadow-electric-blue/20 flex items-center gap-2"
+                        >
+                            <Plus className="w-5 h-5" />
+                            Add Document
+                        </button>
+                    </div>
                 </div>
 
                 <div className="glass-panel overflow-hidden">
