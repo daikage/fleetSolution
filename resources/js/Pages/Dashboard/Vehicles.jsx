@@ -58,8 +58,8 @@ export default function Vehicles({ vehicles, drivers }) {
 
     return (
         <DashboardLayout>
-            <Head title="Vehicles - FleetOS" />
-            
+            <Head title="Vehicles - FKG.Fleet" />
+
             <div className="p-4 md:p-8 max-w-7xl mx-auto">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                     <div>
@@ -67,7 +67,7 @@ export default function Vehicles({ vehicles, drivers }) {
                         <p className="text-gray-400 mt-1 text-sm md:text-base">Manage your fleet registry</p>
                     </div>
                     <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
-                        <button 
+                        <button
                             onClick={() => setIsImportModalOpen(true)}
                             className="bg-white/5 hover:bg-white/10 text-white px-3 md:px-4 py-2 md:py-2.5 rounded-full font-medium transition-colors border border-white/10 flex items-center gap-2 whitespace-nowrap"
                         >
@@ -75,7 +75,7 @@ export default function Vehicles({ vehicles, drivers }) {
                             <span className="inline">Import Bulk</span>
                         </button>
                         <ExportButtons data={vehicles} columns={exportColumns} filename="Fleet_Vehicles" title="Fleet Vehicles Registry" />
-                        <button 
+                        <button
                             onClick={() => setIsModalOpen(true)}
                             className="bg-electric-blue hover:bg-sky-400 text-white px-4 md:px-6 py-2 md:py-2.5 rounded-full font-medium transition-colors shadow-lg shadow-electric-blue/20 flex items-center gap-2 whitespace-nowrap"
                         >
@@ -108,11 +108,10 @@ export default function Vehicles({ vehicles, drivers }) {
                                         <td className="p-4 text-gray-300 font-mono text-sm">{vehicle.vin}</td>
                                         <td className="p-4 text-gray-300">{vehicle.license_plate}</td>
                                         <td className="p-4">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wide ${
-                                                vehicle.status === 'active' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                                                vehicle.status === 'in_shop' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                                                'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                                            }`}>
+                                            <span className={`px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wide ${vehicle.status === 'active' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                                                    vehicle.status === 'in_shop' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                                                        'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                                                }`}>
                                                 {vehicle.status.replace('_', ' ')}
                                             </span>
                                         </td>
@@ -120,7 +119,7 @@ export default function Vehicles({ vehicles, drivers }) {
                                         <td className="p-4 text-right">
                                             <div className="flex items-center justify-end gap-2">
                                                 {!vehicle.trips || vehicle.trips.length === 0 ? (
-                                                    <button 
+                                                    <button
                                                         onClick={() => {
                                                             setSelectedVehicle(vehicle);
                                                             dispatchForm.setData('vehicle_id', vehicle.id);
@@ -145,9 +144,9 @@ export default function Vehicles({ vehicles, drivers }) {
                                                 <button className="p-2 text-gray-400 hover:text-white bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
                                                     <Settings className="w-4 h-4" />
                                                 </button>
-                                                <Link 
-                                                    href={route('dashboard.vehicles.destroy', vehicle.id)} 
-                                                    method="delete" 
+                                                <Link
+                                                    href={route('dashboard.vehicles.destroy', vehicle.id)}
+                                                    method="delete"
                                                     as="button"
                                                     className="p-2 text-gray-400 hover:text-rose-400 bg-white/5 rounded-lg hover:bg-rose-500/10 transition-colors"
                                                 >
@@ -185,7 +184,7 @@ export default function Vehicles({ vehicles, drivers }) {
                                     <X className="w-5 h-5" />
                                 </button>
                             </div>
-                            
+
                             <form onSubmit={submit} className="p-6 overflow-y-auto flex-1 flex flex-col gap-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
@@ -199,7 +198,7 @@ export default function Vehicles({ vehicles, drivers }) {
                                         {errors.model && <div className="text-rose-400 text-xs mt-1">{errors.model}</div>}
                                     </div>
                                 </div>
-                                
+
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-1">Year</label>
                                     <input type="number" value={data.year} onChange={e => setData('year', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="2024" required />
@@ -251,18 +250,18 @@ export default function Vehicles({ vehicles, drivers }) {
                                     <X className="w-5 h-5" />
                                 </button>
                             </div>
-                            
+
                             <form onSubmit={submitDispatch} className="p-6 flex flex-col gap-4">
                                 <div>
                                     <p className="text-gray-300 text-sm mb-4">
                                         Assigning driver to: <strong className="text-white">{selectedVehicle.make} {selectedVehicle.model} ({selectedVehicle.license_plate})</strong>
                                     </p>
-                                    
+
                                     <label className="block text-sm font-medium text-gray-300 mb-1">Select Driver</label>
-                                    <select 
-                                        value={dispatchForm.data.driver_id} 
-                                        onChange={e => dispatchForm.setData('driver_id', e.target.value)} 
-                                        className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" 
+                                    <select
+                                        value={dispatchForm.data.driver_id}
+                                        onChange={e => dispatchForm.setData('driver_id', e.target.value)}
+                                        className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none"
                                         required
                                     >
                                         <option value="">-- Choose a Driver --</option>
@@ -287,13 +286,13 @@ export default function Vehicles({ vehicles, drivers }) {
                 )}
             </AnimatePresence>
 
-            <BulkImportModal 
+            <BulkImportModal
                 isOpen={isImportModalOpen}
                 onClose={() => setIsImportModalOpen(false)}
                 title="Import Vehicles"
                 importRoute="dashboard.vehicles.import"
                 templateHeaders={['make', 'model', 'year', 'vin', 'license_plate', 'odometer']}
-                templateFilename="fleetos_vehicles_template.csv"
+                templateFilename="FKG.Fleet_vehicles_template.csv"
             />
         </DashboardLayout>
     );

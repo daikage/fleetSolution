@@ -12,12 +12,12 @@ export default function DashboardLayout({ children }) {
 
     return (
         <div className="h-screen w-full bg-gray-900 text-white flex overflow-hidden">
-            
+
             {/* Mobile Header (Visible only on small screens) */}
             <div className="md:hidden absolute top-0 left-0 w-full h-16 bg-gray-900/80 backdrop-blur-md z-40 border-b border-white/10 flex items-center justify-between px-4">
                 <Link href={route('dashboard')} className="text-electric-blue font-bold text-xl flex items-center gap-2">
                     <MapIcon className="w-6 h-6" />
-                    FleetOS
+                    FKG.Fleet
                 </Link>
                 <button onClick={toggleMenu} className="p-2 text-white hover:bg-white/10 rounded-lg transition-colors">
                     <Menu className="w-6 h-6" />
@@ -27,14 +27,14 @@ export default function DashboardLayout({ children }) {
             {/* Mobile Drawer Overlay */}
             <AnimatePresence>
                 {isMobileMenuOpen && (
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         className="md:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
                         onClick={closeMenu}
                     >
-                        <motion.div 
+                        <motion.div
                             initial={{ x: '-100%' }}
                             animate={{ x: 0 }}
                             exit={{ x: '-100%' }}
@@ -45,13 +45,13 @@ export default function DashboardLayout({ children }) {
                             <div className="p-4 flex flex-col gap-6 overflow-y-auto">
                                 <div className="flex justify-between items-center mt-2">
                                     <Link href={route('dashboard')} onClick={closeMenu} className="text-electric-blue font-bold text-2xl flex items-center gap-2">
-                                        FleetOS
+                                        FKG.Fleet
                                     </Link>
                                     <button onClick={closeMenu} className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/10">
                                         <X className="w-6 h-6" />
                                     </button>
                                 </div>
-                                
+
                                 <ul className="flex flex-col gap-2 w-full mt-4">
                                     <NavItem href={route('dashboard')} icon={<MapIcon />} label="Live Map" active={url === '/dashboard'} onClick={closeMenu} isMobile />
                                     <NavItem href={route('dashboard.vehicles')} icon={<Car />} label="Vehicles" active={url.startsWith('/dashboard/vehicles')} onClick={closeMenu} isMobile />
@@ -62,7 +62,7 @@ export default function DashboardLayout({ children }) {
                                     <NavItem href={route('profile.edit')} icon={<Settings />} label="Settings" active={url.startsWith('/profile')} onClick={closeMenu} isMobile />
                                 </ul>
                             </div>
-                            
+
                             <div className="p-4 border-t border-white/10">
                                 <Link href={route('logout')} method="post" as="button" className="flex items-center gap-4 text-gray-400 hover:text-white transition-colors w-full text-left p-2 rounded-xl hover:bg-white/5">
                                     <LogOut className="w-6 h-6" />
@@ -78,10 +78,10 @@ export default function DashboardLayout({ children }) {
             <nav className="w-20 lg:w-64 z-40 glass-panel m-4 flex flex-col justify-between hidden md:flex">
                 <div className="p-4 flex flex-col items-center lg:items-start gap-8">
                     <Link href={route('dashboard')} className="text-electric-blue font-bold text-xl lg:text-2xl mt-4 flex items-center gap-2">
-                        <span className="hidden lg:inline">FleetOS</span>
+                        <span className="hidden lg:inline">FKG.Fleet</span>
                         <MapIcon className="lg:hidden w-8 h-8" />
                     </Link>
-                    
+
                     <ul className="flex flex-col gap-6 w-full mt-8">
                         <NavItem href={route('dashboard')} icon={<MapIcon />} label="Live Map" active={url === '/dashboard'} />
                         <NavItem href={route('dashboard.vehicles')} icon={<Car />} label="Vehicles" active={url.startsWith('/dashboard/vehicles')} />
@@ -92,7 +92,7 @@ export default function DashboardLayout({ children }) {
                         <NavItem href={route('profile.edit')} icon={<Settings />} label="Settings" active={url.startsWith('/profile')} />
                     </ul>
                 </div>
-                
+
                 <div className="p-4 flex justify-center lg:justify-start">
                     <Link href={route('logout')} method="post" as="button" className="flex items-center gap-4 text-gray-400 hover:text-white transition-colors w-full text-left p-2 lg:px-4 rounded-xl hover:bg-white/5">
                         <LogOut className="w-6 h-6" />

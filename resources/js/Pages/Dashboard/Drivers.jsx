@@ -43,8 +43,8 @@ export default function Drivers({ drivers }) {
 
     return (
         <DashboardLayout>
-            <Head title="Drivers - FleetOS" />
-            
+            <Head title="Drivers - FKG.Fleet" />
+
             <div className="p-4 md:p-8 max-w-7xl mx-auto">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                     <div>
@@ -53,14 +53,14 @@ export default function Drivers({ drivers }) {
                     </div>
                     <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
                         <ExportButtons data={exportData} columns={exportColumns} filename="Fleet_Drivers" title="Fleet Drivers Registry" />
-                        <button 
+                        <button
                             onClick={() => setIsImportModalOpen(true)}
                             className="bg-white/5 hover:bg-white/10 text-white px-3 md:px-4 py-2 md:py-2.5 rounded-full font-medium transition-colors border border-white/10 flex items-center gap-2 whitespace-nowrap"
                         >
                             <FileText className="w-4 h-4 md:w-5 md:h-5 text-emerald-400" />
                             <span className="inline">Import Bulk</span>
                         </button>
-                        <button 
+                        <button
                             onClick={() => setIsModalOpen(true)}
                             className="bg-electric-blue hover:bg-sky-400 text-white px-4 md:px-6 py-2 md:py-2.5 rounded-full font-medium transition-colors shadow-lg shadow-electric-blue/20 flex items-center gap-2 whitespace-nowrap"
                         >
@@ -73,15 +73,15 @@ export default function Drivers({ drivers }) {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {drivers.map((driver) => (
                         <div key={driver.id} className="glass-panel p-6 flex flex-col items-center text-center relative group">
-                            <Link 
-                                href={route('dashboard.drivers.destroy', driver.id)} 
-                                method="delete" 
+                            <Link
+                                href={route('dashboard.drivers.destroy', driver.id)}
+                                method="delete"
                                 as="button"
                                 className="absolute top-4 right-4 p-2 text-gray-400 hover:text-rose-400 bg-white/5 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-500/10"
                             >
                                 <Trash2 className="w-4 h-4" />
                             </Link>
-                            
+
                             <div className="w-20 h-20 bg-gradient-to-tr from-electric-blue to-purple-600 rounded-full flex items-center justify-center shadow-lg mb-4 border-2 border-white/10">
                                 <span className="text-2xl font-bold text-white">
                                     {driver.user?.name?.substring(0, 2).toUpperCase() || 'NA'}
@@ -89,9 +89,9 @@ export default function Drivers({ drivers }) {
                             </div>
                             <h3 className="text-xl font-bold text-white">{driver.user?.name || 'Unknown'}</h3>
                             <p className="text-sm text-gray-400 mt-1">{driver.user?.email}</p>
-                            
+
                             <div className="w-full h-px bg-white/10 my-4"></div>
-                            
+
                             <div className="w-full flex justify-between text-sm">
                                 <span className="text-gray-400">License No</span>
                                 <span className="text-white font-mono">{driver.license_no}</span>
@@ -128,16 +128,16 @@ export default function Drivers({ drivers }) {
                                     <X className="w-5 h-5" />
                                 </button>
                             </div>
-                            
+
                             <form onSubmit={submit} className="p-6 overflow-y-auto flex-1 flex flex-col gap-4">
                                 <p className="text-sm text-gray-400 mb-2">This will create a new user account that the driver can use to log into the driver app.</p>
-                                
+
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-1">Full Name</label>
                                     <input type="text" value={data.name} onChange={e => setData('name', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="Jane Doe" required />
                                     {errors.name && <div className="text-rose-400 text-xs mt-1">{errors.name}</div>}
                                 </div>
-                                
+
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-1">Email Address</label>
                                     <input type="email" value={data.email} onChange={e => setData('email', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="jane@fleet.com" required />
@@ -175,13 +175,13 @@ export default function Drivers({ drivers }) {
                 )}
             </AnimatePresence>
 
-            <BulkImportModal 
+            <BulkImportModal
                 isOpen={isImportModalOpen}
                 onClose={() => setIsImportModalOpen(false)}
                 title="Import Drivers"
                 importRoute="dashboard.drivers.import"
                 templateHeaders={['name', 'email', 'password', 'license_no', 'license_exp']}
-                templateFilename="fleetos_drivers_template.csv"
+                templateFilename="FKG.Fleet_drivers_template.csv"
             />
         </DashboardLayout>
     );

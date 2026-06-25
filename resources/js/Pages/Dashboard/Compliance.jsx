@@ -48,8 +48,8 @@ export default function Compliance({ documents, vehicles, drivers }) {
 
     return (
         <DashboardLayout>
-            <Head title="Compliance & Documents - FleetOS" />
-            
+            <Head title="Compliance & Documents - FKG.Fleet" />
+
             <div className="p-4 md:p-8 max-w-7xl mx-auto">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                     <div>
@@ -58,14 +58,14 @@ export default function Compliance({ documents, vehicles, drivers }) {
                     </div>
                     <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
                         <ExportButtons data={exportData} columns={exportColumns} filename="Compliance_Documents" title="Compliance Documents" />
-                        <button 
+                        <button
                             onClick={() => setIsImportModalOpen(true)}
                             className="bg-white/5 hover:bg-white/10 text-white px-3 md:px-4 py-2 md:py-2.5 rounded-full font-medium transition-colors border border-white/10 flex items-center gap-2 whitespace-nowrap"
                         >
                             <FileText className="w-4 h-4 md:w-5 md:h-5 text-emerald-400" />
                             <span className="inline">Import Bulk</span>
                         </button>
-                        <button 
+                        <button
                             onClick={() => setIsModalOpen(true)}
                             className="bg-electric-blue hover:bg-sky-400 text-white px-4 md:px-6 py-2 md:py-2.5 rounded-full font-medium transition-colors shadow-lg shadow-electric-blue/20 flex items-center gap-2 whitespace-nowrap"
                         >
@@ -146,15 +146,15 @@ export default function Compliance({ documents, vehicles, drivers }) {
                                     <X className="w-5 h-5" />
                                 </button>
                             </div>
-                            
+
                             <form onSubmit={submit} className="p-6 flex flex-col gap-4">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-300 mb-1">Entity Type</label>
-                                        <select 
-                                            value={data.documentable_type} 
-                                            onChange={e => setData('documentable_type', e.target.value)} 
-                                            className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue outline-none" 
+                                        <select
+                                            value={data.documentable_type}
+                                            onChange={e => setData('documentable_type', e.target.value)}
+                                            className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue outline-none"
                                             required
                                         >
                                             <option value="vehicle">Vehicle</option>
@@ -163,14 +163,14 @@ export default function Compliance({ documents, vehicles, drivers }) {
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-300 mb-1">Select {data.documentable_type === 'vehicle' ? 'Vehicle' : 'Driver'}</label>
-                                        <select 
-                                            value={data.documentable_id} 
-                                            onChange={e => setData('documentable_id', e.target.value)} 
-                                            className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue outline-none" 
+                                        <select
+                                            value={data.documentable_id}
+                                            onChange={e => setData('documentable_id', e.target.value)}
+                                            className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue outline-none"
                                             required
                                         >
                                             <option value="">-- Choose --</option>
-                                            {data.documentable_type === 'vehicle' 
+                                            {data.documentable_type === 'vehicle'
                                                 ? vehicles.map(v => <option key={v.id} value={v.id}>{v.license_plate}</option>)
                                                 : drivers.map(d => <option key={d.id} value={d.id}>{d.user?.name}</option>)
                                             }
@@ -180,23 +180,23 @@ export default function Compliance({ documents, vehicles, drivers }) {
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-1">Document Type</label>
-                                    <input 
-                                        type="text" 
-                                        value={data.document_type} 
-                                        onChange={e => setData('document_type', e.target.value)} 
-                                        className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue outline-none" 
-                                        placeholder="e.g. Driver's License, Insurance" 
-                                        required 
+                                    <input
+                                        type="text"
+                                        value={data.document_type}
+                                        onChange={e => setData('document_type', e.target.value)}
+                                        className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue outline-none"
+                                        placeholder="e.g. Driver's License, Insurance"
+                                        required
                                     />
                                 </div>
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-1">Expiry Date</label>
-                                    <input 
-                                        type="date" 
-                                        value={data.expiry_date} 
-                                        onChange={e => setData('expiry_date', e.target.value)} 
-                                        className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue outline-none [color-scheme:dark]" 
+                                    <input
+                                        type="date"
+                                        value={data.expiry_date}
+                                        onChange={e => setData('expiry_date', e.target.value)}
+                                        className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue outline-none [color-scheme:dark]"
                                     />
                                 </div>
 
@@ -212,13 +212,13 @@ export default function Compliance({ documents, vehicles, drivers }) {
                 )}
             </AnimatePresence>
 
-            <BulkImportModal 
+            <BulkImportModal
                 isOpen={isImportModalOpen}
                 onClose={() => setIsImportModalOpen(false)}
                 title="Import Compliance Documents"
                 importRoute="dashboard.compliance.import"
                 templateHeaders={['entity_type', 'entity_identifier', 'document_type', 'expiry_date']}
-                templateFilename="fleetos_compliance_template.csv"
+                templateFilename="FKG.Fleet_compliance_template.csv"
             />
         </DashboardLayout>
     );

@@ -44,8 +44,8 @@ export default function Maintenance({ maintenances, vehicles }) {
 
     return (
         <DashboardLayout>
-            <Head title="Maintenance - FleetOS" />
-            
+            <Head title="Maintenance - FKG.Fleet" />
+
             <div className="p-4 md:p-8 max-w-7xl mx-auto">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                     <div>
@@ -54,14 +54,14 @@ export default function Maintenance({ maintenances, vehicles }) {
                     </div>
                     <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
                         <ExportButtons data={exportData} columns={exportColumns} filename="Maintenance_Logs" title="Maintenance Logs" />
-                        <button 
+                        <button
                             onClick={() => setIsImportModalOpen(true)}
                             className="bg-white/5 hover:bg-white/10 text-white px-3 md:px-4 py-2 md:py-2.5 rounded-full font-medium transition-colors border border-white/10 flex items-center gap-2 whitespace-nowrap"
                         >
                             <FileText className="w-4 h-4 md:w-5 md:h-5 text-emerald-400" />
                             <span className="inline">Import Bulk</span>
                         </button>
-                        <button 
+                        <button
                             onClick={() => setIsModalOpen(true)}
                             className="bg-electric-blue hover:bg-sky-400 text-white px-4 md:px-6 py-2 md:py-2.5 rounded-full font-medium transition-colors shadow-lg shadow-electric-blue/20 flex items-center gap-2 whitespace-nowrap"
                         >
@@ -134,14 +134,14 @@ export default function Maintenance({ maintenances, vehicles }) {
                                     <X className="w-5 h-5" />
                                 </button>
                             </div>
-                            
+
                             <form onSubmit={submit} className="p-6 flex flex-col gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-1">Select Vehicle</label>
-                                    <select 
-                                        value={data.vehicle_id} 
-                                        onChange={e => setData('vehicle_id', e.target.value)} 
-                                        className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" 
+                                    <select
+                                        value={data.vehicle_id}
+                                        onChange={e => setData('vehicle_id', e.target.value)}
+                                        className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none"
                                         required
                                     >
                                         <option value="">-- Choose a Vehicle --</option>
@@ -156,13 +156,13 @@ export default function Maintenance({ maintenances, vehicles }) {
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-1">Service Type</label>
-                                    <input 
-                                        type="text" 
-                                        value={data.service_type} 
-                                        onChange={e => setData('service_type', e.target.value)} 
-                                        className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" 
-                                        placeholder="e.g. Oil Change, Tire Rotation" 
-                                        required 
+                                    <input
+                                        type="text"
+                                        value={data.service_type}
+                                        onChange={e => setData('service_type', e.target.value)}
+                                        className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none"
+                                        placeholder="e.g. Oil Change, Tire Rotation"
+                                        required
                                     />
                                     {errors.service_type && <div className="text-rose-400 text-xs mt-1">{errors.service_type}</div>}
                                 </div>
@@ -170,25 +170,25 @@ export default function Maintenance({ maintenances, vehicles }) {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-300 mb-1">Cost (₦)</label>
-                                        <input 
-                                            type="number" 
+                                        <input
+                                            type="number"
                                             step="0.01"
-                                            value={data.cost} 
-                                            onChange={e => setData('cost', e.target.value)} 
-                                            className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" 
-                                            placeholder="150.00" 
-                                            required 
+                                            value={data.cost}
+                                            onChange={e => setData('cost', e.target.value)}
+                                            className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none"
+                                            placeholder="150.00"
+                                            required
                                         />
                                         {errors.cost && <div className="text-rose-400 text-xs mt-1">{errors.cost}</div>}
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-300 mb-1">Date</label>
-                                        <input 
-                                            type="date" 
-                                            value={data.date} 
-                                            onChange={e => setData('date', e.target.value)} 
-                                            className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none [color-scheme:dark]" 
-                                            required 
+                                        <input
+                                            type="date"
+                                            value={data.date}
+                                            onChange={e => setData('date', e.target.value)}
+                                            className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none [color-scheme:dark]"
+                                            required
                                         />
                                         {errors.date && <div className="text-rose-400 text-xs mt-1">{errors.date}</div>}
                                     </div>
@@ -206,13 +206,13 @@ export default function Maintenance({ maintenances, vehicles }) {
                 )}
             </AnimatePresence>
 
-            <BulkImportModal 
+            <BulkImportModal
                 isOpen={isImportModalOpen}
                 onClose={() => setIsImportModalOpen(false)}
                 title="Import Maintenance Logs"
                 importRoute="dashboard.maintenance.import"
                 templateHeaders={['license_plate', 'service_type', 'cost', 'date']}
-                templateFilename="fleetos_maintenance_template.csv"
+                templateFilename="FKG.Fleet_maintenance_template.csv"
             />
         </DashboardLayout>
     );
