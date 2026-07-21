@@ -26,9 +26,9 @@ class ReviewersSeeder extends Seeder
 
         // Admin (Yusuf) — can accept/decline requests ₦20,000 and below
         User::updateOrCreate(
-            ['email' => 'yusuf@fkgfleet.local'],
+            ['email' => 'admin@fkgfleet.local'],
             [
-                'name' => 'Yusuf',
+                'name' => 'Admin',
                 'password' => Hash::make('password'),
                 'role' => 'admin',
             ]
@@ -36,9 +36,9 @@ class ReviewersSeeder extends Seeder
 
         // Super Admin (Sheriff) — can accept/decline requests above ₦20,000
         User::updateOrCreate(
-            ['email' => 'sheriff@fkgfleet.local'],
+            ['email' => 'superadmin@fkgfleet.local'],
             [
-                'name' => 'Sheriff',
+                'name' => 'Super Admin',
                 'password' => Hash::make('password'),
                 'role' => 'super_admin',
             ]
