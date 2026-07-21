@@ -8,6 +8,7 @@ export default function DashboardLayout({ children }) {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     
     const unreadCount = props.auth?.unreadNotificationsCount || 0;
+    const userRole = props.auth?.user?.role || '';
 
     const toggleMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
     const closeMenu = () => setIsMobileMenuOpen(false);
@@ -55,12 +56,12 @@ export default function DashboardLayout({ children }) {
                                 </div>
 
                                 <ul className="flex flex-col gap-2 w-full mt-4">
-                                    <NavItem href={route('dashboard')} icon={<MapIcon />} label="Live Map" active={url === '/dashboard'} onClick={closeMenu} isMobile />
-                                    <NavItem href={route('dashboard.vehicles')} icon={<Car />} label="Vehicles" active={url.startsWith('/dashboard/vehicles')} onClick={closeMenu} isMobile />
-                                    <NavItem href={route('dashboard.drivers')} icon={<Users />} label="Drivers" active={url.startsWith('/dashboard/drivers')} onClick={closeMenu} isMobile />
+                                    {userRole !== 'driver' && <NavItem href={route('dashboard')} icon={<MapIcon />} label="Live Map" active={url === '/dashboard'} onClick={closeMenu} isMobile />}
+                                    {userRole !== 'driver' && <NavItem href={route('dashboard.vehicles')} icon={<Car />} label="Vehicles" active={url.startsWith('/dashboard/vehicles')} onClick={closeMenu} isMobile />}
+                                    {userRole !== 'driver' && <NavItem href={route('dashboard.drivers')} icon={<Users />} label="Drivers" active={url.startsWith('/dashboard/drivers')} onClick={closeMenu} isMobile />}
                                     <NavItem href={route('dashboard.maintenance')} icon={<Wrench />} label="Maintenance" active={url.startsWith('/dashboard/maintenance')} onClick={closeMenu} isMobile />
                                     <NavItem href={route('dashboard.fuel')} icon={<Fuel />} label="Fuel" active={url.startsWith('/dashboard/fuel')} onClick={closeMenu} isMobile />
-                                    <NavItem href={route('dashboard.compliance')} icon={<FileText />} label="Compliance" active={url.startsWith('/dashboard/compliance')} onClick={closeMenu} isMobile />
+                                    {userRole !== 'driver' && <NavItem href={route('dashboard.compliance')} icon={<FileText />} label="Compliance" active={url.startsWith('/dashboard/compliance')} onClick={closeMenu} isMobile />}
                                     <NavItem href={route('dashboard.notifications')} icon={<Bell />} label="Notifications" active={url.startsWith('/dashboard/notifications')} onClick={closeMenu} isMobile badge={unreadCount} />
                                     <NavItem href={route('profile.edit')} icon={<Settings />} label="Settings" active={url.startsWith('/profile')} onClick={closeMenu} isMobile />
                                 </ul>
@@ -86,12 +87,12 @@ export default function DashboardLayout({ children }) {
                     </Link>
 
                     <ul className="flex flex-col gap-6 w-full mt-8">
-                        <NavItem href={route('dashboard')} icon={<MapIcon />} label="Live Map" active={url === '/dashboard'} />
-                        <NavItem href={route('dashboard.vehicles')} icon={<Car />} label="Vehicles" active={url.startsWith('/dashboard/vehicles')} />
-                        <NavItem href={route('dashboard.drivers')} icon={<Users />} label="Drivers" active={url.startsWith('/dashboard/drivers')} />
+                        {userRole !== 'driver' && <NavItem href={route('dashboard')} icon={<MapIcon />} label="Live Map" active={url === '/dashboard'} />}
+                        {userRole !== 'driver' && <NavItem href={route('dashboard.vehicles')} icon={<Car />} label="Vehicles" active={url.startsWith('/dashboard/vehicles')} />}
+                        {userRole !== 'driver' && <NavItem href={route('dashboard.drivers')} icon={<Users />} label="Drivers" active={url.startsWith('/dashboard/drivers')} />}
                         <NavItem href={route('dashboard.maintenance')} icon={<Wrench />} label="Maintenance" active={url.startsWith('/dashboard/maintenance')} />
                         <NavItem href={route('dashboard.fuel')} icon={<Fuel />} label="Fuel" active={url.startsWith('/dashboard/fuel')} />
-                        <NavItem href={route('dashboard.compliance')} icon={<FileText />} label="Compliance" active={url.startsWith('/dashboard/compliance')} />
+                        {userRole !== 'driver' && <NavItem href={route('dashboard.compliance')} icon={<FileText />} label="Compliance" active={url.startsWith('/dashboard/compliance')} />}
                         <NavItem href={route('dashboard.notifications')} icon={<Bell />} label="Notifications" active={url.startsWith('/dashboard/notifications')} badge={unreadCount} />
                         <NavItem href={route('profile.edit')} icon={<Settings />} label="Settings" active={url.startsWith('/profile')} />
                     </ul>

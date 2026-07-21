@@ -12,6 +12,10 @@ class DashboardController extends Controller
 {
     public function index()
     {
+        if (auth()->user()->role === 'driver') {
+            return redirect()->route('dashboard.maintenance');
+        }
+
         // Get all vehicles with their latest location and active trip driver
         $vehicles = Vehicle::with([
             'latestLocation',
@@ -62,6 +66,10 @@ class DashboardController extends Controller
 
     public function vehicles()
     {
+        if (auth()->user()->role === 'driver') {
+            abort(403, 'Unauthorized access.');
+        }
+
         $vehicles = Vehicle::with(['currentTrip.driver.user', 'documents'])->latest()->get();
         
         $drivers = \App\Models\Driver::with('user')->get();
@@ -132,6 +140,10 @@ class DashboardController extends Controller
 
     public function drivers()
     {
+        if (auth()->user()->role === 'driver') {
+            abort(403, 'Unauthorized access.');
+        }
+
         $drivers = \App\Models\Driver::with('user')->latest()->get();
         return Inertia::render('Dashboard/Drivers', [
             'drivers' => $drivers
@@ -548,6 +560,10 @@ class DashboardController extends Controller
 
     public function compliance()
     {
+        if (auth()->user()->role === 'driver') {
+            abort(403, 'Unauthorized access.');
+        }
+
         $documents = \App\Models\Document::with('documentable')->latest()->get();
         $vehicles = Vehicle::latest()->get();
         $drivers = \App\Models\Driver::with('user')->get();
@@ -598,6 +614,10 @@ class DashboardController extends Controller
     
     public function reports()
     {
+        if (auth()->user()->role === 'driver') {
+            abort(403, 'Unauthorized access.');
+        }
+
         // Simple aggregate data for reports. 
         // We could filter by a date range, but we'll return overall summaries and let the frontend do lightweight filtering or we can accept 'start' and 'end' dates.
         $start = request('start') ? \Carbon\Carbon::parse(request('start')) : now()->startOfMonth();
