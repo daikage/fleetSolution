@@ -34,29 +34,11 @@ class ReviewersSeeder extends Seeder
             ]
         );
 
-        User::updateOrCreate(
-            ['email' => 'admin@fkgfleet.local'],
-            [
-                'name' => 'Admin',
-                'password' => Hash::make('password'),
-                'role' => 'admin',
-            ]
-        );
-
         // Super Admin (Sheriff) — can accept/decline requests above ₦20,000
         User::updateOrCreate(
             ['email' => 'sheriff@fkgfleet.local'],
             [
                 'name' => 'Sheriff',
-                'password' => Hash::make('password'),
-                'role' => 'super_admin',
-            ]
-        );
-
-        User::updateOrCreate(
-            ['email' => 'superadmin@fkgfleet.local'],
-            [
-                'name' => 'Super Admin',
                 'password' => Hash::make('password'),
                 'role' => 'super_admin',
             ]
