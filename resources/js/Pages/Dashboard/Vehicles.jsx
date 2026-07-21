@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Head, useForm, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import BulkImportModal from '@/Components/BulkImportModal';
-import { Plus, Settings, Trash2, X, Navigation, FileText } from 'lucide-react';
+import { Plus, Settings, Trash2, X, Navigation, FileText, File as FileIcon, ChevronDown, ChevronUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ExportButtons from '@/Components/ExportButtons';
 
@@ -11,6 +11,8 @@ export default function Vehicles({ vehicles, drivers }) {
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
     const [selectedVehicle, setSelectedVehicle] = useState(null);
+    const [expandedVehicleId, setExpandedVehicleId] = useState(null);
+
     const { data, setData, post, processing, errors, reset } = useForm({
         make: '',
         model: '',
@@ -18,6 +20,8 @@ export default function Vehicles({ vehicles, drivers }) {
         vin: '',
         license_plate: '',
         odometer: '',
+        vendor: '',
+        location: '',
     });
 
     const dispatchForm = useForm({
@@ -46,7 +50,15 @@ export default function Vehicles({ vehicles, drivers }) {
         });
     };
 
+    // Group vehicles by vendor for optional display logic, but a sorted list is better.
+    const sortedVehicles = [...vehicles].sort((a, b) => {
+        const vendorA = a.vendor || 'Z_No_Vendor';
+        const vendorB = b.vendor || 'Z_No_Vendor';
+        return vendorA.localeCompare(vendorB);
+    });
+
     const exportColumns = [
+        { header: 'Vendor', key: 'vendor' },
         { header: 'Make', key: 'make' },
         { header: 'Model', key: 'model' },
         { header: 'Year', key: 'year' },
@@ -56,6 +68,15 @@ export default function Vehicles({ vehicles, drivers }) {
         { header: 'Status', key: 'status' }
     ];
 
+    const exportData = sortedVehicles.map(v => ({
+        ...v,
+        vendor: v.vendor || 'N/A'
+    }));
+
+    const toggleExpand = (id) => {
+        setExpandedVehicleId(expandedVehicleId === id ? null : id);
+    };
+
     return (
         <DashboardLayout>
             <Head title="Vehicles - FKG.Fleet" />
@@ -64,7 +85,7 @@ export default function Vehicles({ vehicles, drivers }) {
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                     <div>
                         <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">Vehicles</h1>
-                        <p className="text-gray-400 mt-1 text-sm md:text-base">Manage your fleet registry</p>
+                        <p className="text-gray-400 mt-1 text-sm md:text-base">Manage your fleet registry and vendors</p>
                     </div>
                     <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
                         <button
@@ -74,7 +95,7 @@ export default function Vehicles({ vehicles, drivers }) {
                             <FileText className="w-4 h-4 md:w-5 md:h-5 text-emerald-400" />
                             <span className="inline">Import Bulk</span>
                         </button>
-                        <ExportButtons data={vehicles} columns={exportColumns} filename="Fleet_Vehicles" title="Fleet Vehicles Registry" />
+                        <ExportButtons data={exportData} columns={exportColumns} filename="Fleet_Vehicles" title="Fleet Vehicles Registry" />
                         <button
                             onClick={() => setIsModalOpen(true)}
                             className="bg-electric-blue hover:bg-sky-400 text-white px-4 md:px-6 py-2 md:py-2.5 rounded-full font-medium transition-colors shadow-lg shadow-electric-blue/20 flex items-center gap-2 whitespace-nowrap"
@@ -90,8 +111,9 @@ export default function Vehicles({ vehicles, drivers }) {
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="border-b border-white/10 bg-black/20">
+                                    <th className="p-4 text-sm font-semibold text-gray-300 w-10"></th>
+                                    <th className="p-4 text-sm font-semibold text-gray-300">Vendor</th>
                                     <th className="p-4 text-sm font-semibold text-gray-300">Vehicle</th>
-                                    <th className="p-4 text-sm font-semibold text-gray-300">VIN</th>
                                     <th className="p-4 text-sm font-semibold text-gray-300">License Plate</th>
                                     <th className="p-4 text-sm font-semibold text-gray-300">Status</th>
                                     <th className="p-4 text-sm font-semibold text-gray-300">Odometer</th>
@@ -99,66 +121,117 @@ export default function Vehicles({ vehicles, drivers }) {
                                 </tr>
                             </thead>
                             <tbody>
-                                {vehicles.map((vehicle) => (
-                                    <tr key={vehicle.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                                        <td className="p-4">
-                                            <div className="font-medium text-white">{vehicle.make} {vehicle.model}</div>
-                                            <div className="text-sm text-gray-400">{vehicle.year}</div>
-                                        </td>
-                                        <td className="p-4 text-gray-300 font-mono text-sm">{vehicle.vin}</td>
-                                        <td className="p-4 text-gray-300">{vehicle.license_plate}</td>
-                                        <td className="p-4">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wide ${vehicle.status === 'active' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                                                    vehicle.status === 'in_shop' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                                                        'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                                                }`}>
-                                                {vehicle.status.replace('_', ' ')}
-                                            </span>
-                                        </td>
-                                        <td className="p-4 text-gray-300">{vehicle.odometer.toLocaleString()} mi</td>
-                                        <td className="p-4 text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                {!vehicle.trips || vehicle.trips.length === 0 ? (
-                                                    <button
-                                                        onClick={() => {
-                                                            setSelectedVehicle(vehicle);
-                                                            dispatchForm.setData('vehicle_id', vehicle.id);
-                                                            setIsDispatchModalOpen(true);
-                                                        }}
-                                                        className="p-2 text-gray-400 hover:text-emerald-400 bg-white/5 rounded-lg hover:bg-emerald-500/10 transition-colors"
-                                                        title="Start Trip"
-                                                    >
-                                                        <Navigation className="w-4 h-4" />
+                                {sortedVehicles.map((vehicle, index) => {
+                                    const isExpanded = expandedVehicleId === vehicle.id;
+                                    const showVendorGroupHeader = index === 0 || sortedVehicles[index - 1].vendor !== vehicle.vendor;
+                                    
+                                    return (
+                                        <React.Fragment key={vehicle.id}>
+                                            {showVendorGroupHeader && (
+                                                <tr className="bg-white/5 border-b border-white/10">
+                                                    <td colSpan="7" className="p-2 px-4 text-xs font-semibold text-electric-blue uppercase tracking-wider">
+                                                        {vehicle.vendor || 'No Vendor'}
+                                                    </td>
+                                                </tr>
+                                            )}
+                                            <tr className={`border-b border-white/5 hover:bg-white/5 transition-colors ${isExpanded ? 'bg-white/5' : ''}`}>
+                                                <td className="p-4 text-center">
+                                                    <button onClick={() => toggleExpand(vehicle.id)} className="text-gray-400 hover:text-white transition-colors">
+                                                        {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                                                     </button>
-                                                ) : (
-                                                    <Link
-                                                        href={route('dashboard.trips.end', vehicle.trips[0].id)}
-                                                        method="put"
-                                                        as="button"
-                                                        className="px-3 py-1 text-xs font-bold text-white bg-rose-500/20 border border-rose-500/30 rounded-lg hover:bg-rose-500/40 transition-colors"
-                                                        title="End Trip"
-                                                    >
-                                                        End Trip
-                                                    </Link>
-                                                )}
-                                                <button className="p-2 text-gray-400 hover:text-white bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
-                                                    <Settings className="w-4 h-4" />
-                                                </button>
-                                                <Link
-                                                    href={route('dashboard.vehicles.destroy', vehicle.id)}
-                                                    method="delete"
-                                                    as="button"
-                                                    className="p-2 text-gray-400 hover:text-rose-400 bg-white/5 rounded-lg hover:bg-rose-500/10 transition-colors"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </Link>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                                {vehicles.length === 0 && (
+                                                </td>
+                                                <td className="p-4 text-gray-300 text-sm font-medium">{vehicle.vendor || 'N/A'}</td>
+                                                <td className="p-4">
+                                                    <div className="font-medium text-white">{vehicle.make} {vehicle.model}</div>
+                                                    <div className="text-sm text-gray-400">{vehicle.year} • {vehicle.vin}</div>
+                                                </td>
+                                                <td className="p-4 text-gray-300">{vehicle.license_plate}</td>
+                                                <td className="p-4">
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wide ${vehicle.status === 'active' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                                                            vehicle.status === 'in_shop' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                                                                'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                                                        }`}>
+                                                        {vehicle.status.replace('_', ' ')}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4 text-gray-300">{vehicle.odometer.toLocaleString()} mi</td>
+                                                <td className="p-4 text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        {!vehicle.trips || vehicle.trips.length === 0 ? (
+                                                            <button
+                                                                onClick={() => {
+                                                                    setSelectedVehicle(vehicle);
+                                                                    dispatchForm.setData('vehicle_id', vehicle.id);
+                                                                    setIsDispatchModalOpen(true);
+                                                                }}
+                                                                className="p-2 text-gray-400 hover:text-emerald-400 bg-white/5 rounded-lg hover:bg-emerald-500/10 transition-colors"
+                                                                title="Start Trip"
+                                                            >
+                                                                <Navigation className="w-4 h-4" />
+                                                            </button>
+                                                        ) : (
+                                                            <Link
+                                                                href={route('dashboard.trips.end', vehicle.trips[0].id)}
+                                                                method="put"
+                                                                as="button"
+                                                                className="px-3 py-1 text-xs font-bold text-white bg-rose-500/20 border border-rose-500/30 rounded-lg hover:bg-rose-500/40 transition-colors"
+                                                                title="End Trip"
+                                                            >
+                                                                End Trip
+                                                            </Link>
+                                                        )}
+                                                        <Link
+                                                            href={route('dashboard.vehicles.destroy', vehicle.id)}
+                                                            method="delete"
+                                                            as="button"
+                                                            className="p-2 text-gray-400 hover:text-rose-400 bg-white/5 rounded-lg hover:bg-rose-500/10 transition-colors"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </Link>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {isExpanded && (
+                                                <tr className="bg-black/20 border-b border-white/5">
+                                                    <td colSpan="7" className="p-6">
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                            <div>
+                                                                <h4 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
+                                                                    <FileIcon className="w-4 h-4" /> Compliance Documents
+                                                                </h4>
+                                                                {vehicle.documents && vehicle.documents.length > 0 ? (
+                                                                    <ul className="space-y-2">
+                                                                        {vehicle.documents.map(doc => (
+                                                                            <li key={doc.id} className="flex justify-between items-center p-3 bg-white/5 rounded-lg border border-white/5">
+                                                                                <span className="text-white font-medium text-sm">{doc.document_type}</span>
+                                                                                <span className={`text-xs px-2 py-1 rounded-full ${new Date(doc.expiry_date) < new Date() ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                                                                                    Expires: {new Date(doc.expiry_date).toLocaleDateString()}
+                                                                                </span>
+                                                                            </li>
+                                                                        ))}
+                                                                    </ul>
+                                                                ) : (
+                                                                    <p className="text-gray-500 text-sm italic">No compliance documents uploaded.</p>
+                                                                )}
+                                                            </div>
+                                                            <div>
+                                                                <h4 className="text-sm font-semibold text-gray-300 mb-3">Vehicle Details</h4>
+                                                                <div className="space-y-2 text-sm">
+                                                                    <div className="flex justify-between p-2 border-b border-white/5"><span className="text-gray-400">VIN</span><span className="text-white font-mono">{vehicle.vin}</span></div>
+                                                                    <div className="flex justify-between p-2 border-b border-white/5"><span className="text-gray-400">Year</span><span className="text-white">{vehicle.year}</span></div>
+                                                                    <div className="flex justify-between p-2"><span className="text-gray-400">Vendor</span><span className="text-white">{vehicle.vendor || 'N/A'}</span></div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </React.Fragment>
+                                    );
+                                })}
+                                {sortedVehicles.length === 0 && (
                                     <tr>
-                                        <td colSpan="6" className="p-8 text-center text-gray-400">
+                                        <td colSpan="7" className="p-8 text-center text-gray-400">
                                             No vehicles found. Add your first vehicle to get started.
                                         </td>
                                     </tr>
@@ -206,6 +279,12 @@ export default function Vehicles({ vehicles, drivers }) {
                                 </div>
 
                                 <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Vendor / Assignee (Optional)</label>
+                                    <input type="text" value={data.vendor} onChange={e => setData('vendor', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="e.g. Acme Corp" />
+                                    {errors.vendor && <div className="text-rose-400 text-xs mt-1">{errors.vendor}</div>}
+                                </div>
+
+                                <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-1">VIN</label>
                                     <input type="text" value={data.vin} onChange={e => setData('vin', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none uppercase font-mono" placeholder="1FTBR1ZC..." required />
                                     {errors.vin && <div className="text-rose-400 text-xs mt-1">{errors.vin}</div>}
@@ -221,6 +300,12 @@ export default function Vehicles({ vehicles, drivers }) {
                                     <label className="block text-sm font-medium text-gray-300 mb-1">Initial Odometer (miles)</label>
                                     <input type="number" value={data.odometer} onChange={e => setData('odometer', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="15000" required />
                                     {errors.odometer && <div className="text-rose-400 text-xs mt-1">{errors.odometer}</div>}
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Initial Location</label>
+                                    <input type="text" value={data.location} onChange={e => setData('location', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="e.g. Lagos, Nigeria" required />
+                                    {errors.location && <div className="text-rose-400 text-xs mt-1">{errors.location}</div>}
                                 </div>
 
                                 <div className="mt-4 flex justify-end gap-3">
@@ -291,7 +376,7 @@ export default function Vehicles({ vehicles, drivers }) {
                 onClose={() => setIsImportModalOpen(false)}
                 title="Import Vehicles"
                 importRoute="dashboard.vehicles.import"
-                templateHeaders={['make', 'model', 'year', 'vin', 'license_plate', 'odometer']}
+                templateHeaders={['make', 'model', 'year', 'vin', 'license_plate', 'vendor', 'odometer']}
                 templateFilename="FKG.Fleet_vehicles_template.csv"
             />
         </DashboardLayout>

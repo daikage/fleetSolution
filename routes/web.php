@@ -43,6 +43,9 @@ Route::get('/dashboard/maintenance', [\App\Http\Controllers\DashboardController:
 Route::post('/dashboard/maintenance', [\App\Http\Controllers\DashboardController::class, 'storeMaintenance'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.maintenance.store');
+Route::post('/dashboard/maintenance/{maintenance}/action', [\App\Http\Controllers\DashboardController::class, 'actionMaintenance'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.maintenance.action');
 Route::post('/dashboard/maintenance/import', [\App\Http\Controllers\DashboardController::class, 'importMaintenance'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.maintenance.import');
@@ -53,6 +56,9 @@ Route::get('/dashboard/fuel', [\App\Http\Controllers\DashboardController::class,
 Route::post('/dashboard/fuel', [\App\Http\Controllers\DashboardController::class, 'storeFuel'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.fuel.store');
+Route::post('/dashboard/fuel/{fuelLog}/action', [\App\Http\Controllers\DashboardController::class, 'actionFuel'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.fuel.action');
 Route::post('/dashboard/fuel/import', [\App\Http\Controllers\DashboardController::class, 'importFuel'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.fuel.import');
@@ -78,6 +84,20 @@ Route::post('/dashboard/drivers/import', [\App\Http\Controllers\DashboardControl
 Route::delete('/dashboard/drivers/{driver}', [\App\Http\Controllers\DashboardController::class, 'destroyDriver'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.drivers.destroy');
+
+Route::get('/dashboard/reports', [\App\Http\Controllers\DashboardController::class, 'reports'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.reports');
+
+Route::get('/dashboard/notifications', [\App\Http\Controllers\NotificationController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.notifications');
+Route::post('/dashboard/notifications/mark-all-read', [\App\Http\Controllers\NotificationController::class, 'markAllAsRead'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.notifications.markAllAsRead');
+Route::post('/dashboard/notifications/{id}/mark-read', [\App\Http\Controllers\NotificationController::class, 'markAsRead'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.notifications.markAsRead');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

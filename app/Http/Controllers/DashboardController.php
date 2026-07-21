@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use Inertia\Inertia;
 use App\Models\Vehicle;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\MaintenanceRequestDecision;
+use App\Mail\FuelRequestDecision;
 
 class DashboardController extends Controller
 {
@@ -31,14 +34,35 @@ class DashboardController extends Controller
             ];
         });
 
+        // Expiry alerts logic
+        $upcomingExpiries = \App\Models\Document::with('documentable')
+            ->whereNotNull('expiry_date')
+            ->where('expiry_date', '<=', now()->addDays(30)->format('Y-m-d'))
+            ->get()->map(function ($doc) {
+                $docName = 'Unknown';
+                if ($doc->documentable_type === \App\Models\Vehicle::class && $doc->documentable) {
+                    $docName = $doc->documentable->make . ' ' . $doc->documentable->model . ' (' . $doc->documentable->license_plate . ')';
+                } elseif ($doc->documentable_type === \App\Models\Driver::class && $doc->documentable && $doc->documentable->user) {
+                    $docName = $doc->documentable->user->name;
+                }
+                return [
+                    'id' => $doc->id,
+                    'type' => $doc->document_type,
+                    'entity' => $docName,
+                    'expiry_date' => $doc->expiry_date,
+                    'is_expired' => \Carbon\Carbon::parse($doc->expiry_date)->isPast()
+                ];
+            });
+
         return Inertia::render('Dashboard/Index', [
             'initialVehicles' => $vehicles,
+            'upcomingExpiries' => $upcomingExpiries,
         ]);
     }
 
     public function vehicles()
     {
-        $vehicles = Vehicle::with(['currentTrip.driver.user'])->latest()->get();
+        $vehicles = Vehicle::with(['currentTrip.driver.user', 'documents'])->latest()->get();
         
         $drivers = \App\Models\Driver::with('user')->get();
 
@@ -57,11 +81,51 @@ class DashboardController extends Controller
             'vin' => 'required|string|unique:vehicles|max:255',
             'license_plate' => 'required|string|unique:vehicles|max:255',
             'odometer' => 'required|numeric|min:0',
+            'vendor' => 'nullable|string|max:255',
+            'location' => 'required|string|max:255',
         ]);
 
         $validated['status'] = 'active';
 
-        Vehicle::create($validated);
+        $vehicle = Vehicle::create([
+            'make' => $validated['make'],
+            'model' => $validated['model'],
+            'year' => $validated['year'],
+            'vin' => $validated['vin'],
+            'license_plate' => $validated['license_plate'],
+            'odometer' => $validated['odometer'],
+            'vendor' => $validated['vendor'],
+            'status' => $validated['status'],
+        ]);
+
+        // Default to Lagos
+        $lat = 6.5244;
+        $lon = 3.3792;
+
+        try {
+            $response = \Illuminate\Support\Facades\Http::withHeaders([
+                'User-Agent' => 'FKGFleet/1.0 (contact@fkgfleet.local)'
+            ])->get('https://nominatim.openstreetmap.org/search', [
+                'q' => $validated['location'],
+                'format' => 'json',
+                'limit' => 1,
+            ]);
+
+            if ($response->successful() && count($response->json()) > 0) {
+                $result = $response->json()[0];
+                $lat = $result['lat'];
+                $lon = $result['lon'];
+            }
+        } catch (\Exception $e) {
+            // Ignore error and use default coordinates
+        }
+
+        \App\Models\Location::create([
+            'vehicle_id' => $vehicle->id,
+            'latitude' => $lat,
+            'longitude' => $lon,
+            'speed' => 0,
+        ]);
 
         return back();
     }
@@ -82,7 +146,13 @@ class DashboardController extends Controller
             'password' => 'required|string|min:8',
             'license_no' => 'required|string|unique:drivers|max:255',
             'license_exp' => 'required|date',
+            'passport_photo' => 'nullable|image|max:2048',
         ]);
+
+        $passportPath = null;
+        if ($request->hasFile('passport_photo')) {
+            $passportPath = $request->file('passport_photo')->store('passports', 'public');
+        }
 
         // Create the user account for the driver
         $user = \App\Models\User::create([
@@ -97,6 +167,7 @@ class DashboardController extends Controller
             'user_id' => $user->id,
             'license_no' => $validated['license_no'],
             'license_exp' => $validated['license_exp'],
+            'passport_photo' => $passportPath ? '/storage/' . $passportPath : null,
         ]);
 
         return back();
@@ -110,8 +181,6 @@ class DashboardController extends Controller
 
     public function destroyDriver(\App\Models\Driver $driver)
     {
-        // This will cascade delete the user if constraints are set up, 
-        // but let's explicitly delete the User account since the driver is bound to it.
         $user = $driver->user;
         $driver->delete();
         if ($user) {
@@ -148,7 +217,16 @@ class DashboardController extends Controller
 
     public function maintenances()
     {
-        $maintenances = \App\Models\Maintenance::with('vehicle')->latest()->get();
+        $user = auth()->user();
+        $query = \App\Models\Maintenance::with(['vehicle', 'assignedTo'])->latest();
+
+        if ($user->role === 'admin') {
+            $query->where('cost', '<=', 20000);
+        } elseif ($user->role === 'super_admin') {
+            $query->where('cost', '>', 20000);
+        }
+
+        $maintenances = $query->get();
         $vehicles = Vehicle::latest()->get();
 
         return Inertia::render('Dashboard/Maintenance', [
@@ -157,16 +235,135 @@ class DashboardController extends Controller
         ]);
     }
 
+    private function getAssigneeForCost($cost)
+    {
+        if ($cost <= 20000) {
+            $user = \App\Models\User::where('role', 'admin')->first();
+        } else {
+            $user = \App\Models\User::where('role', 'super_admin')->first();
+        }
+        return $user ? $user->id : null;
+    }
+
     public function storeMaintenance(\Illuminate\Http\Request $request)
     {
         $validated = $request->validate([
             'vehicle_id' => 'required|exists:vehicles,id',
+            'type' => 'required|in:Regular Servicing,Repair',
             'service_type' => 'required|string|max:255',
             'cost' => 'required|numeric|min:0',
             'date' => 'required|date',
         ]);
 
-        \App\Models\Maintenance::create($validated);
+        $validated['status'] = 'Pending';
+        $validated['assigned_to'] = $this->getAssigneeForCost($validated['cost']);
+        $validated['created_by'] = auth()->id();
+
+        $maintenance = \App\Models\Maintenance::create($validated);
+
+        if ($maintenance->assignedTo) {
+            $maintenance->assignedTo->notify(new \App\Notifications\RequestSubmitted($maintenance, 'Maintenance'));
+        }
+
+        return back();
+    }
+
+    public function actionMaintenance(\Illuminate\Http\Request $request, \App\Models\Maintenance $maintenance)
+    {
+        if (auth()->user()->role === 'manager') {
+            abort(403, 'Managers cannot action requests.');
+        }
+
+        $validated = $request->validate([
+            'status' => 'required|in:Accepted,Rejected',
+            'reviewer_comment' => 'required|string',
+        ]);
+
+        $maintenance->update($validated);
+
+        if ($maintenance->createdBy) {
+            $maintenance->createdBy->notify(new \App\Notifications\RequestActioned($maintenance, 'Maintenance'));
+        }
+
+        // Notify Driver if possible. Find driver through vehicle's current trip or last trip...
+        // Assuming we just email the active driver or all drivers assigned? The prompt says "the driver associated with the request". 
+        // Maintenance doesn't directly have a driver_id in the migration, only vehicle_id.
+        // We'll try to find the driver currently using the vehicle, or latest trip.
+        $driver = $maintenance->vehicle->currentTrip?->driver ?? $maintenance->vehicle->trips()->latest()->first()?->driver;
+        
+        if ($driver && $driver->user) {
+            Mail::to($driver->user->email)->send(new MaintenanceRequestDecision($maintenance));
+        }
+
+        return back();
+    }
+
+    public function fuel()
+    {
+        $user = auth()->user();
+        $query = \App\Models\FuelLog::with(['vehicle', 'driver.user', 'assignedTo'])->latest();
+
+        if ($user->role === 'admin') {
+            $query->where('cost', '<=', 20000);
+        } elseif ($user->role === 'super_admin') {
+            $query->where('cost', '>', 20000);
+        }
+
+        $fuelLogs = $query->get();
+        $vehicles = Vehicle::latest()->get();
+        $drivers = \App\Models\Driver::with('user')->get();
+
+        return Inertia::render('Dashboard/Fuel', [
+            'fuelLogs' => $fuelLogs,
+            'vehicles' => $vehicles,
+            'drivers' => $drivers
+        ]);
+    }
+
+    public function storeFuel(\Illuminate\Http\Request $request)
+    {
+        $validated = $request->validate([
+            'vehicle_id' => 'required|exists:vehicles,id',
+            'driver_id' => 'nullable|exists:drivers,id',
+            'date' => 'required|date',
+            'liters' => 'required|numeric|min:0',
+            'cost' => 'required|numeric|min:0',
+            'odometer_at_fill' => 'required|numeric|min:0',
+        ]);
+
+        $validated['status'] = 'Pending';
+        $validated['assigned_to'] = $this->getAssigneeForCost($validated['cost']);
+        $validated['created_by'] = auth()->id();
+
+        $fuelLog = \App\Models\FuelLog::create($validated);
+
+        if ($fuelLog->assignedTo) {
+            $fuelLog->assignedTo->notify(new \App\Notifications\RequestSubmitted($fuelLog, 'Fuel'));
+        }
+
+        return back();
+    }
+
+    public function actionFuel(\Illuminate\Http\Request $request, \App\Models\FuelLog $fuelLog)
+    {
+        if (auth()->user()->role === 'manager') {
+            abort(403, 'Managers cannot action requests.');
+        }
+
+        $validated = $request->validate([
+            'status' => 'required|in:Accepted,Rejected',
+            'reviewer_comment' => 'required|string',
+        ]);
+
+        $fuelLog->update($validated);
+
+        if ($fuelLog->createdBy) {
+            $fuelLog->createdBy->notify(new \App\Notifications\RequestActioned($fuelLog, 'Fuel'));
+        }
+
+        if ($fuelLog->driver && $fuelLog->driver->user) {
+            Mail::to($fuelLog->driver->user->email)->send(new FuelRequestDecision($fuelLog));
+        }
 
         return back();
     }
@@ -176,7 +373,6 @@ class DashboardController extends Controller
         $data = [];
         if (($handle = fopen($file->getRealPath(), 'r')) !== false) {
             $headers = fgetcsv($handle, 1000, ',');
-            // Sanitize headers (lowercase, trim spaces)
             $headers = array_map(function($header) {
                 return trim(strtolower($header));
             }, $headers);
@@ -207,6 +403,7 @@ class DashboardController extends Controller
                     'year' => $row['year'] ?? date('Y'),
                     'license_plate' => $row['license_plate'],
                     'odometer' => $row['odometer'] ?? 0,
+                    'vendor' => $row['vendor'] ?? null,
                     'status' => 'active'
                 ]
             );
@@ -255,11 +452,15 @@ class DashboardController extends Controller
             $vehicle = Vehicle::where('license_plate', $row['license_plate'])->first();
             if (!$vehicle) continue;
 
+            $cost = $row['cost'] ?? 0;
             \App\Models\Maintenance::create([
                 'vehicle_id' => $vehicle->id,
+                'type' => $row['type'] ?? 'Regular Servicing',
                 'service_type' => $row['service_type'] ?? 'General Service',
-                'cost' => $row['cost'] ?? 0,
+                'cost' => $cost,
                 'date' => $row['date'] ?? now()->format('Y-m-d'),
+                'status' => 'Pending',
+                'assigned_to' => $this->getAssigneeForCost($cost),
             ]);
         }
 
@@ -286,13 +487,16 @@ class DashboardController extends Controller
                 }
             }
 
+            $cost = $row['cost'];
             \App\Models\FuelLog::create([
                 'vehicle_id' => $vehicle->id,
                 'driver_id' => $driverId,
                 'liters' => $row['liters'],
-                'cost' => $row['cost'],
+                'cost' => $cost,
                 'odometer_at_fill' => $row['odometer_at_fill'] ?? $vehicle->odometer,
                 'date' => $row['date'] ?? now()->format('Y-m-d'),
+                'status' => 'Pending',
+                'assigned_to' => $this->getAssigneeForCost($cost),
             ]);
         }
 
@@ -342,44 +546,12 @@ class DashboardController extends Controller
         return back();
     }
 
-    public function fuel()
-    {
-        $fuelLogs = \App\Models\FuelLog::with(['vehicle', 'driver.user'])->latest()->get();
-        $vehicles = Vehicle::latest()->get();
-        $drivers = \App\Models\Driver::with('user')->get();
-
-        return Inertia::render('Dashboard/Fuel', [
-            'fuelLogs' => $fuelLogs,
-            'vehicles' => $vehicles,
-            'drivers' => $drivers
-        ]);
-    }
-
-    public function storeFuel(\Illuminate\Http\Request $request)
-    {
-        $validated = $request->validate([
-            'vehicle_id' => 'required|exists:vehicles,id',
-            'driver_id' => 'nullable|exists:drivers,id',
-            'date' => 'required|date',
-            'liters' => 'required|numeric|min:0',
-            'cost' => 'required|numeric|min:0',
-            'odometer_at_fill' => 'required|numeric|min:0',
-        ]);
-
-        \App\Models\FuelLog::create($validated);
-
-        return back();
-    }
-
     public function compliance()
     {
-        // For compliance, since documentable is polymorphic, we can load it to get the vehicle or driver info.
         $documents = \App\Models\Document::with('documentable')->latest()->get();
-        // Load the vehicles and drivers specifically to show more details or for forms.
         $vehicles = Vehicle::latest()->get();
         $drivers = \App\Models\Driver::with('user')->get();
 
-        // Transform documents to include readable names
         $documents = $documents->map(function ($doc) {
             $docName = 'Unknown';
             if ($doc->documentable_type === \App\Models\Vehicle::class && $doc->documentable) {
@@ -422,5 +594,45 @@ class DashboardController extends Controller
         ]);
 
         return back();
+    }
+    
+    public function reports()
+    {
+        // Simple aggregate data for reports. 
+        // We could filter by a date range, but we'll return overall summaries and let the frontend do lightweight filtering or we can accept 'start' and 'end' dates.
+        $start = request('start') ? \Carbon\Carbon::parse(request('start')) : now()->startOfMonth();
+        $end = request('end') ? \Carbon\Carbon::parse(request('end')) : now()->endOfMonth();
+
+        $totalVehicles = Vehicle::count();
+        $activeDrivers = \App\Models\Driver::count();
+        
+        $totalMaintenanceCost = \App\Models\Maintenance::whereBetween('date', [$start, $end])
+            ->where('status', 'Accepted')
+            ->sum('cost');
+            
+        $totalFuelCost = \App\Models\FuelLog::whereBetween('date', [$start, $end])
+            ->where('status', 'Accepted')
+            ->sum('cost');
+
+        $maintenanceRecords = \App\Models\Maintenance::with('vehicle')
+            ->whereBetween('date', [$start, $end])
+            ->latest()->get();
+            
+        $fuelRecords = \App\Models\FuelLog::with('vehicle')
+            ->whereBetween('date', [$start, $end])
+            ->latest()->get();
+
+        return Inertia::render('Dashboard/Reports', [
+            'summary' => [
+                'total_vehicles' => $totalVehicles,
+                'active_drivers' => $activeDrivers,
+                'total_maintenance_cost' => $totalMaintenanceCost,
+                'total_fuel_cost' => $totalFuelCost,
+                'period_start' => $start->format('Y-m-d'),
+                'period_end' => $end->format('Y-m-d'),
+            ],
+            'maintenance_records' => $maintenanceRecords,
+            'fuel_records' => $fuelRecords,
+        ]);
     }
 }

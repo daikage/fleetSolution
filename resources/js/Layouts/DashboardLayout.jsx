@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Link, usePage } from '@inertiajs/react';
-import { Car, Map as MapIcon, Settings, Users, LogOut, Wrench, Fuel, FileText, Menu, X } from 'lucide-react';
+import { Car, Map as MapIcon, Settings, Users, LogOut, Wrench, Fuel, FileText, Menu, X, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function DashboardLayout({ children }) {
-    const { url } = usePage();
+    const { url, props } = usePage();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    
+    const unreadCount = props.auth?.unreadNotificationsCount || 0;
 
     const toggleMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
     const closeMenu = () => setIsMobileMenuOpen(false);
@@ -59,6 +61,7 @@ export default function DashboardLayout({ children }) {
                                     <NavItem href={route('dashboard.maintenance')} icon={<Wrench />} label="Maintenance" active={url.startsWith('/dashboard/maintenance')} onClick={closeMenu} isMobile />
                                     <NavItem href={route('dashboard.fuel')} icon={<Fuel />} label="Fuel" active={url.startsWith('/dashboard/fuel')} onClick={closeMenu} isMobile />
                                     <NavItem href={route('dashboard.compliance')} icon={<FileText />} label="Compliance" active={url.startsWith('/dashboard/compliance')} onClick={closeMenu} isMobile />
+                                    <NavItem href={route('dashboard.notifications')} icon={<Bell />} label="Notifications" active={url.startsWith('/dashboard/notifications')} onClick={closeMenu} isMobile badge={unreadCount} />
                                     <NavItem href={route('profile.edit')} icon={<Settings />} label="Settings" active={url.startsWith('/profile')} onClick={closeMenu} isMobile />
                                 </ul>
                             </div>
@@ -89,6 +92,7 @@ export default function DashboardLayout({ children }) {
                         <NavItem href={route('dashboard.maintenance')} icon={<Wrench />} label="Maintenance" active={url.startsWith('/dashboard/maintenance')} />
                         <NavItem href={route('dashboard.fuel')} icon={<Fuel />} label="Fuel" active={url.startsWith('/dashboard/fuel')} />
                         <NavItem href={route('dashboard.compliance')} icon={<FileText />} label="Compliance" active={url.startsWith('/dashboard/compliance')} />
+                        <NavItem href={route('dashboard.notifications')} icon={<Bell />} label="Notifications" active={url.startsWith('/dashboard/notifications')} badge={unreadCount} />
                         <NavItem href={route('profile.edit')} icon={<Settings />} label="Settings" active={url.startsWith('/profile')} />
                     </ul>
                 </div>
@@ -109,11 +113,16 @@ export default function DashboardLayout({ children }) {
     );
 }
 
-function NavItem({ href, icon, label, active = false, onClick, isMobile = false }) {
+function NavItem({ href, icon, label, active = false, onClick, isMobile = false, badge = 0 }) {
     return (
-        <Link href={href} onClick={onClick} className={`flex items-center gap-4 p-2 ${isMobile ? 'px-4' : 'lg:px-4'} cursor-pointer rounded-xl transition-all duration-300 ${active ? 'bg-electric-blue/20 text-electric-blue' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
+        <Link href={href} onClick={onClick} className={`flex items-center gap-4 p-2 ${isMobile ? 'px-4' : 'lg:px-4'} cursor-pointer rounded-xl transition-all duration-300 ${active ? 'bg-electric-blue/20 text-electric-blue' : 'text-gray-400 hover:bg-white/5 hover:text-white'} relative`}>
             <div className="w-6 h-6">{icon}</div>
-            <span className={`${isMobile ? 'inline' : 'hidden lg:inline'} font-medium`}>{label}</span>
+            <span className={`${isMobile ? 'inline' : 'hidden lg:inline'} font-medium flex-1`}>{label}</span>
+            {badge > 0 && (
+                <div className="bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    {badge > 99 ? '99+' : badge}
+                </div>
+            )}
         </Link>
     );
 }

@@ -19,4 +19,14 @@ class Maintenance extends Model
     {
         return $this->belongsTo(Vehicle::class);
     }
+
+    public function assignedTo()
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
 }

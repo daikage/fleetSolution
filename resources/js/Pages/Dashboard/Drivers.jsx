@@ -1,21 +1,34 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Head, useForm, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import BulkImportModal from '@/Components/BulkImportModal';
-import { Plus, User as UserIcon, X, Trash2, FileText } from 'lucide-react';
+import { Plus, User as UserIcon, X, Trash2, FileText, Camera } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ExportButtons from '@/Components/ExportButtons';
 
 export default function Drivers({ drivers }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const fileInputRef = useRef(null);
+
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
         email: '',
         password: '',
         license_no: '',
         license_exp: '',
+        passport_photo: null,
     });
+
+    const [previewUrl, setPreviewUrl] = useState(null);
+
+    const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setData('passport_photo', file);
+            setPreviewUrl(URL.createObjectURL(file));
+        }
+    };
 
     const submit = (e) => {
         e.preventDefault();
@@ -23,6 +36,7 @@ export default function Drivers({ drivers }) {
             onSuccess: () => {
                 setIsModalOpen(false);
                 reset();
+                setPreviewUrl(null);
             },
         });
     };
@@ -82,10 +96,14 @@ export default function Drivers({ drivers }) {
                                 <Trash2 className="w-4 h-4" />
                             </Link>
 
-                            <div className="w-20 h-20 bg-gradient-to-tr from-electric-blue to-purple-600 rounded-full flex items-center justify-center shadow-lg mb-4 border-2 border-white/10">
-                                <span className="text-2xl font-bold text-white">
-                                    {driver.user?.name?.substring(0, 2).toUpperCase() || 'NA'}
-                                </span>
+                            <div className="w-24 h-24 bg-gradient-to-tr from-electric-blue to-purple-600 rounded-full flex items-center justify-center shadow-lg mb-4 border-2 border-white/10 overflow-hidden">
+                                {driver.passport_photo ? (
+                                    <img src={driver.passport_photo} alt={driver.user?.name} className="w-full h-full object-cover" />
+                                ) : (
+                                    <span className="text-3xl font-bold text-white">
+                                        {driver.user?.name?.substring(0, 2).toUpperCase() || 'NA'}
+                                    </span>
+                                )}
                             </div>
                             <h3 className="text-xl font-bold text-white">{driver.user?.name || 'Unknown'}</h3>
                             <p className="text-sm text-gray-400 mt-1">{driver.user?.email}</p>
@@ -124,13 +142,41 @@ export default function Drivers({ drivers }) {
                         >
                             <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/20">
                                 <h2 className="text-xl font-bold text-white">Assign New Driver</h2>
-                                <button onClick={() => { setIsModalOpen(false); reset(); }} className="p-2 rounded-full hover:bg-white/10 text-gray-400 transition-colors">
+                                <button onClick={() => { setIsModalOpen(false); reset(); setPreviewUrl(null); }} className="p-2 rounded-full hover:bg-white/10 text-gray-400 transition-colors">
                                     <X className="w-5 h-5" />
                                 </button>
                             </div>
 
                             <form onSubmit={submit} className="p-6 overflow-y-auto flex-1 flex flex-col gap-4">
-                                <p className="text-sm text-gray-400 mb-2">This will create a new user account that the driver can use to log into the driver app.</p>
+                                
+                                <div className="flex flex-col items-center mb-2">
+                                    <div 
+                                        className="w-24 h-24 rounded-full bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center overflow-hidden cursor-pointer hover:border-electric-blue transition-colors group relative"
+                                        onClick={() => fileInputRef.current?.click()}
+                                    >
+                                        {previewUrl ? (
+                                            <>
+                                                <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                                    <Camera className="w-6 h-6 text-white" />
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div className="flex flex-col items-center text-gray-400 group-hover:text-electric-blue transition-colors">
+                                                <Camera className="w-8 h-8 mb-1" />
+                                                <span className="text-[10px] font-medium uppercase tracking-wider">Upload</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <input 
+                                        type="file" 
+                                        ref={fileInputRef} 
+                                        onChange={handleFileChange} 
+                                        accept="image/*" 
+                                        className="hidden" 
+                                    />
+                                    {errors.passport_photo && <div className="text-rose-400 text-xs mt-2">{errors.passport_photo}</div>}
+                                </div>
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-1">Full Name</label>
@@ -164,7 +210,7 @@ export default function Drivers({ drivers }) {
                                 </div>
 
                                 <div className="mt-4 flex justify-end gap-3">
-                                    <button type="button" onClick={() => { setIsModalOpen(false); reset(); }} className="px-4 py-2 text-gray-400 hover:text-white transition-colors">Cancel</button>
+                                    <button type="button" onClick={() => { setIsModalOpen(false); reset(); setPreviewUrl(null); }} className="px-4 py-2 text-gray-400 hover:text-white transition-colors">Cancel</button>
                                     <button type="submit" disabled={processing} className="bg-electric-blue hover:bg-sky-400 text-white px-6 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-electric-blue/20 disabled:opacity-50">
                                         {processing ? 'Creating...' : 'Create Driver'}
                                     </button>
