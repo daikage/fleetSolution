@@ -38,5 +38,9 @@ class DatabaseSeeder extends Seeder
                 'odometer' => 15000,
             ]
         );
+
+        $this->call([
+            ReviewersSeeder::class,
+        ]);
     }
 }
