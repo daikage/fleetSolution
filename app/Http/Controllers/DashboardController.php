@@ -546,7 +546,7 @@ class DashboardController extends Controller
 
             if (!$morphClass || !$morphId) continue;
 
-            \App\Models\ComplianceDocument::create([
+            \App\Models\Document::create([
                 'documentable_type' => $morphClass,
                 'documentable_id' => $morphId,
                 'document_type' => $row['document_type'],
