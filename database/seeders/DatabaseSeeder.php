@@ -42,5 +42,9 @@ class DatabaseSeeder extends Seeder
         $this->call([
             ReviewersSeeder::class,
         ]);
+
+        $this->call([
+            SettingsSeeder::class,
+        ]);
     }
 }
