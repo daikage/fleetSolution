@@ -23,6 +23,9 @@ Route::post('/mobile/login', function (Request $request) {
     }
     
     $driver = \App\Models\Driver::where('user_id', $user->id)->first();
+    if (! $driver) {
+        return response()->json(['message' => 'Driver profile not found for this user.'], 404);
+    }
     $trip = \App\Models\Trip::where('driver_id', $driver->id)->whereNull('end_time')->latest()->first();
     $vehicleId = $trip ? $trip->vehicle_id : null;
 
