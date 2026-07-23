@@ -25,6 +25,15 @@
       "eas": {
         "projectId": "eb875d44-e325-43af-96f6-540812ee8e8a"
       }
-    }
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow driver-app to use your location for live fleet tracking.",
+          "isAndroidBackgroundLocationEnabled": true
+        }
+      ]
+    ]
   }
 }
