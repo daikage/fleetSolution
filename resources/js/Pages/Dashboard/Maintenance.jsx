@@ -20,6 +20,13 @@ export default function Maintenance({ maintenances, vehicles }) {
         vehicle_id: '',
         type: 'Regular Servicing',
         service_type: '',
+        diagnosis: '',
+        work_to_be_done: '',
+        vehicle_location: '',
+        handled_by: '',
+        supervised_by: '',
+        company: '',
+        vehicle_user: '',
         cost: '',
         date: new Date().toISOString().split('T')[0],
     });
@@ -61,22 +68,32 @@ export default function Maintenance({ maintenances, vehicles }) {
     };
 
     const exportColumns = [
+        { header: 'VEHICLE MAKE', key: 'vehicle_name' },
+        { header: 'PLATE NUMBER', key: 'license_plate' },
+        { header: 'DIAGNOSIS', key: 'diagnosis' },
+        { header: 'WORK TO BE DONE', key: 'work_to_be_done' },
+        { header: 'VEHICLE LOCATION', key: 'vehicle_location' },
+        { header: 'Handled By', key: 'handled_by' },
+        { header: 'Supervised By', key: 'supervised_by' },
+        { header: 'Company', key: 'company' },
+        { header: 'VEHICLE USER', key: 'vehicle_user' },
+        { header: 'AMOUNT (N)', key: 'cost' },
         { header: 'Date', key: 'date' },
-        { header: 'Vehicle', key: 'vehicle_name' },
-        { header: 'License Plate', key: 'license_plate' },
-        { header: 'Type', key: 'type' },
-        { header: 'Service Type', key: 'service_type' },
-        { header: 'Cost (₦)', key: 'cost' },
         { header: 'Status', key: 'status' }
     ];
 
     const exportData = maintenances.map(log => ({
-        date: new Date(log.date).toLocaleDateString(),
         vehicle_name: `${log.vehicle?.make || ''} ${log.vehicle?.model || ''}`.trim() || 'Unknown',
         license_plate: log.vehicle?.license_plate || 'N/A',
-        type: log.type,
-        service_type: log.service_type,
+        diagnosis: log.diagnosis || '',
+        work_to_be_done: log.work_to_be_done || '',
+        vehicle_location: log.vehicle_location || '',
+        handled_by: log.handled_by || '',
+        supervised_by: log.supervised_by || '',
+        company: log.company || '',
+        vehicle_user: log.vehicle_user || '',
         cost: log.cost,
+        date: new Date(log.date).toLocaleDateString(),
         status: log.status
     }));
 
@@ -253,6 +270,74 @@ export default function Maintenance({ maintenances, vehicles }) {
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Diagnosis</label>
+                                        <input
+                                            type="text"
+                                            value={data.diagnosis}
+                                            onChange={e => setData('diagnosis', e.target.value)}
+                                            className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Work to be Done</label>
+                                        <input
+                                            type="text"
+                                            value={data.work_to_be_done}
+                                            onChange={e => setData('work_to_be_done', e.target.value)}
+                                            className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Vehicle Location</label>
+                                        <input
+                                            type="text"
+                                            value={data.vehicle_location}
+                                            onChange={e => setData('vehicle_location', e.target.value)}
+                                            className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Vehicle User</label>
+                                        <input
+                                            type="text"
+                                            value={data.vehicle_user}
+                                            onChange={e => setData('vehicle_user', e.target.value)}
+                                            className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Handled By</label>
+                                        <input
+                                            type="text"
+                                            value={data.handled_by}
+                                            onChange={e => setData('handled_by', e.target.value)}
+                                            className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Supervised By</label>
+                                        <input
+                                            type="text"
+                                            value={data.supervised_by}
+                                            onChange={e => setData('supervised_by', e.target.value)}
+                                            className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue outline-none"
+                                        />
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Company / Vendor</label>
+                                    <input
+                                        type="text"
+                                        value={data.company}
+                                        onChange={e => setData('company', e.target.value)}
+                                        className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue outline-none"
+                                        placeholder="Mechanic shop or vendor name"
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
                                         <label className="block text-sm font-medium text-gray-300 mb-1">Cost (₦)</label>
                                         <input
                                             type="number"
@@ -342,7 +427,7 @@ export default function Maintenance({ maintenances, vehicles }) {
                 onClose={() => setIsImportModalOpen(false)}
                 title="Import Maintenance Logs"
                 importRoute="dashboard.maintenance.import"
-                templateHeaders={['license_plate', 'type', 'service_type', 'cost', 'date']}
+                templateHeaders={['VEHICLE MAKE', 'PLATE NUMBER', 'DIAGNOSIS', 'WORK TO BE DONE', 'VEHICLE LOCATION', 'Handled By', 'Supervised By', 'Company', 'VEHICLE USER', 'AMOUNT (N)', 'Type', 'Service Type', 'Date']}
                 templateFilename="FKG.Fleet_maintenance_template.csv"
             />
         </DashboardLayout>

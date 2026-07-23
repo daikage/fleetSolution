@@ -263,6 +263,13 @@ class DashboardController extends Controller
             'vehicle_id' => 'required|exists:vehicles,id',
             'type' => 'required|in:Regular Servicing,Repair',
             'service_type' => 'required|string|max:255',
+            'diagnosis' => 'nullable|string',
+            'work_to_be_done' => 'nullable|string',
+            'vehicle_location' => 'nullable|string|max:255',
+            'handled_by' => 'nullable|string|max:255',
+            'supervised_by' => 'nullable|string|max:255',
+            'company' => 'nullable|string|max:255',
+            'vehicle_user' => 'nullable|string|max:255',
             'cost' => 'required|numeric|min:0',
             'date' => 'required|date',
         ]);
@@ -459,18 +466,47 @@ class DashboardController extends Controller
         $rows = $this->parseCsv($request->file('file'));
 
         foreach ($rows as $row) {
-            if (!isset($row['license_plate'])) continue;
+            // Find the plate number key (could be 'plate number', 'plate_number', 'license_plate', etc)
+            $plateKey = null;
+            foreach ($row as $key => $value) {
+                $cleanKey = str_replace(' ', '_', strtolower($key));
+                if (in_array($cleanKey, ['plate_number', 'license_plate'])) {
+                    $plateKey = $key;
+                    break;
+                }
+            }
 
-            $vehicle = Vehicle::where('license_plate', $row['license_plate'])->first();
+            if (!$plateKey || empty($row[$plateKey])) continue;
+
+            $vehicle = Vehicle::where('license_plate', trim($row[$plateKey]))->first();
             if (!$vehicle) continue;
 
-            $cost = $row['cost'] ?? 0;
+            // Helper to find a field robustly
+            $findField = function($names) use ($row) {
+                foreach ($row as $key => $value) {
+                    $cleanKey = str_replace([' ', '(', ')'], ['_', '', ''], strtolower($key));
+                    if (in_array($cleanKey, $names)) {
+                        return $value;
+                    }
+                }
+                return null;
+            };
+
+            $cost = $findField(['amount', 'amount_n', 'cost']) ?? 0;
+            
             \App\Models\Maintenance::create([
                 'vehicle_id' => $vehicle->id,
-                'type' => $row['type'] ?? 'Regular Servicing',
-                'service_type' => $row['service_type'] ?? 'General Service',
-                'cost' => $cost,
-                'date' => $row['date'] ?? now()->format('Y-m-d'),
+                'type' => $findField(['type']) ?? 'Regular Servicing',
+                'service_type' => $findField(['service_type']) ?? 'General Service',
+                'diagnosis' => $findField(['diagnosis']),
+                'work_to_be_done' => $findField(['work_to_be_done']),
+                'vehicle_location' => $findField(['vehicle_location', 'location']),
+                'handled_by' => $findField(['handled_by']),
+                'supervised_by' => $findField(['supervised_by']),
+                'company' => $findField(['company']),
+                'vehicle_user' => $findField(['vehicle_user']),
+                'cost' => is_numeric($cost) ? $cost : (float) preg_replace('/[^0-9.]/', '', $cost),
+                'date' => $findField(['date']) ?? now()->format('Y-m-d'),
                 'status' => 'Pending',
                 'assigned_to' => $this->getAssigneeForCost($cost),
             ]);
