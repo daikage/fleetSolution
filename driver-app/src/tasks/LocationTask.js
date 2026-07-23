@@ -21,28 +21,33 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
 
       if (!token || !vehicleId || !baseUrl) return;
 
-      const latestLocation = locations[locations.length - 1];
-      const { latitude, longitude, speed } = latestLocation.coords;
+      // Send ALL location points in the batch, not just the latest.
+      // The OS can batch multiple GPS fixes before waking the task,
+      // especially with deferred updates. Sending all prevents gaps.
+      for (const loc of locations) {
+        const { latitude, longitude, speed } = loc.coords;
 
-      // Ensure speed is in km/h if it's provided in m/s by Expo
-      const speedKmh = speed && speed > 0 ? speed * 3.6 : 0;
+        // Ensure speed is in km/h if it's provided in m/s by Expo
+        const speedKmh = speed && speed > 0 ? speed * 3.6 : 0;
 
-      await axios.post(
-        `${baseUrl}/api/telematics/location`,
-        {
-          vehicle_id: vehicleId,
-          latitude: latitude,
-          longitude: longitude,
-          speed: speedKmh,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
+        await axios.post(
+          `${baseUrl}/api/telematics/location`,
+          {
+            vehicle_id: vehicleId,
+            latitude: latitude,
+            longitude: longitude,
+            speed: speedKmh,
           },
-        }
-      );
-      
-      console.log(`Sent location for vehicle ${vehicleId}: ${latitude}, ${longitude}`);
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            timeout: 10000,
+          }
+        );
+
+        console.log(`Sent location for vehicle ${vehicleId}: ${latitude}, ${longitude}`);
+      }
     } catch (err) {
       console.error('Failed to post location to backend:', err.response?.data || err.message);
     }

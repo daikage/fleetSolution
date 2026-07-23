@@ -49,15 +49,17 @@ export default function TrackingScreen({ navigation }) {
     }
 
     await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
-      accuracy: Location.Accuracy.High,
+      accuracy: Location.Accuracy.BestForNavigation,
       timeInterval: 5000,
-      distanceInterval: 10,
-      deferredUpdatesInterval: 5000,
-      deferredUpdatesDistance: 10,
+      distanceInterval: 0,
+      deferredUpdatesInterval: 0,
+      deferredUpdatesDistance: 0,
+      activityType: Location.ActivityType.AutomotiveNavigation,
+      pausesUpdatesAutomatically: false,
       showsBackgroundLocationIndicator: true,
       foregroundService: {
         notificationTitle: 'Fleet Tracking',
-        notificationBody: 'Your location is being tracked.',
+        notificationBody: 'Live location tracking is active.',
         notificationColor: '#007bff',
       },
     });

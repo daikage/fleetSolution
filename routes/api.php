@@ -41,6 +41,7 @@ Route::post('/mobile/login', function (Request $request) {
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/telematics/location', [\App\Http\Controllers\Api\TelematicsController::class, 'store']);
+    Route::get('/fleet/vehicles/locations', [\App\Http\Controllers\Api\TelematicsController::class, 'latestLocations']);
 
     // Admin/Manager Settings routes
     Route::middleware('role:superadmin,admin,manager')->group(function () {

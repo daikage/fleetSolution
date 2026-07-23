@@ -89,6 +89,10 @@ Route::get('/dashboard/reports', [\App\Http\Controllers\DashboardController::cla
     ->middleware(['auth', 'verified'])
     ->name('dashboard.reports');
 
+Route::get('/dashboard/fleet/locations', [\App\Http\Controllers\Api\TelematicsController::class, 'latestLocations'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.fleet.locations');
+
 Route::get('/dashboard/notifications', [\App\Http\Controllers\NotificationController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.notifications');

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import FleetMap from '@/Components/FleetMap';
 import VehicleSidebar from '@/Components/VehicleSidebar';
@@ -6,37 +6,116 @@ import { Head, Link } from '@inertiajs/react';
 import { Bell, AlertTriangle, Calendar, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const POLL_INTERVAL = 10000; // 10 seconds fallback polling
+
 export default function Index({ initialVehicles, upcomingExpiries }) {
     const [vehicles, setVehicles] = useState(initialVehicles || []);
     const [selectedVehicle, setSelectedVehicle] = useState(null);
     const [showAlerts, setShowAlerts] = useState(true);
+    const [connectionMode, setConnectionMode] = useState('connecting'); // 'websocket' | 'polling' | 'connecting'
+    const pollTimerRef = useRef(null);
+    const echoConnected = useRef(false);
+
+    // Shared function to apply location updates to vehicle state
+    const applyLocationUpdate = useCallback((vehicleId, latitude, longitude, speed) => {
+        setVehicles(current => current.map(v =>
+            v.id === vehicleId
+                ? { ...v, latitude, longitude, speed }
+                : v
+        ));
+        setSelectedVehicle(current =>
+            current && current.id === vehicleId
+                ? { ...current, latitude, longitude, speed }
+                : current
+        );
+    }, []);
+
+    // Polling fallback: fetch latest locations from the server
+    const pollLocations = useCallback(async () => {
+        try {
+            const response = await fetch('/dashboard/fleet/locations', {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            });
+            if (response.ok) {
+                const data = await response.json();
+                data.forEach(loc => {
+                    if (loc.latitude && loc.longitude) {
+                        applyLocationUpdate(loc.id, loc.latitude, loc.longitude, loc.speed || 0);
+                    }
+                });
+            }
+        } catch (err) {
+            console.warn('Polling failed:', err);
+        }
+    }, [applyLocationUpdate]);
+
+    // Start polling interval
+    const startPolling = useCallback(() => {
+        if (pollTimerRef.current) return; // Already polling
+        console.log('[Fleet] Starting polling fallback (every 10s)');
+        setConnectionMode('polling');
+        pollLocations(); // Fetch immediately
+        pollTimerRef.current = setInterval(pollLocations, POLL_INTERVAL);
+    }, [pollLocations]);
+
+    // Stop polling interval
+    const stopPolling = useCallback(() => {
+        if (pollTimerRef.current) {
+            clearInterval(pollTimerRef.current);
+            pollTimerRef.current = null;
+        }
+    }, []);
 
     useEffect(() => {
-        if (!window.Echo) return;
-        
-        // Listen to Reverb WebSockets for location updates
-        const channel = window.Echo.private('fleet');
-        
-        channel.listen('VehicleLocationUpdated', (e) => {
-            const newLocation = e.location;
-            setVehicles(current => current.map(v => 
-                v.id === newLocation.vehicle_id 
-                ? { ...v, latitude: newLocation.latitude, longitude: newLocation.longitude, speed: newLocation.speed }
-                : v
-            ));
-            
-            // Update selected vehicle if it's the one that moved
-            setSelectedVehicle(current => 
-                current && current.id === newLocation.vehicle_id 
-                ? { ...current, latitude: newLocation.latitude, longitude: newLocation.longitude, speed: newLocation.speed }
-                : current
-            );
-        });
-            
-        return () => {
-            window.Echo.leaveChannel('fleet');
-        };
-    }, []);
+        // Try WebSocket first, fall back to polling
+        if (window.Echo) {
+            try {
+                const channel = window.Echo.private('fleet');
+
+                channel.listen('VehicleLocationUpdated', (e) => {
+                    const newLocation = e.location;
+                    if (!echoConnected.current) {
+                        echoConnected.current = true;
+                        setConnectionMode('websocket');
+                        stopPolling(); // Stop polling since WebSocket is working
+                        console.log('[Fleet] WebSocket connected — real-time mode active');
+                    }
+                    applyLocationUpdate(
+                        newLocation.vehicle_id,
+                        newLocation.latitude,
+                        newLocation.longitude,
+                        newLocation.speed
+                    );
+                });
+
+                // Give WebSocket 5 seconds to connect, then fall back to polling
+                const fallbackTimer = setTimeout(() => {
+                    if (!echoConnected.current) {
+                        console.warn('[Fleet] WebSocket not responding — falling back to polling');
+                        startPolling();
+                    }
+                }, 5000);
+
+                return () => {
+                    clearTimeout(fallbackTimer);
+                    stopPolling();
+                    window.Echo.leaveChannel('fleet');
+                };
+            } catch (err) {
+                console.warn('[Fleet] Echo error — falling back to polling:', err);
+                startPolling();
+                return () => stopPolling();
+            }
+        } else {
+            // No Echo available at all — poll immediately
+            console.warn('[Fleet] Echo not available — using polling mode');
+            startPolling();
+            return () => stopPolling();
+        }
+    }, [applyLocationUpdate, startPolling, stopPolling]);
 
     const hasAlerts = upcomingExpiries && upcomingExpiries.length > 0;
 
@@ -49,6 +128,24 @@ export default function Index({ initialVehicles, upcomingExpiries }) {
                     vehicles={vehicles} 
                     onSelectVehicle={setSelectedVehicle} 
                 />
+
+                {/* Connection Mode Indicator */}
+                <div className="absolute bottom-4 left-4 z-10">
+                    <div className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-2 backdrop-blur-sm border ${
+                        connectionMode === 'websocket'
+                            ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                            : connectionMode === 'polling'
+                            ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                            : 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+                    }`}>
+                        <span className={`w-2 h-2 rounded-full ${
+                            connectionMode === 'websocket' ? 'bg-emerald-400 animate-pulse' :
+                            connectionMode === 'polling' ? 'bg-amber-400 animate-pulse' :
+                            'bg-gray-400'
+                        }`} />
+                        {connectionMode === 'websocket' ? 'Live' : connectionMode === 'polling' ? 'Polling' : 'Connecting...'}
+                    </div>
+                </div>
                 
                 {/* Floating Expiry Alerts Panel */}
                 <AnimatePresence>

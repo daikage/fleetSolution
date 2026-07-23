@@ -68,4 +68,21 @@ class TelematicsController extends Controller
 
         return response()->json(['status' => 'queued']);
     }
+
+    /**
+     * Return latest location for all vehicles (polling fallback for dashboard).
+     */
+    public function latestLocations()
+    {
+        $vehicles = \App\Models\Vehicle::with('latestLocation')->get()
+            ->map(fn($v) => [
+                'id' => $v->id,
+                'latitude' => $v->latestLocation?->latitude,
+                'longitude' => $v->latestLocation?->longitude,
+                'speed' => $v->latestLocation?->speed ?? 0,
+                'updated_at' => $v->latestLocation?->created_at,
+            ]);
+
+        return response()->json($vehicles);
+    }
 }
