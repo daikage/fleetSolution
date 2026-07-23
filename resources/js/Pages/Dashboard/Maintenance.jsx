@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import React, { useState, Fragment } from 'react';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import BulkImportModal from '@/Components/BulkImportModal';
-import { Plus, X, Wrench, Calendar, FileText, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, X, Wrench, Calendar, FileText, CheckCircle, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ExportButtons from '@/Components/ExportButtons';
 
@@ -15,6 +15,7 @@ export default function Maintenance({ maintenances, vehicles }) {
     const [actionModalOpen, setActionModalOpen] = useState(false);
     const [selectedMaintenance, setSelectedMaintenance] = useState(null);
     const [actionType, setActionType] = useState(''); // 'Accepted' or 'Rejected'
+    const [expandedRow, setExpandedRow] = useState(null);
 
     const { data, setData, post, processing, errors, reset } = useForm({
         vehicle_id: '',
@@ -144,71 +145,126 @@ export default function Maintenance({ maintenances, vehicles }) {
                             </thead>
                             <tbody>
                                 {maintenances.map((log) => (
-                                    <tr key={log.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                                        <td className="p-4 text-gray-300 text-sm flex items-center gap-2">
-                                            <Calendar className="w-4 h-4 text-gray-500 shrink-0" />
-                                            {new Date(log.date).toLocaleDateString()}
-                                        </td>
-                                        <td className="p-4">
-                                            <div className="font-medium text-white">{log.vehicle?.make} {log.vehicle?.model}</div>
-                                            <div className="text-sm text-gray-400">{log.vehicle?.license_plate}</div>
-                                        </td>
-                                        <td className="p-4 text-gray-300 text-sm">
-                                            <div className="mb-1">
-                                                <span className={`px-2 py-0.5 rounded-full text-xs ${log.type === 'Repair' ? 'bg-rose-500/20 text-rose-400' : 'bg-blue-500/20 text-blue-400'}`}>
-                                                    {log.type}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-1 mt-1 text-gray-400">
-                                                <Wrench className="w-3 h-3 text-amber-400 shrink-0" />
-                                                <span className="truncate max-w-[120px] inline-block">{log.service_type}</span>
-                                            </div>
-                                        </td>
-                                        <td className="p-4 text-gray-300 text-sm max-w-[200px]">
-                                            {log.diagnosis && <div className="truncate mb-1"><span className="text-gray-500 text-xs uppercase tracking-wider">Diag:</span> {log.diagnosis}</div>}
-                                            {log.work_to_be_done && <div className="truncate"><span className="text-gray-500 text-xs uppercase tracking-wider">Work:</span> {log.work_to_be_done}</div>}
-                                            {!log.diagnosis && !log.work_to_be_done && <span className="text-gray-600 italic">No details</span>}
-                                        </td>
-                                        <td className="p-4 text-gray-300 text-sm max-w-[150px]">
-                                            {log.vehicle_location && <div className="truncate mb-1"><span className="text-gray-500 text-xs uppercase tracking-wider">Loc:</span> {log.vehicle_location}</div>}
-                                            {log.vehicle_user && <div className="truncate"><span className="text-gray-500 text-xs uppercase tracking-wider">User:</span> {log.vehicle_user}</div>}
-                                            {!log.vehicle_location && !log.vehicle_user && <span className="text-gray-600">-</span>}
-                                        </td>
-                                        <td className="p-4 text-gray-300 text-sm max-w-[150px]">
-                                            {log.company && <div className="font-medium text-white truncate mb-1">{log.company}</div>}
-                                            {log.handled_by && <div className="truncate"><span className="text-gray-500 text-xs uppercase tracking-wider">By:</span> {log.handled_by}</div>}
-                                            {log.supervised_by && <div className="truncate"><span className="text-gray-500 text-xs uppercase tracking-wider">Sup:</span> {log.supervised_by}</div>}
-                                            {!log.company && !log.handled_by && !log.supervised_by && <span className="text-gray-600">-</span>}
-                                        </td>
-                                        <td className="p-4 text-emerald-400 font-mono flex items-center gap-1">
-                                            <span className="font-semibold text-sm">₦</span>
-                                            {Number(log.cost).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                        </td>
-                                        <td className="p-4">
-                                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                                                log.status === 'Accepted' ? 'bg-emerald-500/20 text-emerald-400' :
-                                                log.status === 'Rejected' ? 'bg-rose-500/20 text-rose-400' :
-                                                'bg-amber-500/20 text-amber-400'
-                                            }`}>
-                                                {log.status}
-                                            </span>
-                                        </td>
-                                        <td className="p-4 text-right">
-                                            {log.status === 'Pending' && auth.user.role !== 'manager' && (
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <button onClick={() => openActionModal(log, 'Accepted')} className="p-1.5 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-md transition-colors" title="Accept">
-                                                        <CheckCircle className="w-5 h-5" />
-                                                    </button>
-                                                    <button onClick={() => openActionModal(log, 'Rejected')} className="p-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-md transition-colors" title="Reject">
-                                                        <XCircle className="w-5 h-5" />
-                                                    </button>
+                                    <Fragment key={log.id}>
+                                        <tr className={`border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer ${expandedRow === log.id ? 'bg-white/5' : ''}`} onClick={() => setExpandedRow(expandedRow === log.id ? null : log.id)}>
+                                            <td className="p-4 text-gray-300 text-sm flex items-center gap-2">
+                                                <button className="text-gray-400 hover:text-white transition-colors mr-1 shrink-0 focus:outline-none">
+                                                    {expandedRow === log.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                                </button>
+                                                <Calendar className="w-4 h-4 text-gray-500 shrink-0" />
+                                                {new Date(log.date).toLocaleDateString()}
+                                            </td>
+                                            <td className="p-4">
+                                                <div className="font-medium text-white">{log.vehicle?.make} {log.vehicle?.model}</div>
+                                                <div className="text-sm text-gray-400">{log.vehicle?.license_plate}</div>
+                                            </td>
+                                            <td className="p-4 text-gray-300 text-sm">
+                                                <div className="mb-1">
+                                                    <span className={`px-2 py-0.5 rounded-full text-xs ${log.type === 'Repair' ? 'bg-rose-500/20 text-rose-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                                                        {log.type}
+                                                    </span>
                                                 </div>
-                                            )}
-                                            {log.status !== 'Pending' && (
-                                                <span className="text-xs text-gray-500 italic">Actioned</span>
-                                            )}
-                                        </td>
-                                    </tr>
+                                                <div className="flex items-center gap-1 mt-1 text-gray-400">
+                                                    <Wrench className="w-3 h-3 text-amber-400 shrink-0" />
+                                                    <span className="truncate max-w-[120px] inline-block">{log.service_type}</span>
+                                                </div>
+                                            </td>
+                                            <td className="p-4 text-gray-300 text-sm max-w-[200px]">
+                                                {log.diagnosis && <div className="truncate mb-1"><span className="text-gray-500 text-xs uppercase tracking-wider">Diag:</span> {log.diagnosis}</div>}
+                                                {log.work_to_be_done && <div className="truncate"><span className="text-gray-500 text-xs uppercase tracking-wider">Work:</span> {log.work_to_be_done}</div>}
+                                                {!log.diagnosis && !log.work_to_be_done && <span className="text-gray-600 italic">No details</span>}
+                                            </td>
+                                            <td className="p-4 text-gray-300 text-sm max-w-[150px]">
+                                                {log.vehicle_location && <div className="truncate mb-1"><span className="text-gray-500 text-xs uppercase tracking-wider">Loc:</span> {log.vehicle_location}</div>}
+                                                {log.vehicle_user && <div className="truncate"><span className="text-gray-500 text-xs uppercase tracking-wider">User:</span> {log.vehicle_user}</div>}
+                                                {!log.vehicle_location && !log.vehicle_user && <span className="text-gray-600">-</span>}
+                                            </td>
+                                            <td className="p-4 text-gray-300 text-sm max-w-[150px]">
+                                                {log.company && <div className="font-medium text-white truncate mb-1">{log.company}</div>}
+                                                {log.handled_by && <div className="truncate"><span className="text-gray-500 text-xs uppercase tracking-wider">By:</span> {log.handled_by}</div>}
+                                                {log.supervised_by && <div className="truncate"><span className="text-gray-500 text-xs uppercase tracking-wider">Sup:</span> {log.supervised_by}</div>}
+                                                {!log.company && !log.handled_by && !log.supervised_by && <span className="text-gray-600">-</span>}
+                                            </td>
+                                            <td className="p-4 text-emerald-400 font-mono flex items-center gap-1">
+                                                <span className="font-semibold text-sm">₦</span>
+                                                {Number(log.cost).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </td>
+                                            <td className="p-4">
+                                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                                    log.status === 'Accepted' ? 'bg-emerald-500/20 text-emerald-400' :
+                                                    log.status === 'Rejected' ? 'bg-rose-500/20 text-rose-400' :
+                                                    'bg-amber-500/20 text-amber-400'
+                                                }`}>
+                                                    {log.status}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 text-right" onClick={(e) => e.stopPropagation()}>
+                                                {log.status === 'Pending' && auth.user.role !== 'manager' && (
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <button onClick={() => openActionModal(log, 'Accepted')} className="p-1.5 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-md transition-colors" title="Accept">
+                                                            <CheckCircle className="w-5 h-5" />
+                                                        </button>
+                                                        <button onClick={() => openActionModal(log, 'Rejected')} className="p-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-md transition-colors" title="Reject">
+                                                            <XCircle className="w-5 h-5" />
+                                                        </button>
+                                                    </div>
+                                                )}
+                                                {log.status !== 'Pending' && (
+                                                    <span className="text-xs text-gray-500 italic">Actioned</span>
+                                                )}
+                                            </td>
+                                        </tr>
+                                        {expandedRow === log.id && (
+                                            <tr className="bg-white/[0.02] border-b border-white/5">
+                                                <td colSpan="9" className="p-6">
+                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                                        <div className="space-y-4">
+                                                            <div>
+                                                                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Diagnosis Details</h4>
+                                                                <p className="text-gray-300 text-sm whitespace-pre-wrap">{log.diagnosis || <span className="italic text-gray-600">No diagnosis recorded</span>}</p>
+                                                            </div>
+                                                            <div>
+                                                                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Work To Be Done</h4>
+                                                                <p className="text-gray-300 text-sm whitespace-pre-wrap">{log.work_to_be_done || <span className="italic text-gray-600">No work details recorded</span>}</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="space-y-4">
+                                                            <div>
+                                                                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Location & User</h4>
+                                                                <div className="text-gray-300 text-sm">
+                                                                    <div className="mb-1"><span className="text-gray-500">Location:</span> {log.vehicle_location || '-'}</div>
+                                                                    <div><span className="text-gray-500">Vehicle User:</span> {log.vehicle_user || '-'}</div>
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Cost Breakdown</h4>
+                                                                <div className="text-emerald-400 font-mono text-lg flex items-center gap-1">
+                                                                    <span className="font-semibold text-sm">₦</span>
+                                                                    {Number(log.cost).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="space-y-4">
+                                                            <div>
+                                                                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Personnel Details</h4>
+                                                                <div className="text-gray-300 text-sm">
+                                                                    <div className="mb-1"><span className="text-gray-500">Company/Vendor:</span> {log.company || '-'}</div>
+                                                                    <div className="mb-1"><span className="text-gray-500">Handled By:</span> {log.handled_by || '-'}</div>
+                                                                    <div><span className="text-gray-500">Supervised By:</span> {log.supervised_by || '-'}</div>
+                                                                </div>
+                                                            </div>
+                                                            {log.reviewer_comment && (
+                                                                <div>
+                                                                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Reviewer Comment</h4>
+                                                                    <p className="text-gray-300 text-sm whitespace-pre-wrap border-l-2 border-electric-blue pl-3 py-1 bg-white/5 rounded-r-md">{log.reviewer_comment}</p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </Fragment>
                                 ))}
                                 {maintenances.length === 0 && (
                                     <tr>
