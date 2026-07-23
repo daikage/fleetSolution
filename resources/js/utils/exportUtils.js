@@ -9,15 +9,14 @@ import 'jspdf-autotable';
  * @param {string} filename - The name of the file without extension
  */
 export const exportToExcel = (data, columns, filename) => {
-    const mappedData = data.map(row => {
-        const rowData = {};
-        columns.forEach(col => {
-            rowData[col.header] = row[col.key];
-        });
-        return rowData;
+    const headers = columns.map(col => col.header);
+    const rows = data.map(row => {
+        return columns.map(col => row[col.key] !== undefined && row[col.key] !== null ? String(row[col.key]) : '');
     });
-
-    const worksheet = XLSX.utils.json_to_sheet(mappedData);
+    
+    const aoa = [headers, ...rows];
+    const worksheet = XLSX.utils.aoa_to_sheet(aoa);
+    
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
     XLSX.writeFile(workbook, `${filename}.xlsx`);
