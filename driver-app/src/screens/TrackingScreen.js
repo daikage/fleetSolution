@@ -26,49 +26,60 @@ export default function TrackingScreen({ navigation }) {
   }, []);
 
   const getInitialLocation = async () => {
-    let { status } = await Location.requestForegroundPermissionsAsync();
-    if (status === 'granted') {
-      let loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      setCurrentLocation(loc.coords);
-      if (mapRef.current) {
-        mapRef.current.animateToRegion({
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        }, 1000);
-      }
-      
-      // Instantly sync the exact initial location to the backend map
-      try {
-        const token = await AsyncStorage.getItem('userToken');
-        const vId = await AsyncStorage.getItem('vehicleId');
-        const baseUrl = await AsyncStorage.getItem('API_BASE_URL');
-        if (token && vId && baseUrl) {
-            await axios.post(`${baseUrl}/api/telematics/location`, {
-                vehicle_id: vId,
-                latitude: loc.coords.latitude,
-                longitude: loc.coords.longitude,
-                speed: 0
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        let loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        setCurrentLocation(loc.coords);
+        if (mapRef.current) {
+          mapRef.current.animateToRegion({
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          }, 1000);
         }
-      } catch (err) {
-        console.warn("Failed to sync initial location", err);
+        
+        // Instantly sync the exact initial location to the backend map
+        try {
+          const token = await AsyncStorage.getItem('userToken');
+          const vId = await AsyncStorage.getItem('vehicleId');
+          const baseUrl = await AsyncStorage.getItem('API_BASE_URL');
+          if (token && vId && baseUrl) {
+              await axios.post(`${baseUrl}/api/telematics/location`, {
+                  vehicle_id: vId,
+                  latitude: loc.coords.latitude,
+                  longitude: loc.coords.longitude,
+                  speed: 0
+              }, {
+                  headers: { Authorization: `Bearer ${token}` }
+              });
+          }
+        } catch (err) {
+          console.warn("Failed to sync initial location", err);
+        }
       }
+    } catch (e) {
+      console.warn('getInitialLocation error:', e.message);
     }
   };
 
   const checkStatus = async () => {
-    const id = await AsyncStorage.getItem('vehicleId');
-    if (id) setVehicleId(id);
+    try {
+      const id = await AsyncStorage.getItem('vehicleId');
+      if (id) setVehicleId(id);
 
-    const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
-    setIsTracking(hasStarted);
-    
-    if (hasStarted) {
-      startForegroundTracking();
+      const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
+      setIsTracking(hasStarted);
+      
+      if (hasStarted) {
+        startForegroundTracking();
+      }
+    } catch (e) {
+      // hasStartedLocationUpdatesAsync throws if the task hasn't been registered yet
+      // This is expected on first launch - just default to not tracking
+      console.warn('checkStatus error (expected on first launch):', e.message);
+      setIsTracking(false);
     }
   };
 
