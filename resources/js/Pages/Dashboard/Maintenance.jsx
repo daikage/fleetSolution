@@ -133,8 +133,10 @@ export default function Maintenance({ maintenances, vehicles }) {
                                 <tr className="border-b border-white/10 bg-black/20">
                                     <th className="p-4 text-sm font-semibold text-gray-300">Date</th>
                                     <th className="p-4 text-sm font-semibold text-gray-300">Vehicle</th>
-                                    <th className="p-4 text-sm font-semibold text-gray-300">Type</th>
-                                    <th className="p-4 text-sm font-semibold text-gray-300">Service Type</th>
+                                    <th className="p-4 text-sm font-semibold text-gray-300">Type / Service</th>
+                                    <th className="p-4 text-sm font-semibold text-gray-300">Diagnosis / Work</th>
+                                    <th className="p-4 text-sm font-semibold text-gray-300">Location / User</th>
+                                    <th className="p-4 text-sm font-semibold text-gray-300">Mechanic / Company</th>
                                     <th className="p-4 text-sm font-semibold text-gray-300">Cost</th>
                                     <th className="p-4 text-sm font-semibold text-gray-300">Status</th>
                                     <th className="p-4 text-sm font-semibold text-gray-300 text-right">Actions</th>
@@ -143,8 +145,8 @@ export default function Maintenance({ maintenances, vehicles }) {
                             <tbody>
                                 {maintenances.map((log) => (
                                     <tr key={log.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                                        <td className="p-4 text-gray-300 flex items-center gap-2">
-                                            <Calendar className="w-4 h-4 text-gray-500" />
+                                        <td className="p-4 text-gray-300 text-sm flex items-center gap-2">
+                                            <Calendar className="w-4 h-4 text-gray-500 shrink-0" />
                                             {new Date(log.date).toLocaleDateString()}
                                         </td>
                                         <td className="p-4">
@@ -152,15 +154,31 @@ export default function Maintenance({ maintenances, vehicles }) {
                                             <div className="text-sm text-gray-400">{log.vehicle?.license_plate}</div>
                                         </td>
                                         <td className="p-4 text-gray-300 text-sm">
-                                            <span className={`px-2 py-1 rounded-full ${log.type === 'Repair' ? 'bg-rose-500/20 text-rose-400' : 'bg-blue-500/20 text-blue-400'}`}>
-                                                {log.type}
-                                            </span>
-                                        </td>
-                                        <td className="p-4 text-gray-300">
-                                            <div className="flex items-center gap-2">
-                                                <Wrench className="w-4 h-4 text-amber-400" />
-                                                {log.service_type}
+                                            <div className="mb-1">
+                                                <span className={`px-2 py-0.5 rounded-full text-xs ${log.type === 'Repair' ? 'bg-rose-500/20 text-rose-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                                                    {log.type}
+                                                </span>
                                             </div>
+                                            <div className="flex items-center gap-1 mt-1 text-gray-400">
+                                                <Wrench className="w-3 h-3 text-amber-400 shrink-0" />
+                                                <span className="truncate max-w-[120px] inline-block">{log.service_type}</span>
+                                            </div>
+                                        </td>
+                                        <td className="p-4 text-gray-300 text-sm max-w-[200px]">
+                                            {log.diagnosis && <div className="truncate mb-1"><span className="text-gray-500 text-xs uppercase tracking-wider">Diag:</span> {log.diagnosis}</div>}
+                                            {log.work_to_be_done && <div className="truncate"><span className="text-gray-500 text-xs uppercase tracking-wider">Work:</span> {log.work_to_be_done}</div>}
+                                            {!log.diagnosis && !log.work_to_be_done && <span className="text-gray-600 italic">No details</span>}
+                                        </td>
+                                        <td className="p-4 text-gray-300 text-sm max-w-[150px]">
+                                            {log.vehicle_location && <div className="truncate mb-1"><span className="text-gray-500 text-xs uppercase tracking-wider">Loc:</span> {log.vehicle_location}</div>}
+                                            {log.vehicle_user && <div className="truncate"><span className="text-gray-500 text-xs uppercase tracking-wider">User:</span> {log.vehicle_user}</div>}
+                                            {!log.vehicle_location && !log.vehicle_user && <span className="text-gray-600">-</span>}
+                                        </td>
+                                        <td className="p-4 text-gray-300 text-sm max-w-[150px]">
+                                            {log.company && <div className="font-medium text-white truncate mb-1">{log.company}</div>}
+                                            {log.handled_by && <div className="truncate"><span className="text-gray-500 text-xs uppercase tracking-wider">By:</span> {log.handled_by}</div>}
+                                            {log.supervised_by && <div className="truncate"><span className="text-gray-500 text-xs uppercase tracking-wider">Sup:</span> {log.supervised_by}</div>}
+                                            {!log.company && !log.handled_by && !log.supervised_by && <span className="text-gray-600">-</span>}
                                         </td>
                                         <td className="p-4 text-emerald-400 font-mono flex items-center gap-1">
                                             <span className="font-semibold text-sm">₦</span>
@@ -194,7 +212,7 @@ export default function Maintenance({ maintenances, vehicles }) {
                                 ))}
                                 {maintenances.length === 0 && (
                                     <tr>
-                                        <td colSpan="7" className="p-12 text-center text-gray-400">
+                                        <td colSpan="9" className="p-12 text-center text-gray-400">
                                             <Wrench className="w-12 h-12 text-gray-600 mx-auto mb-4" />
                                             No maintenance records found. Keep your fleet healthy by logging repairs.
                                         </td>
