@@ -111,7 +111,6 @@ class DashboardController extends Controller
                 'vehicle_id' => $vehicle->id,
                 'driver_id' => $validated['driver_id'],
                 'start_time' => now(),
-                'status' => 'active',
             ]);
         }
 
