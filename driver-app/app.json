@@ -19,7 +19,7 @@
       "package": "com.anonymous.driverapp",
       "config": {
         "googleMaps": {
-          "apiKey": "YOUR_GOOGLE_MAPS_API_KEY"
+          "apiKey": "AIzaSyCe6q4uGOBkWkDs1Me0kolq1QMMlSKWG-Q"
         }
       },
       "permissions": [
