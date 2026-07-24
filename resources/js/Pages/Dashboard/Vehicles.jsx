@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Head, useForm, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import BulkImportModal from '@/Components/BulkImportModal';
-import { Plus, Settings, Trash2, X, Navigation, FileText, File as FileIcon, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Settings, Trash2, X, Navigation, FileText, File as FileIcon, ChevronDown, ChevronUp, StopCircle, XCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ExportButtons from '@/Components/ExportButtons';
 
@@ -170,26 +170,26 @@ export default function Vehicles({ vehicles, drivers }) {
                                                                 <Navigation className="w-4 h-4" />
                                                             </button>
                                                         ) : (
-                                                            <div className="flex gap-2">
+                                                            <>
                                                                 <Link
                                                                     href={route('dashboard.trips.end', vehicle.trips[0].id)}
                                                                     method="put"
                                                                     as="button"
-                                                                    className="px-3 py-1 text-xs font-bold text-white bg-amber-500/20 border border-amber-500/30 rounded-lg hover:bg-amber-500/40 transition-colors"
+                                                                    className="p-2 text-gray-400 hover:text-amber-400 bg-white/5 rounded-lg hover:bg-amber-500/10 transition-colors"
                                                                     title="End Trip"
                                                                 >
-                                                                    End Trip
+                                                                    <StopCircle className="w-4 h-4" />
                                                                 </Link>
                                                                 <Link
                                                                     href={route('dashboard.trips.destroy', vehicle.trips[0].id)}
                                                                     method="delete"
                                                                     as="button"
-                                                                    className="px-3 py-1 text-xs font-bold text-white bg-rose-500/20 border border-rose-500/30 rounded-lg hover:bg-rose-500/40 transition-colors"
+                                                                    className="p-2 text-gray-400 hover:text-rose-400 bg-white/5 rounded-lg hover:bg-rose-500/10 transition-colors"
                                                                     title="Cancel Trip"
                                                                 >
-                                                                    Cancel Trip
+                                                                    <XCircle className="w-4 h-4" />
                                                                 </Link>
-                                                            </div>
+                                                            </>
                                                         )}
                                                         <Link
                                                             href={route('dashboard.vehicles.destroy', vehicle.id)}
