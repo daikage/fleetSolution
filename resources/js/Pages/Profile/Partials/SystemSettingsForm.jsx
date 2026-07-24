@@ -1,47 +1,31 @@
 import { useForm, usePage } from '@inertiajs/react';
 import { Settings, Save, Map as MapIcon, Radio } from 'lucide-react';
-import axios from 'axios';
 import { useState } from 'react';
 
 export default function SystemSettingsForm({ className = '' }) {
     const { props } = usePage();
     const settings = props.settings || {};
     const [statusMessage, setStatusMessage] = useState('');
-    const [isProcessing, setIsProcessing] = useState(false);
 
-    const { data, setData, errors, setError, clearErrors } = useForm({
+    const { data, setData, post, processing, errors, recentlySuccessful } = useForm({
         tracker_type: settings.tracker_type || 'mobile_app',
         map_provider: settings.map_provider || 'map_libre',
     });
 
-    const submit = async (e) => {
+    const submit = (e) => {
         e.preventDefault();
-        setIsProcessing(true);
         setStatusMessage('');
-        clearErrors();
 
-        try {
-            const response = await axios.post('/api/settings', data);
-            setStatusMessage('System settings updated successfully.');
-            // Let the user see the success message briefly
-            setTimeout(() => setStatusMessage(''), 3000);
-            
-            // Note: Since this is an API call, we might want to refresh Inertia props
-            // to update global settings, or just let the next page load handle it.
-            // Using window.location.reload() ensures the map component gets fresh props
-            // if we navigate to it, though Inertia.reload() is better.
-        } catch (error) {
-            if (error.response?.data?.errors) {
-                const apiErrors = error.response.data.errors;
-                for (const key in apiErrors) {
-                    setError(key, apiErrors[key][0]);
-                }
-            } else {
+        post(route('settings.update'), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setStatusMessage('System settings updated successfully.');
+                setTimeout(() => setStatusMessage(''), 3000);
+            },
+            onError: () => {
                 setStatusMessage('Failed to update settings.');
             }
-        } finally {
-            setIsProcessing(false);
-        }
+        });
     };
 
     return (
@@ -96,11 +80,11 @@ export default function SystemSettingsForm({ className = '' }) {
                 <div className="flex items-center gap-4">
                     <button
                         type="submit"
-                        disabled={isProcessing}
+                        disabled={processing}
                         className="bg-electric-blue hover:bg-sky-400 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-electric-blue/20 disabled:opacity-50 flex items-center gap-2"
                     >
                         <Save className="w-4 h-4" />
-                        {isProcessing ? 'Saving...' : 'Save Configuration'}
+                        {processing ? 'Saving...' : 'Save Configuration'}
                     </button>
 
                     {statusMessage && (

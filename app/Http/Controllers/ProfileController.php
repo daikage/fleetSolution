@@ -60,4 +60,27 @@ class ProfileController extends Controller
 
         return Redirect::to('/');
     }
+
+    /**
+     * Update the system settings.
+     */
+    public function updateSettings(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'tracker_type' => 'required|string|in:mobile_app,traccar,osmand,custom_iot',
+            'map_provider' => 'required|string|in:map_libre,google_maps',
+        ]);
+
+        \App\Models\Setting::updateOrCreate(
+            ['key' => 'tracker_type'],
+            ['value' => $request->tracker_type]
+        );
+
+        \App\Models\Setting::updateOrCreate(
+            ['key' => 'map_provider'],
+            ['value' => $request->map_provider]
+        );
+
+        return Redirect::back()->with('status', 'settings-updated');
+    }
 }
