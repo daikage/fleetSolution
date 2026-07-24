@@ -75,9 +75,9 @@ export default function VehicleSidebar({ vehicle, onClose }) {
                                             as="button"
                                             onClick={onClose}
                                             className="px-3 py-1.5 text-xs font-bold text-white bg-rose-500/20 border border-rose-500/30 rounded-lg hover:bg-rose-500/40 transition-colors absolute right-4 top-1/2 -translate-y-1/2"
-                                            title="End Trip"
+                                            title="Stop Tracking / End Trip"
                                         >
-                                            End Trip
+                                            Stop Tracking / End Trip
                                         </Link>
                                     )}
                                 </div>

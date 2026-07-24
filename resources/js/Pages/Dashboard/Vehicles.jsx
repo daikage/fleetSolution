@@ -175,9 +175,9 @@ export default function Vehicles({ vehicles, drivers }) {
                                                                 method="put"
                                                                 as="button"
                                                                 className="px-3 py-1 text-xs font-bold text-white bg-rose-500/20 border border-rose-500/30 rounded-lg hover:bg-rose-500/40 transition-colors"
-                                                                title="End Trip"
+                                                                title="Stop Tracking / End Trip"
                                                             >
-                                                                End Trip
+                                                                Stop Tracking / End Trip
                                                             </Link>
                                                         )}
                                                         <Link
