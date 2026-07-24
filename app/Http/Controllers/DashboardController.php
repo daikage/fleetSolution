@@ -90,7 +90,7 @@ class DashboardController extends Controller
             'license_plate' => 'required|string|unique:vehicles|max:255',
             'odometer' => 'required|numeric|min:0',
             'vendor' => 'nullable|string|max:255',
-            'location' => 'required|string|max:255',
+            'driver_id' => 'nullable|exists:drivers,id',
         ]);
 
         $validated['status'] = 'active';
@@ -106,34 +106,14 @@ class DashboardController extends Controller
             'status' => $validated['status'],
         ]);
 
-        // Default to Lagos
-        $lat = 6.5244;
-        $lon = 3.3792;
-
-        try {
-            $response = \Illuminate\Support\Facades\Http::withHeaders([
-                'User-Agent' => 'FKGFleet/1.0 (contact@fkgfleet.local)'
-            ])->get('https://nominatim.openstreetmap.org/search', [
-                'q' => $validated['location'],
-                'format' => 'json',
-                'limit' => 1,
+        if (!empty($validated['driver_id'])) {
+            \App\Models\Trip::create([
+                'vehicle_id' => $vehicle->id,
+                'driver_id' => $validated['driver_id'],
+                'start_time' => now(),
+                'status' => 'active',
             ]);
-
-            if ($response->successful() && count($response->json()) > 0) {
-                $result = $response->json()[0];
-                $lat = $result['lat'];
-                $lon = $result['lon'];
-            }
-        } catch (\Exception $e) {
-            // Ignore error and use default coordinates
         }
-
-        \App\Models\Location::create([
-            'vehicle_id' => $vehicle->id,
-            'latitude' => $lat,
-            'longitude' => $lon,
-            'speed' => 0,
-        ]);
 
         return back();
     }

@@ -21,7 +21,7 @@ export default function Vehicles({ vehicles, drivers }) {
         license_plate: '',
         odometer: '',
         vendor: '',
-        location: '',
+        driver_id: '',
     });
 
     const dispatchForm = useForm({
@@ -303,9 +303,20 @@ export default function Vehicles({ vehicles, drivers }) {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-300 mb-1">Initial Location</label>
-                                    <input type="text" value={data.location} onChange={e => setData('location', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="e.g. Lagos, Nigeria" required />
-                                    {errors.location && <div className="text-rose-400 text-xs mt-1">{errors.location}</div>}
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Assign Driver (Optional)</label>
+                                    <select value={data.driver_id} onChange={e => setData('driver_id', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none">
+                                        <option value="">No driver assigned</option>
+                                        {drivers.map(d => (
+                                            <option key={d.id} value={d.id}>{d.user.name}</option>
+                                        ))}
+                                    </select>
+                                    {errors.driver_id && <div className="text-rose-400 text-xs mt-1">{errors.driver_id}</div>}
+                                </div>
+
+                                <div className="p-4 bg-sky-500/10 border border-sky-500/20 rounded-lg">
+                                    <p className="text-sm text-sky-200">
+                                        <strong>Location Tracking:</strong> The vehicle's initial location will be automatically determined once the assigned driver logs into the Mobile App or when the installed GPS tracker sends its first ping.
+                                    </p>
                                 </div>
 
                                 <div className="mt-4 flex justify-end gap-3">

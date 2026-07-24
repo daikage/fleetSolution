@@ -32,7 +32,7 @@ export default function FleetMap({ vehicles, onSelectVehicle }) {
                         })}
                         disableDefaultUI={true}
                     >
-                        {vehicles.map(vehicle => (
+                        {vehicles.filter(v => v.latitude && v.longitude).map(vehicle => (
                             <AdvancedMarker
                                 key={vehicle.id}
                                 position={{ lat: parseFloat(vehicle.latitude), lng: parseFloat(vehicle.longitude) }}
@@ -53,7 +53,7 @@ export default function FleetMap({ vehicles, onSelectVehicle }) {
                 >
                     <NavigationControl position="bottom-right" />
                     
-                    {vehicles.map(vehicle => (
+                    {vehicles.filter(v => v.latitude && v.longitude).map(vehicle => (
                         <MapLibreMarker
                             key={vehicle.id}
                             longitude={parseFloat(vehicle.longitude)}
