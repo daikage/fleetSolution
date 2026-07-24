@@ -148,7 +148,7 @@ export default function Compliance({ documents, vehicles, drivers }) {
                             </div>
 
                             <form onSubmit={submit} className="p-6 flex flex-col gap-4">
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-300 mb-1">Entity Type</label>
                                         <select

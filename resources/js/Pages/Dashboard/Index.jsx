@@ -154,7 +154,7 @@ export default function Index({ initialVehicles, upcomingExpiries }) {
                             initial={{ opacity: 0, y: -20, x: 20 }}
                             animate={{ opacity: 1, y: 0, x: 0 }}
                             exit={{ opacity: 0, scale: 0.95 }}
-                            className="absolute top-4 right-4 md:right-8 z-10 w-80 max-h-96 flex flex-col glass-panel shadow-2xl border border-rose-500/30 overflow-hidden"
+                            className="absolute top-4 right-4 md:right-8 z-10 w-[calc(100vw-2rem)] sm:w-80 max-h-[80vh] sm:max-h-96 flex flex-col glass-panel shadow-2xl border border-rose-500/30 overflow-hidden"
                         >
                             <div className="bg-rose-500/20 p-3 flex justify-between items-center border-b border-rose-500/30">
                                 <div className="flex items-center gap-2 text-rose-400 font-bold">

@@ -196,7 +196,7 @@ export default function Drivers({ drivers }) {
                                     {errors.password && <div className="text-rose-400 text-xs mt-1">{errors.password}</div>}
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4 mt-2">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-300 mb-1">License Number</label>
                                         <input type="text" value={data.license_no} onChange={e => setData('license_no', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none font-mono" placeholder="DL-123456" required />
