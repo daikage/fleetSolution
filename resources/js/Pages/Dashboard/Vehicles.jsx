@@ -170,15 +170,26 @@ export default function Vehicles({ vehicles, drivers }) {
                                                                 <Navigation className="w-4 h-4" />
                                                             </button>
                                                         ) : (
-                                                            <Link
-                                                                href={route('dashboard.trips.end', vehicle.trips[0].id)}
-                                                                method="put"
-                                                                as="button"
-                                                                className="px-3 py-1 text-xs font-bold text-white bg-rose-500/20 border border-rose-500/30 rounded-lg hover:bg-rose-500/40 transition-colors"
-                                                                title="Stop Tracking / End Trip"
-                                                            >
-                                                                Stop Tracking / End Trip
-                                                            </Link>
+                                                            <div className="flex gap-2">
+                                                                <Link
+                                                                    href={route('dashboard.trips.end', vehicle.trips[0].id)}
+                                                                    method="put"
+                                                                    as="button"
+                                                                    className="px-3 py-1 text-xs font-bold text-white bg-amber-500/20 border border-amber-500/30 rounded-lg hover:bg-amber-500/40 transition-colors"
+                                                                    title="End Trip"
+                                                                >
+                                                                    End Trip
+                                                                </Link>
+                                                                <Link
+                                                                    href={route('dashboard.trips.destroy', vehicle.trips[0].id)}
+                                                                    method="delete"
+                                                                    as="button"
+                                                                    className="px-3 py-1 text-xs font-bold text-white bg-rose-500/20 border border-rose-500/30 rounded-lg hover:bg-rose-500/40 transition-colors"
+                                                                    title="Cancel Trip"
+                                                                >
+                                                                    Cancel Trip
+                                                                </Link>
+                                                            </div>
                                                         )}
                                                         <Link
                                                             href={route('dashboard.vehicles.destroy', vehicle.id)}

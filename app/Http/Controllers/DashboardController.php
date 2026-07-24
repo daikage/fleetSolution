@@ -207,6 +207,12 @@ class DashboardController extends Controller
         return back();
     }
 
+    public function destroyTrip(\App\Models\Trip $trip)
+    {
+        $trip->delete();
+        return back();
+    }
+
     public function maintenances()
     {
         $user = auth()->user();

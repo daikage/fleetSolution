@@ -36,6 +36,9 @@ Route::post('/dashboard/trips', [\App\Http\Controllers\DashboardController::clas
 Route::put('/dashboard/trips/{trip}/end', [\App\Http\Controllers\DashboardController::class, 'endTrip'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.trips.end');
+Route::delete('/dashboard/trips/{trip}', [\App\Http\Controllers\DashboardController::class, 'destroyTrip'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.trips.destroy');
 
 Route::get('/dashboard/maintenance', [\App\Http\Controllers\DashboardController::class, 'maintenances'])
     ->middleware(['auth', 'verified'])
