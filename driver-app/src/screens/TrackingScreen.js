@@ -188,6 +188,36 @@ export default function TrackingScreen({ navigation }) {
       },
     });
 
+    // Instantly push the current location to the backend so the map updates without delay
+    try {
+      let loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      if (loc) {
+        setCurrentLocation(loc.coords);
+        if (mapRef.current) {
+          mapRef.current.animateToRegion({
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          }, 1000);
+        }
+        const token = await AsyncStorage.getItem('userToken');
+        const baseUrl = await AsyncStorage.getItem('API_BASE_URL');
+        if (token && baseUrl) {
+          await axios.post(`${baseUrl}/api/telematics/location`, {
+              vehicle_id: currentVehicleId,
+              latitude: loc.coords.latitude,
+              longitude: loc.coords.longitude,
+              speed: 0
+          }, {
+              headers: { Authorization: `Bearer ${token}` }
+          });
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to sync immediate start location", e);
+    }
+
     setIsTracking(true);
     startForegroundTracking();
   };

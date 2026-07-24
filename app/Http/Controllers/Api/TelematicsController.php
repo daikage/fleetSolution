@@ -15,6 +15,12 @@ class TelematicsController extends Controller
     public function store(Request $request)
     {
         $trackerType = \App\Models\Setting::where('key', 'tracker_type')->value('value') ?? 'mobile_app';
+        
+        $user = $request->user();
+        if ($user && $user->role === 'driver' && $trackerType !== 'mobile_app') {
+            return response()->json(['status' => 'ignored', 'message' => 'Mobile app tracking is disabled in settings.']);
+        }
+
         if (!in_array($trackerType, ['mobile_app', 'traccar', 'custom_iot'])) {
             return response()->json(['error' => 'Current tracker setting does not support this endpoint.'], 403);
         }
