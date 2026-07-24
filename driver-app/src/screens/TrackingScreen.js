@@ -127,8 +127,36 @@ export default function TrackingScreen({ navigation }) {
   };
 
   const startTracking = async () => {
-    if (!vehicleId) {
-      Alert.alert('No Vehicle', 'You are not assigned to an active trip. Cannot track location.');
+    // Re-fetch vehicle assignment in case a trip was created after login
+    let currentVehicleId = vehicleId;
+    if (!currentVehicleId) {
+      try {
+        const token = await AsyncStorage.getItem('userToken');
+        const baseUrl = await AsyncStorage.getItem('API_BASE_URL');
+        if (token && baseUrl) {
+          const response = await axios.get(`${baseUrl}/api/user`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const userId = response.data.id;
+
+          // Check for active trip via a dedicated endpoint
+          const tripResponse = await axios.get(`${baseUrl}/api/driver/active-trip`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          if (tripResponse.data.vehicle_id) {
+            currentVehicleId = tripResponse.data.vehicle_id.toString();
+            setVehicleId(currentVehicleId);
+            await AsyncStorage.setItem('vehicleId', currentVehicleId);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to re-fetch vehicle assignment:', err.message);
+      }
+    }
+
+    if (!currentVehicleId) {
+      Alert.alert('No Vehicle', 'You are not assigned to an active trip. Ask your manager to assign you a vehicle first.');
       return;
     }
 

@@ -43,6 +43,23 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/telematics/location', [\App\Http\Controllers\Api\TelematicsController::class, 'store']);
     Route::get('/fleet/vehicles/locations', [\App\Http\Controllers\Api\TelematicsController::class, 'latestLocations']);
 
+    // Driver app: check for active trip assignment
+    Route::get('/driver/active-trip', function (Request $request) {
+        $user = $request->user();
+        $driver = \App\Models\Driver::where('user_id', $user->id)->first();
+        if (!$driver) {
+            return response()->json(['vehicle_id' => null]);
+        }
+        $trip = \App\Models\Trip::where('driver_id', $driver->id)
+            ->whereNull('end_time')
+            ->latest()
+            ->first();
+        return response()->json([
+            'vehicle_id' => $trip ? $trip->vehicle_id : null,
+            'trip_id' => $trip ? $trip->id : null,
+        ]);
+    });
+
     // Admin/Manager Settings routes
     Route::middleware('role:superadmin,admin,manager')->group(function () {
         Route::get('/settings', [\App\Http\Controllers\Api\SettingsController::class, 'index']);
