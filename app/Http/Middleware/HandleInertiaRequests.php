@@ -35,6 +35,7 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
                 'unreadNotificationsCount' => $request->user() ? $request->user()->unreadNotifications()->count() : 0,
             ],
+            'settings' => \App\Models\Setting::all()->pluck('value', 'key')->toArray(),
         ];
     }
 }

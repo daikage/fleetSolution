@@ -16,5 +16,10 @@ class SettingsSeeder extends Seeder
             ['key' => 'tracker_type'],
             ['value' => 'mobile_app']
         );
+
+        \App\Models\Setting::updateOrCreate(
+            ['key' => 'map_provider'],
+            ['value' => 'map_libre']
+        );
     }
 }

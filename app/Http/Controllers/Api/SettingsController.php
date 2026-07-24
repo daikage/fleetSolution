@@ -17,11 +17,17 @@ class SettingsController extends Controller
     {
         $request->validate([
             'tracker_type' => 'required|string|in:mobile_app,traccar,osmand,custom_iot',
+            'map_provider' => 'required|string|in:map_libre,google_maps',
         ]);
 
         \App\Models\Setting::updateOrCreate(
             ['key' => 'tracker_type'],
             ['value' => $request->tracker_type]
+        );
+
+        \App\Models\Setting::updateOrCreate(
+            ['key' => 'map_provider'],
+            ['value' => $request->map_provider]
         );
 
         return response()->json(['message' => 'Settings updated successfully']);
