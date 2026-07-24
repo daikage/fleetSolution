@@ -157,7 +157,7 @@ export default function Vehicles({ vehicles, drivers }) {
                                                 <td className="p-4 text-gray-300">{vehicle.odometer.toLocaleString()} mi</td>
                                                 <td className="p-4 text-right">
                                                     <div className="flex items-center justify-end gap-2">
-                                                        {!vehicle.trips || vehicle.trips.length === 0 ? (
+                                                        {!vehicle.currentTrip ? (
                                                             <button
                                                                 onClick={() => {
                                                                     setSelectedVehicle(vehicle);
@@ -172,7 +172,7 @@ export default function Vehicles({ vehicles, drivers }) {
                                                         ) : (
                                                             <>
                                                                 <Link
-                                                                    href={route('dashboard.trips.end', vehicle.trips[0].id)}
+                                                                    href={route('dashboard.trips.end', vehicle.currentTrip.id)}
                                                                     method="put"
                                                                     as="button"
                                                                     className="p-2 text-gray-400 hover:text-amber-400 bg-white/5 rounded-lg hover:bg-amber-500/10 transition-colors"
@@ -181,7 +181,7 @@ export default function Vehicles({ vehicles, drivers }) {
                                                                     <StopCircle className="w-4 h-4" />
                                                                 </Link>
                                                                 <Link
-                                                                    href={route('dashboard.trips.destroy', vehicle.trips[0].id)}
+                                                                    href={route('dashboard.trips.destroy', vehicle.currentTrip.id)}
                                                                     method="delete"
                                                                     as="button"
                                                                     className="p-2 text-gray-400 hover:text-rose-400 bg-white/5 rounded-lg hover:bg-rose-500/10 transition-colors"
