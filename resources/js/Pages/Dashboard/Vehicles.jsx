@@ -13,36 +13,117 @@ const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 function PlacesAutocomplete({ onPlaceSelected, searchQuery, setSearchQuery }) {
     const inputRef = useRef(null);
     const placesLib = useMapsLibrary('places');
+    const [suggestions, setSuggestions] = useState([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const sessionTokenRef = useRef(null);
 
     useEffect(() => {
-        if (!placesLib || !inputRef.current) return;
+        if (!placesLib) return;
+        // Create a session token for autocomplete sessions
+        if (!sessionTokenRef.current) {
+            sessionTokenRef.current = new placesLib.AutocompleteSessionToken();
+        }
+    }, [placesLib]);
 
-        const autocomplete = new placesLib.Autocomplete(inputRef.current, {
-            types: ['address', 'establishment', 'geocode'],
-            componentRestrictions: { country: 'ng' },
-        });
+    // Fetch predictions as user types
+    useEffect(() => {
+        if (!placesLib || !searchQuery.trim() || searchQuery.length < 3) {
+            setSuggestions([]);
+            setShowSuggestions(false);
+            return;
+        }
 
-        autocomplete.addListener('place_changed', () => {
-            const place = autocomplete.getPlace();
-            if (place.geometry && place.geometry.location) {
-                const lat = place.geometry.location.lat();
-                const lng = place.geometry.location.lng();
-                onPlaceSelected(lat, lng, place.formatted_address || '');
+        const autocompleteService = new placesLib.AutocompleteService();
+        const timeout = setTimeout(() => {
+            autocompleteService.getPlacePredictions(
+                {
+                    input: searchQuery,
+                    types: ['establishment', 'geocode', 'address'],
+                    sessionToken: sessionTokenRef.current,
+                },
+                (predictions, status) => {
+                    if (status === placesLib.PlacesServiceStatus.OK && predictions) {
+                        setSuggestions(predictions);
+                        setShowSuggestions(true);
+                    } else {
+                        setSuggestions([]);
+                    }
+                }
+            );
+        }, 300);
+
+        return () => clearTimeout(timeout);
+    }, [searchQuery, placesLib]);
+
+    const selectSuggestion = (prediction) => {
+        setShowSuggestions(false);
+        setSearchQuery(prediction.description);
+
+        if (!placesLib) return;
+
+        const placesService = new placesLib.PlacesService(document.createElement('div'));
+        placesService.getDetails(
+            {
+                placeId: prediction.place_id,
+                fields: ['geometry', 'formatted_address', 'name'],
+            },
+            (place, status) => {
+                if (status === placesLib.PlacesServiceStatus.OK && place.geometry) {
+                    onPlaceSelected(
+                        place.geometry.location.lat(),
+                        place.geometry.location.lng(),
+                        place.formatted_address || place.name || ''
+                    );
+                }
             }
-        });
-
-        return () => placesLib.event.clearInstanceListeners(autocomplete);
-    }, [placesLib, onPlaceSelected]);
+        );
+    };
 
     return (
-        <input
-            ref={inputRef}
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search for an address or place... e.g. 123 Main Street, Lagos"
-            className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none placeholder-gray-500"
-        />
+        <div className="relative">
+            <input
+                ref={inputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    if (!e.target.value.trim()) {
+                        setShowSuggestions(false);
+                    }
+                }}
+                onFocus={() => {
+                    if (suggestions.length > 0) setShowSuggestions(true);
+                }}
+                onBlur={() => {
+                    // Delay hiding so click on suggestion registers
+                    setTimeout(() => setShowSuggestions(false), 200);
+                }}
+                placeholder="Search for any business, address, or landmark..."
+                className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none placeholder-gray-500"
+            />
+
+            {/* Suggestions Dropdown */}
+            {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute z-50 mt-1 w-full bg-gray-800 border border-white/10 rounded-lg shadow-2xl max-h-48 overflow-y-auto">
+                    {suggestions.map((prediction) => (
+                        <button
+                            key={prediction.place_id}
+                            type="button"
+                            onMouseDown={() => selectSuggestion(prediction)}
+                            className="w-full text-left px-3 py-2.5 text-sm text-white hover:bg-white/10 transition-colors border-b border-white/5 last:border-0 flex items-start gap-2"
+                        >
+                            <MapPin className="w-3.5 h-3.5 mt-0.5 text-electric-blue flex-shrink-0" />
+                            <div>
+                                <div className="font-medium">{prediction.structured_formatting?.main_text || prediction.description}</div>
+                                {prediction.structured_formatting?.secondary_text && (
+                                    <div className="text-gray-400 text-[11px]">{prediction.structured_formatting.secondary_text}</div>
+                                )}
+                            </div>
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
     );
 }
 
