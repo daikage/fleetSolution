@@ -514,10 +514,10 @@ export default function Vehicles({ vehicles, drivers }) {
                                                         defaultValue=""
                                                     >
                                                         <option value="">-- Select Office Location --</option>
-                                                        <option value='{"latitude": 6.5412, "longitude": 3.3768, "address": "No 3 Murphy Atsepoyi Street, Ogudu GRA, Lagos State, Nigeria"}'>
+                                                        <option value='{"latitude": 6.574368986524661, "longitude": 3.3891698249000393, "address": "No 3 Murphy Atsepoyi Street, Ogudu GRA, Lagos State, Nigeria"}'>
                                                             🏢 Fort Knox Group Lagos Office
                                                         </option>
-                                                        <option value='{"latitude": 8.9847, "longitude": 7.4932, "address": "Plot 302 Cadastral Zone, Durumi, Abuja, FCT, Nigeria"}'>
+                                                        <option value='{"latitude": 9.018317344473623, "longitude": 7.456211478382267, "address": "Plot 302 Cadastral Zone, Durumi, Abuja, FCT, Nigeria"}'>
                                                             🏢 Fort Knox Group Abuja Office
                                                         </option>
                                                     </select>
