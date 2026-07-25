@@ -496,26 +496,31 @@ export default function Vehicles({ vehicles, drivers }) {
                                     {GOOGLE_MAPS_API_KEY ? (
                                         <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
                                             <div className="space-y-2">
-                                                {/* Google Places Autocomplete Search */}
-                                                <div className="flex gap-2">
-                                                    <div className="flex-1 relative">
-                                                        <PlacesAutocomplete
-                                                            onPlaceSelected={handlePlaceSelected}
-                                                            searchQuery={searchQuery}
-                                                            setSearchQuery={setSearchQuery}
-                                                        />
-                                                    </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            if (searchQuery.trim()) geocodeWithNominatim(searchQuery);
+                                                {/* Preset Office Location Dropdown */}
+                                                <div>
+                                                    <label className="block text-xs font-medium text-gray-300 mb-1">Fort Knox Group Office Location</label>
+                                                    <select
+                                                        onChange={(e) => {
+                                                            if (e.target.value) {
+                                                                const loc = JSON.parse(e.target.value);
+                                                                setMapLocation({ latitude: loc.latitude, longitude: loc.longitude });
+                                                                setData('latitude', loc.latitude.toString());
+                                                                setData('longitude', loc.longitude.toString());
+                                                                setSearchResultAddress(loc.address);
+                                                                setShowMapPicker(true);
+                                                            }
                                                         }}
-                                                        disabled={isGeocoding}
-                                                        className="bg-electric-blue hover:bg-sky-400 text-white px-3 py-2 rounded-lg text-sm transition-colors disabled:opacity-50 flex items-center gap-1"
+                                                        className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none"
+                                                        defaultValue=""
                                                     >
-                                                        {isGeocoding ? <Loader className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
-                                                        Search
-                                                    </button>
+                                                        <option value="">-- Select Office Location --</option>
+                                                        <option value='{"latitude": 6.5412, "longitude": 3.3768, "address": "No 3 Murphy Atsepoyi Street, Ogudu GRA, Lagos State, Nigeria"}'>
+                                                            🏢 Fort Knox Group Lagos Office
+                                                        </option>
+                                                        <option value='{"latitude": 8.9847, "longitude": 7.4932, "address": "Plot 302 Cadastral Zone, Durumi, Abuja, FCT, Nigeria"}'>
+                                                            🏢 Fort Knox Group Abuja Office
+                                                        </option>
+                                                    </select>
                                                 </div>
 
                                                 {/* Manual Lat/Lng Input */}
@@ -534,7 +539,7 @@ export default function Vehicles({ vehicles, drivers }) {
                                                                     });
                                                                 }
                                                             }}
-                                                            placeholder="Latitude (e.g. 6.5244)"
+                                                            placeholder="Latitude"
                                                             className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none placeholder-gray-500"
                                                         />
                                                     </div>
@@ -552,7 +557,7 @@ export default function Vehicles({ vehicles, drivers }) {
                                                                     });
                                                                 }
                                                             }}
-                                                            placeholder="Longitude (e.g. 3.3792)"
+                                                            placeholder="Longitude"
                                                             className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none placeholder-gray-500"
                                                         />
                                                     </div>
