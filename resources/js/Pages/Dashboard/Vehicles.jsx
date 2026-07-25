@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Head, useForm, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import BulkImportModal from '@/Components/BulkImportModal';
-import { Plus, Settings, Trash2, X, Navigation, FileText, File as FileIcon, ChevronDown, ChevronUp, StopCircle, XCircle } from 'lucide-react';
+import { Plus, Settings, Trash2, X, Navigation, FileText, File as FileIcon, ChevronDown, ChevronUp, StopCircle, XCircle, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ExportButtons from '@/Components/ExportButtons';
+import MapLibreMap, { Marker as MapLibreMarker } from 'react-map-gl/maplibre';
+import 'maplibre-gl/dist/maplibre-gl.css';
 
 export default function Vehicles({ vehicles, drivers }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -12,6 +14,14 @@ export default function Vehicles({ vehicles, drivers }) {
     const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
     const [selectedVehicle, setSelectedVehicle] = useState(null);
     const [expandedVehicleId, setExpandedVehicleId] = useState(null);
+
+    // Map location picker state
+    const [mapLocation, setMapLocation] = useState({
+        latitude: 6.5244,
+        longitude: 3.3792,
+    });
+    const [showMapPicker, setShowMapPicker] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const { data, setData, post, processing, errors, reset } = useForm({
         make: '',
@@ -22,6 +32,8 @@ export default function Vehicles({ vehicles, drivers }) {
         odometer: '',
         vendor: '',
         driver_id: '',
+        latitude: '',
+        longitude: '',
     });
 
     const dispatchForm = useForm({
@@ -124,7 +136,7 @@ export default function Vehicles({ vehicles, drivers }) {
                                 {sortedVehicles.map((vehicle, index) => {
                                     const isExpanded = expandedVehicleId === vehicle.id;
                                     const showVendorGroupHeader = index === 0 || sortedVehicles[index - 1].vendor !== vehicle.vendor;
-                                    
+
                                     return (
                                         <React.Fragment key={vehicle.id}>
                                             {showVendorGroupHeader && (
@@ -148,8 +160,8 @@ export default function Vehicles({ vehicles, drivers }) {
                                                 <td className="p-4 text-gray-300">{vehicle.license_plate}</td>
                                                 <td className="p-4">
                                                     <span className={`px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wide ${vehicle.status === 'active' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                                                            vehicle.status === 'in_shop' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                                                                'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                                                        vehicle.status === 'in_shop' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                                                            'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                                                         }`}>
                                                         {vehicle.status.replace('_', ' ')}
                                                     </span>
@@ -324,10 +336,87 @@ export default function Vehicles({ vehicles, drivers }) {
                                     {errors.driver_id && <div className="text-rose-400 text-xs mt-1">{errors.driver_id}</div>}
                                 </div>
 
-                                <div className="p-4 bg-sky-500/10 border border-sky-500/20 rounded-lg">
-                                    <p className="text-sm text-sky-200">
-                                        <strong>Location Tracking:</strong> The vehicle's initial location will be automatically determined once the assigned driver logs into the Mobile App or when the installed GPS tracker sends its first ping.
-                                    </p>
+                                {/* Vehicle Location Picker */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1 flex items-center gap-2">
+                                        <MapPin className="w-4 h-4 text-electric-blue" /> Vehicle Location (Optional)
+                                    </label>
+
+                                    {!showMapPicker ? (
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowMapPicker(true)}
+                                                className="bg-white/5 hover:bg-white/10 text-gray-300 px-4 py-2 rounded-lg border border-white/10 transition-colors text-sm flex items-center gap-2"
+                                            >
+                                                <MapPin className="w-4 h-4" />
+                                                {data.latitude && data.longitude
+                                                    ? `📍 ${parseFloat(data.latitude).toFixed(4)}, ${parseFloat(data.longitude).toFixed(4)}`
+                                                    : '📍 Set on Map'}
+                                            </button>
+                                            {data.latitude && data.longitude && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setData('latitude', '');
+                                                        setData('longitude', '');
+                                                    }}
+                                                    className="text-xs text-rose-400 hover:text-rose-300"
+                                                >
+                                                    Clear
+                                                </button>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            <div className="h-48 md:h-64 rounded-lg overflow-hidden border border-white/10 relative">
+                                                <MapLibreMap
+                                                    mapStyle="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
+                                                    initialViewState={{
+                                                        longitude: mapLocation.longitude,
+                                                        latitude: mapLocation.latitude,
+                                                        zoom: 13,
+                                                    }}
+                                                    onClick={(e) => {
+                                                        const lngLat = e.lngLat;
+                                                        setMapLocation({
+                                                            latitude: lngLat.lat,
+                                                            longitude: lngLat.lng,
+                                                        });
+                                                        setData('latitude', lngLat.lat.toString());
+                                                        setData('longitude', lngLat.lng.toString());
+                                                    }}
+                                                    style={{ width: '100%', height: '100%' }}
+                                                >
+                                                    <MapLibreMarker
+                                                        longitude={mapLocation.longitude}
+                                                        latitude={mapLocation.latitude}
+                                                        anchor="bottom"
+                                                    >
+                                                        <div className="bg-electric-blue w-6 h-6 rounded-full flex items-center justify-center shadow-lg shadow-electric-blue/50 border-2 border-white">
+                                                            <MapPin className="w-3 h-3 text-white" />
+                                                        </div>
+                                                    </MapLibreMarker>
+                                                </MapLibreMap>
+                                            </div>
+                                            <div className="flex items-center justify-between text-xs text-gray-400">
+                                                <span>
+                                                    {data.latitude && data.longitude
+                                                        ? `Selected: ${parseFloat(data.latitude).toFixed(6)}, ${parseFloat(data.longitude).toFixed(6)}`
+                                                        : 'Click on the map to set the vehicle location'}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowMapPicker(false)}
+                                                    className="text-electric-blue hover:text-sky-300 transition-colors"
+                                                >
+                                                    Done
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {errors.latitude && <div className="text-rose-400 text-xs mt-1">{errors.latitude}</div>}
+                                    {errors.longitude && <div className="text-rose-400 text-xs mt-1">{errors.longitude}</div>}
                                 </div>
 
                                 <div className="mt-4 flex justify-end gap-3">

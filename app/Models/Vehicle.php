@@ -8,6 +8,14 @@ class Vehicle extends Model
 {
     protected $guarded = [];
 
+    protected function casts(): array
+    {
+        return [
+            'latitude' => 'decimal:7',
+            'longitude' => 'decimal:7',
+        ];
+    }
+
     public function trips()
     {
         return $this->hasMany(Trip::class);

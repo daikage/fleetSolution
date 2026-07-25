@@ -17,6 +17,7 @@ class DashboardController extends Controller
         }
 
         // Get all vehicles with their latest location and active trip driver
+        // Use vehicle's registered lat/lng as fallback when no GPS ping exists yet
         $vehicles = Vehicle::with([
             'latestLocation',
             'currentTrip.driver.user'
@@ -24,13 +25,21 @@ class DashboardController extends Controller
             $latestLocation = $vehicle->latestLocation;
             $activeTrip = $vehicle->currentTrip;
 
+            // Priority: GPS ping → vehicle registered location → default Lagos
+            $latitude = $latestLocation?->latitude
+                ?? $vehicle->latitude
+                ?? 6.5244;
+            $longitude = $latestLocation?->longitude
+                ?? $vehicle->longitude
+                ?? 3.3792;
+
             return [
                 'id' => $vehicle->id,
                 'make' => $vehicle->make,
                 'model' => $vehicle->model,
                 'license_plate' => $vehicle->license_plate,
-                'latitude' => $latestLocation ? $latestLocation->latitude : 6.5244, // Default Lagos
-                'longitude' => $latestLocation ? $latestLocation->longitude : 3.3792,
+                'latitude' => $latitude,
+                'longitude' => $longitude,
                 'speed' => $latestLocation ? $latestLocation->speed : 0,
                 'active_driver' => $activeTrip && $activeTrip->driver && $activeTrip->driver->user
                     ? $activeTrip->driver->user->name
@@ -92,6 +101,8 @@ class DashboardController extends Controller
             'odometer' => 'required|numeric|min:0',
             'vendor' => 'nullable|string|max:255',
             'driver_id' => 'nullable|exists:drivers,id',
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
         ]);
 
         $validated['status'] = 'active';
@@ -104,6 +115,8 @@ class DashboardController extends Controller
             'license_plate' => $validated['license_plate'],
             'odometer' => $validated['odometer'],
             'vendor' => $validated['vendor'],
+            'latitude' => $validated['latitude'] ?? null,
+            'longitude' => $validated['longitude'] ?? null,
             'status' => $validated['status'],
         ]);
 
@@ -204,7 +217,8 @@ class DashboardController extends Controller
             'end_time' => now(),
         ]);
 
-        return back();
+        // Use 303 redirect to force Inertia to re-fetch the page with fresh data
+        return redirect()->back(303);
     }
 
     public function destroyTrip(\App\Models\Trip $trip)
