@@ -1,162 +1,120 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Dimensions, Animated } from 'react-native';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LOCATION_TASK_NAME } from '../tasks/LocationTask';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, Polyline } from 'react-native-maps';
 import axios from 'axios';
+
+const { width, height } = Dimensions.get('window');
 
 export default function TrackingScreen({ navigation }) {
   const [isTracking, setIsTracking] = useState(false);
   const [vehicleId, setVehicleId] = useState(null);
   const [currentLocation, setCurrentLocation] = useState(null);
-  const [locationSubscription, setLocationSubscription] = useState(null);
-  const mapRef = useRef(null);
+  const [locationHistory, setLocationHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [serverUrl, setServerUrl] = useState('');
+  const [driverName, setDriverName] = useState('');
+  const [vehicleInfo, setVehicleInfo] = useState('');
+
+  const locationSubscription = useRef(null);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    checkStatus();
-    getInitialLocation();
-    
+    initializeApp();
     return () => {
-       if (locationSubscription) {
-           locationSubscription.remove();
-       }
+      if (locationSubscription.current) {
+        locationSubscription.current.remove();
+      }
     };
   }, []);
+
+  const initializeApp = async () => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      const vId = await AsyncStorage.getItem('vehicleId');
+      const baseUrl = await AsyncStorage.getItem('API_BASE_URL');
+
+      setServerUrl(baseUrl || '');
+      if (vId) setVehicleId(vId);
+
+      if (token && baseUrl) {
+        // Fetch driver info
+        const userResponse = await axios.get(`${baseUrl}/api/user`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setDriverName(userResponse.data.name);
+
+        // Check vehicle assignment
+        const tripResponse = await axios.get(`${baseUrl}/api/driver/active-trip`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (tripResponse.data.vehicle_id) {
+          setVehicleId(tripResponse.data.vehicle_id.toString());
+          await AsyncStorage.setItem('vehicleId', tripResponse.data.vehicle_id.toString());
+        }
+      }
+    } catch (error) {
+      console.warn('Initialization error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getInitialLocation = async () => {
     try {
       let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        let loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        setCurrentLocation(loc.coords);
-        if (mapRef.current) {
-          mapRef.current.animateToRegion({
-            latitude: loc.coords.latitude,
-            longitude: loc.coords.longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          }, 1000);
-        }
-        
-        // Instantly sync the exact initial location to the backend map
-        try {
-          const token = await AsyncStorage.getItem('userToken');
-          const vId = await AsyncStorage.getItem('vehicleId');
-          const baseUrl = await AsyncStorage.getItem('API_BASE_URL');
-          if (token && vId && baseUrl) {
-              await axios.post(`${baseUrl}/api/telematics/location`, {
-                  vehicle_id: vId,
-                  latitude: loc.coords.latitude,
-                  longitude: loc.coords.longitude,
-                  speed: 0
-              }, {
-                  headers: { Authorization: `Bearer ${token}` }
-              });
-          }
-        } catch (err) {
-          console.warn("Failed to sync initial location", err);
-        }
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Foreground location permission is required.');
+        return;
       }
+
+      let loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced
+      });
+      setCurrentLocation(loc.coords);
+
+      // Sync initial location
+      await syncLocation(loc.coords);
     } catch (e) {
       console.warn('getInitialLocation error:', e.message);
     }
   };
 
-  const checkStatus = async () => {
+  const syncLocation = async (coords) => {
     try {
-      const id = await AsyncStorage.getItem('vehicleId');
-      if (id) setVehicleId(id);
+      const token = await AsyncStorage.getItem('userToken');
+      const vId = await AsyncStorage.getItem('vehicleId');
+      const baseUrl = await AsyncStorage.getItem('API_BASE_URL');
 
-      const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
-      setIsTracking(hasStarted);
-      
-      if (hasStarted) {
-        startForegroundTracking();
-      }
-    } catch (e) {
-      // hasStartedLocationUpdatesAsync throws if the task hasn't been registered yet
-      // This is expected on first launch - just default to not tracking
-      console.warn('checkStatus error (expected on first launch):', e.message);
-      setIsTracking(false);
-    }
-  };
+      if (!token || !vId || !baseUrl) return;
 
-  const startForegroundTracking = async () => {
-    if (locationSubscription) return;
-    try {
-      const sub = await Location.watchPositionAsync(
+      const speedKmh = coords.speed && coords.speed > 0 ? coords.speed * 3.6 : 0;
+
+      await axios.post(
+        `${baseUrl}/api/telematics/location`,
         {
-          accuracy: Location.Accuracy.BestForNavigation,
-          timeInterval: 2000,
-          distanceInterval: 1,
+          vehicle_id: vId,
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+          speed: speedKmh,
         },
-        (newLocation) => {
-          setCurrentLocation(newLocation.coords);
-          if (mapRef.current && newLocation.coords) {
-             mapRef.current.animateToRegion({
-                latitude: newLocation.coords.latitude,
-                longitude: newLocation.coords.longitude,
-                latitudeDelta: 0.005,
-                longitudeDelta: 0.005,
-             }, 1000);
-          }
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 10000,
         }
       );
-      setLocationSubscription(sub);
-    } catch (e) {
-      console.warn("Could not start foreground tracking", e);
+    } catch (err) {
+      console.warn('Failed to sync location:', err.message);
     }
-  };
-
-  const stopForegroundTracking = () => {
-    if (locationSubscription) {
-      locationSubscription.remove();
-      setLocationSubscription(null);
-    }
-  };
-
-  const handleLogout = async () => {
-    if (isTracking) {
-      await stopTracking();
-    }
-    await AsyncStorage.removeItem('userToken');
-    await AsyncStorage.removeItem('vehicleId');
-    navigation.replace('Login');
   };
 
   const startTracking = async () => {
-    // Re-fetch vehicle assignment in case a trip was created after login
-    let currentVehicleId = vehicleId;
-    if (!currentVehicleId) {
-      try {
-        const token = await AsyncStorage.getItem('userToken');
-        const baseUrl = await AsyncStorage.getItem('API_BASE_URL');
-        if (token && baseUrl) {
-          const response = await axios.get(`${baseUrl}/api/user`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const userId = response.data.id;
-
-          // Check for active trip via a dedicated endpoint
-          const tripResponse = await axios.get(`${baseUrl}/api/driver/active-trip`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-
-          if (tripResponse.data.vehicle_id) {
-            currentVehicleId = tripResponse.data.vehicle_id.toString();
-            setVehicleId(currentVehicleId);
-            await AsyncStorage.setItem('vehicleId', currentVehicleId);
-          }
-        }
-      } catch (err) {
-        console.warn('Failed to re-fetch vehicle assignment:', err.message);
-      }
-    }
-
-    if (!currentVehicleId) {
-      Alert.alert('No Vehicle', 'You are not assigned to an active trip. Ask your manager to assign you a vehicle first.');
+    if (!vehicleId) {
+      Alert.alert('No Vehicle', 'You are not assigned to an active trip. Ask your manager to assign you a vehicle.');
       return;
     }
 
@@ -172,69 +130,88 @@ export default function TrackingScreen({ navigation }) {
       return;
     }
 
-    await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
-      accuracy: Location.Accuracy.BestForNavigation,
-      timeInterval: 5000,
-      distanceInterval: 0,
-      deferredUpdatesInterval: 0,
-      deferredUpdatesDistance: 0,
-      activityType: Location.ActivityType.AutomotiveNavigation,
-      pausesUpdatesAutomatically: false,
-      showsBackgroundLocationIndicator: true,
-      foregroundService: {
-        notificationTitle: 'Fleet Tracking',
-        notificationBody: 'Live location tracking is active.',
-        notificationColor: '#007bff',
-      },
-    });
-
-    // Instantly push the current location to the backend so the map updates without delay
     try {
-      let loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      if (loc) {
-        setCurrentLocation(loc.coords);
-        if (mapRef.current) {
-          mapRef.current.animateToRegion({
-            latitude: loc.coords.latitude,
-            longitude: loc.coords.longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          }, 1000);
-        }
-        const token = await AsyncStorage.getItem('userToken');
-        const baseUrl = await AsyncStorage.getItem('API_BASE_URL');
-        if (token && baseUrl) {
-          await axios.post(`${baseUrl}/api/telematics/location`, {
-              vehicle_id: currentVehicleId,
-              latitude: loc.coords.latitude,
-              longitude: loc.coords.longitude,
-              speed: 0
-          }, {
-              headers: { Authorization: `Bearer ${token}` }
-          });
-        }
-      }
-    } catch (e) {
-      console.warn("Failed to sync immediate start location", e);
-    }
+      await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
+        accuracy: Location.Accuracy.BestForNavigation,
+        timeInterval: 5000,
+        distanceInterval: 0,
+        deferredUpdatesInterval: 0,
+        deferredUpdatesDistance: 0,
+        activityType: Location.ActivityType.AutomotiveNavigation,
+        pausesUpdatesAutomatically: false,
+        showsBackgroundLocationIndicator: true,
+        foregroundService: {
+          notificationTitle: 'FKG.Fleet Tracking',
+          notificationBody: 'Live location tracking is active.',
+          notificationColor: '#3B82F6',
+        },
+      });
 
-    setIsTracking(true);
-    startForegroundTracking();
+      // Get initial location
+      await getInitialLocation();
+      setIsTracking(true);
+      startPulseAnimation();
+    } catch (e) {
+      console.warn("Could not start tracking:", e);
+      Alert.alert('Error', 'Failed to start tracking. Please try again.');
+    }
   };
 
   const stopTracking = async () => {
-    const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
-    if (hasStarted) {
-      await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
-      setIsTracking(false);
-      stopForegroundTracking();
+    try {
+      const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
+      if (hasStarted) {
+        await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+        setIsTracking(false);
+        stopPulseAnimation();
+      }
+    } catch (e) {
+      console.warn('Error stopping tracking:', e);
     }
   };
 
+  const startPulseAnimation = () => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.2,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  };
+
+  const stopPulseAnimation = () => {
+    pulseAnim.setValue(1);
+  };
+
+  const handleLogout = async () => {
+    if (isTracking) {
+      await stopTracking();
+    }
+    await AsyncStorage.multiRemove(['userToken', 'vehicleId', 'API_BASE_URL']);
+    navigation.replace('Login');
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+        <Text style={styles.loadingText}>Initializing...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      <MapView 
-        ref={mapRef}
+      {/* Map */}
+      <MapView
         style={styles.map}
         initialRegion={currentLocation ? {
           latitude: currentLocation.latitude,
@@ -242,53 +219,94 @@ export default function TrackingScreen({ navigation }) {
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
         } : {
-          latitude: 0,
-          longitude: 0,
+          latitude: 6.5244,
+          longitude: 3.3792,
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
         }}
-        showsUserLocation={false} 
+        showsUserLocation={true}
+        showsMyLocationButton={true}
+        mapType="standard"
       >
         {currentLocation && (
-          <Marker 
+          <Marker
             coordinate={{
               latitude: currentLocation.latitude,
-              longitude: currentLocation.longitude
+              longitude: currentLocation.longitude,
             }}
-            title="You are here"
-            pinColor="#007bff"
+            title="Your Location"
+            description={isTracking ? 'Tracking Active' : 'Tracking Inactive'}
+          >
+            <Animated.View style={[
+              styles.markerContainer,
+              { transform: [{ scale: pulseAnim }] }
+            ]}>
+              <View style={styles.markerOuter}>
+                <View style={styles.markerInner} />
+              </View>
+            </Animated.View>
+          </Marker>
+        )}
+
+        {/* Location History Trail */}
+        {locationHistory.length > 1 && (
+          <Polyline
+            coordinates={locationHistory.map(loc => ({
+              latitude: loc.latitude,
+              longitude: loc.longitude,
+            }))}
+            strokeColor="#3B82F6"
+            strokeWidth={3}
           />
         )}
       </MapView>
 
-      <View style={styles.overlayPanel}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Live Tracker</Text>
-        </View>
-        
-        <View style={styles.statusCard}>
-          <Text style={styles.statusLabel}>Vehicle ID:</Text>
-          <Text style={styles.statusValue}>{vehicleId || 'None'}</Text>
-        </View>
-
-        <View style={styles.statusCard}>
-          <Text style={styles.statusLabel}>Tracking Status:</Text>
-          <Text style={[styles.statusValue, { color: isTracking ? '#28a745' : '#dc3545' }]}>
-            {isTracking ? 'ACTIVE' : 'INACTIVE'}
+      {/* Top Info Card */}
+      <View style={styles.topCard}>
+        <View style={styles.statusContainer}>
+          <View style={[styles.statusDot, isTracking && styles.statusDotActive]} />
+          <Text style={styles.statusText}>
+            {isTracking ? 'LIVE TRACKING' : 'INACTIVE'}
           </Text>
         </View>
+        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
+      </View>
 
-        <TouchableOpacity 
-          style={[styles.button, isTracking ? styles.buttonStop : styles.buttonStart]} 
+      {/* Bottom Info Panel */}
+      <View style={styles.bottomPanel}>
+        {/* Driver Info */}
+        <View style={styles.infoCard}>
+          <Text style={styles.infoLabel}>Driver</Text>
+          <Text style={styles.infoValue}>{driverName || 'Unknown'}</Text>
+        </View>
+
+        <View style={styles.infoCard}>
+          <Text style={styles.infoLabel}>Vehicle ID</Text>
+          <Text style={styles.infoValue}>{vehicleId || 'Not Assigned'}</Text>
+        </View>
+
+        {/* Speed Display */}
+        {currentLocation && (
+          <View style={styles.speedCard}>
+            <Text style={styles.speedLabel}>Current Speed</Text>
+            <Text style={styles.speedValue}>
+              {currentLocation.speed ? Math.round(currentLocation.speed * 3.6) : 0}
+            </Text>
+            <Text style={styles.speedUnit}>km/h</Text>
+          </View>
+        )}
+
+        {/* Action Button */}
+        <TouchableOpacity
+          style={[styles.actionButton, isTracking ? styles.actionButtonStop : styles.actionButtonStart]}
           onPress={isTracking ? stopTracking : startTracking}
+          activeOpacity={0.8}
         >
-          <Text style={styles.buttonText}>
+          <Text style={styles.actionButtonText}>
             {isTracking ? 'Stop Tracking' : 'Start Tracking'}
           </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -298,76 +316,175 @@ export default function TrackingScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#0F172A',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+  },
+  loadingText: {
+    color: '#9CA3AF',
+    marginTop: 16,
+    fontSize: 14,
   },
   map: {
-    ...StyleSheet.absoluteFillObject,
+    width: width,
+    height: height,
   },
-  overlayPanel: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 10,
-    paddingBottom: 40,
-  },
-  header: {
+  markerContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    justifyContent: 'center',
   },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#333',
+  markerOuter: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(59, 130, 246, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  statusCard: {
+  markerInner: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#3B82F6',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+  },
+  topCard: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    right: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f1f1',
-  },
-  statusLabel: {
-    fontSize: 15,
-    color: '#6c757d',
-  },
-  statusValue: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  button: {
-    width: '100%',
-    padding: 16,
-    borderRadius: 12,
     alignItems: 'center',
-    marginTop: 24,
   },
-  buttonStart: {
-    backgroundColor: '#28a745',
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#334155',
   },
-  buttonStop: {
-    backgroundColor: '#dc3545',
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#6B7280',
+    marginRight: 8,
   },
-  buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+  statusDotActive: {
+    backgroundColor: '#10B981',
+  },
+  statusText: {
+    color: '#F9FAFB',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
   },
   logoutButton: {
-    marginTop: 20,
-    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#EF4444',
   },
   logoutText: {
-    color: '#dc3545',
+    color: '#EF4444',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  bottomPanel: {
+    position: 'absolute',
+    bottom: 40,
+    left: 20,
+    right: 20,
+    backgroundColor: '#1E293B',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#334155',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  infoCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  infoLabel: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    fontWeight: '600',
+  },
+  infoValue: {
+    fontSize: 14,
+    color: '#F9FAFB',
+    fontWeight: '600',
+  },
+  speedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0F172A',
+    borderRadius: 16,
+    paddingVertical: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  speedLabel: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginRight: 8,
+  },
+  speedValue: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#3B82F6',
+    marginHorizontal: 8,
+  },
+  speedUnit: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    fontWeight: '600',
+  },
+  actionButton: {
+    borderRadius: 14,
+    height: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  actionButtonStart: {
+    backgroundColor: '#10B981',
+  },
+  actionButtonStop: {
+    backgroundColor: '#EF4444',
+  },
+  actionButtonText: {
+    color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: 'bold',
-  }
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
 });
