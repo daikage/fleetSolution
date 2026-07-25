@@ -17,15 +17,27 @@ export default function Index({ initialVehicles, upcomingExpiries }) {
     const echoConnected = useRef(false);
 
     // Shared function to apply location updates to vehicle state
-    const applyLocationUpdate = useCallback((vehicleId, latitude, longitude, speed) => {
+    const applyLocationUpdate = useCallback((vehicleId, latitude, longitude, speed, driver = null) => {
         setVehicles(current => current.map(v =>
             v.id === vehicleId
-                ? { ...v, latitude, longitude, speed }
+                ? {
+                    ...v,
+                    latitude,
+                    longitude,
+                    speed,
+                    ...(driver ? { active_driver: driver.name, driver_id: driver.id } : {})
+                }
                 : v
         ));
         setSelectedVehicle(current =>
             current && current.id === vehicleId
-                ? { ...current, latitude, longitude, speed }
+                ? {
+                    ...current,
+                    latitude,
+                    longitude,
+                    speed,
+                    ...(driver ? { active_driver: driver.name, driver_id: driver.id } : {})
+                }
                 : current
         );
     }, []);
@@ -43,7 +55,7 @@ export default function Index({ initialVehicles, upcomingExpiries }) {
                 const data = await response.json();
                 data.forEach(loc => {
                     if (loc.latitude && loc.longitude) {
-                        applyLocationUpdate(loc.id, loc.latitude, loc.longitude, loc.speed || 0);
+                        applyLocationUpdate(loc.id, loc.latitude, loc.longitude, loc.speed || 0, loc.driver || null);
                     }
                 });
             }
@@ -76,7 +88,6 @@ export default function Index({ initialVehicles, upcomingExpiries }) {
                 const channel = window.Echo.private('fleet');
 
                 channel.listen('VehicleLocationUpdated', (e) => {
-                    const newLocation = e.location;
                     if (!echoConnected.current) {
                         echoConnected.current = true;
                         setConnectionMode('websocket');
@@ -84,10 +95,11 @@ export default function Index({ initialVehicles, upcomingExpiries }) {
                         console.log('[Fleet] WebSocket connected — real-time mode active');
                     }
                     applyLocationUpdate(
-                        newLocation.vehicle_id,
-                        newLocation.latitude,
-                        newLocation.longitude,
-                        newLocation.speed
+                        e.vehicle_id,
+                        e.latitude,
+                        e.longitude,
+                        e.speed,
+                        e.driver || null
                     );
                 });
 
@@ -122,35 +134,33 @@ export default function Index({ initialVehicles, upcomingExpiries }) {
     return (
         <DashboardLayout>
             <Head title="Fleet Command Center" />
-            
+
             <div className="relative w-full h-full">
-                <FleetMap 
-                    vehicles={vehicles} 
-                    onSelectVehicle={setSelectedVehicle} 
+                <FleetMap
+                    vehicles={vehicles}
+                    onSelectVehicle={setSelectedVehicle}
                 />
 
                 {/* Connection Mode Indicator */}
                 <div className="absolute bottom-4 left-4 z-10">
-                    <div className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-2 backdrop-blur-sm border ${
-                        connectionMode === 'websocket'
-                            ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                            : connectionMode === 'polling'
+                    <div className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-2 backdrop-blur-sm border ${connectionMode === 'websocket'
+                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                        : connectionMode === 'polling'
                             ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
                             : 'bg-gray-500/20 text-gray-400 border-gray-500/30'
-                    }`}>
-                        <span className={`w-2 h-2 rounded-full ${
-                            connectionMode === 'websocket' ? 'bg-emerald-400 animate-pulse' :
+                        }`}>
+                        <span className={`w-2 h-2 rounded-full ${connectionMode === 'websocket' ? 'bg-emerald-400 animate-pulse' :
                             connectionMode === 'polling' ? 'bg-amber-400 animate-pulse' :
-                            'bg-gray-400'
-                        }`} />
+                                'bg-gray-400'
+                            }`} />
                         {connectionMode === 'websocket' ? 'Live' : connectionMode === 'polling' ? 'Polling' : 'Connecting...'}
                     </div>
                 </div>
-                
+
                 {/* Floating Expiry Alerts Panel */}
                 <AnimatePresence>
                     {hasAlerts && showAlerts && (
-                        <motion.div 
+                        <motion.div
                             initial={{ opacity: 0, y: -20, x: 20 }}
                             animate={{ opacity: 1, y: 0, x: 0 }}
                             exit={{ opacity: 0, scale: 0.95 }}
@@ -195,7 +205,7 @@ export default function Index({ initialVehicles, upcomingExpiries }) {
 
                 {/* Minimized Alert Bell */}
                 {!showAlerts && hasAlerts && (
-                    <motion.button 
+                    <motion.button
                         initial={{ opacity: 0, scale: 0.5 }}
                         animate={{ opacity: 1, scale: 1 }}
                         onClick={() => setShowAlerts(true)}
@@ -204,10 +214,10 @@ export default function Index({ initialVehicles, upcomingExpiries }) {
                         <Bell className="w-6 h-6 animate-pulse" />
                     </motion.button>
                 )}
-                
-                <VehicleSidebar 
-                    vehicle={selectedVehicle} 
-                    onClose={() => setSelectedVehicle(null)} 
+
+                <VehicleSidebar
+                    vehicle={selectedVehicle}
+                    onClose={() => setSelectedVehicle(null)}
                 />
             </div>
         </DashboardLayout>

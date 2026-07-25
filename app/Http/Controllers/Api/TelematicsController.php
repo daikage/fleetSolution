@@ -15,7 +15,7 @@ class TelematicsController extends Controller
     public function store(Request $request)
     {
         $trackerType = \App\Models\Setting::where('key', 'tracker_type')->value('value') ?? 'mobile_app';
-        
+
         $user = $request->user();
         if ($user && $user->role === 'driver' && $trackerType !== 'mobile_app') {
             return response()->json(['status' => 'ignored', 'message' => 'Mobile app tracking is disabled in settings.']);
@@ -80,13 +80,20 @@ class TelematicsController extends Controller
      */
     public function latestLocations()
     {
-        $vehicles = \App\Models\Vehicle::with('latestLocation')->get()
+        $vehicles = \App\Models\Vehicle::with(['latestLocation', 'currentTrip.driver.user'])->get()
             ->map(fn($v) => [
                 'id' => $v->id,
                 'latitude' => $v->latestLocation?->latitude,
                 'longitude' => $v->latestLocation?->longitude,
                 'speed' => $v->latestLocation?->speed ?? 0,
                 'updated_at' => $v->latestLocation?->created_at,
+                'driver' => $v->currentTrip && $v->currentTrip->driver && $v->currentTrip->driver->user
+                    ? [
+                        'id' => $v->currentTrip->driver->id,
+                        'name' => $v->currentTrip->driver->user->name,
+                        'license_no' => $v->currentTrip->driver->license_no,
+                    ]
+                    : null,
             ]);
 
         return response()->json($vehicles);

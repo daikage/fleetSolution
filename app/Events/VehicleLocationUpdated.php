@@ -17,13 +17,15 @@ class VehicleLocationUpdated implements ShouldBroadcastNow
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public $location;
+    public $driver;
 
     /**
      * Create a new event instance.
      */
-    public function __construct(Location $location)
+    public function __construct(Location $location, $driver = null)
     {
         $this->location = $location;
+        $this->driver = $driver;
     }
 
     /**
@@ -35,6 +37,23 @@ class VehicleLocationUpdated implements ShouldBroadcastNow
     {
         return [
             new PrivateChannel('fleet'),
+        ];
+    }
+
+    /**
+     * Get the data to broadcast.
+     *
+     * @return array<string, mixed>
+     */
+    public function broadcastWith(): array
+    {
+        return [
+            'vehicle_id' => $this->location->vehicle_id,
+            'latitude' => $this->location->latitude,
+            'longitude' => $this->location->longitude,
+            'speed' => $this->location->speed,
+            'driver' => $this->driver,
+            'timestamp' => $this->location->created_at,
         ];
     }
 }
