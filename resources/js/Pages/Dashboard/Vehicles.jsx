@@ -1,19 +1,59 @@
-import React, { useState, useRef, useCallback } from 'react';
-import { Head, useForm, Link } from '@inertiajs/react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { Head, useForm, Link, usePage } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import BulkImportModal from '@/Components/BulkImportModal';
-import { Plus, Settings, Trash2, X, Navigation, FileText, File as FileIcon, ChevronDown, ChevronUp, StopCircle, XCircle, MapPin } from 'lucide-react';
+import { Plus, Settings, Trash2, X, Navigation, FileText, File as FileIcon, ChevronDown, ChevronUp, StopCircle, XCircle, MapPin, Search, Loader } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ExportButtons from '@/Components/ExportButtons';
-import MapLibreMap, { Marker as MapLibreMarker } from 'react-map-gl/maplibre';
-import 'maplibre-gl/dist/maplibre-gl.css';
+import { APIProvider, Map as GoogleMap, AdvancedMarker, useMapsLibrary } from '@vis.gl/react-google-maps';
+
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+
+// Google Places Autocomplete component (must be inside APIProvider)
+function PlacesAutocomplete({ onPlaceSelected, searchQuery, setSearchQuery }) {
+    const inputRef = useRef(null);
+    const placesLib = useMapsLibrary('places');
+
+    useEffect(() => {
+        if (!placesLib || !inputRef.current) return;
+
+        const autocomplete = new placesLib.Autocomplete(inputRef.current, {
+            types: ['address', 'establishment', 'geocode'],
+            componentRestrictions: { country: 'ng' },
+        });
+
+        autocomplete.addListener('place_changed', () => {
+            const place = autocomplete.getPlace();
+            if (place.geometry && place.geometry.location) {
+                const lat = place.geometry.location.lat();
+                const lng = place.geometry.location.lng();
+                onPlaceSelected(lat, lng, place.formatted_address || '');
+            }
+        });
+
+        return () => placesLib.event.clearInstanceListeners(autocomplete);
+    }, [placesLib, onPlaceSelected]);
+
+    return (
+        <input
+            ref={inputRef}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search for an address or place... e.g. 123 Main Street, Lagos"
+            className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none placeholder-gray-500"
+        />
+    );
+}
 
 export default function Vehicles({ vehicles, drivers }) {
+    const { props } = usePage();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
     const [selectedVehicle, setSelectedVehicle] = useState(null);
     const [expandedVehicleId, setExpandedVehicleId] = useState(null);
+    const [isGeocoding, setIsGeocoding] = useState(false);
 
     // Map location picker state
     const [mapLocation, setMapLocation] = useState({
@@ -22,6 +62,7 @@ export default function Vehicles({ vehicles, drivers }) {
     });
     const [showMapPicker, setShowMapPicker] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [searchResultAddress, setSearchResultAddress] = useState('');
 
     const { data, setData, post, processing, errors, reset } = useForm({
         make: '',
@@ -62,7 +103,35 @@ export default function Vehicles({ vehicles, drivers }) {
         });
     };
 
-    // Group vehicles by vendor for optional display logic, but a sorted list is better.
+    // Handle a place selected from autocomplete or geocoding
+    const handlePlaceSelected = useCallback((lat, lng, address) => {
+        setMapLocation({ latitude: lat, longitude: lng });
+        setData('latitude', lat.toString());
+        setData('longitude', lng.toString());
+        if (address) setSearchResultAddress(address);
+        setShowMapPicker(true);
+        setIsGeocoding(false);
+    }, [setData]);
+
+    // Fallback geocoding via Nominatim when Google Places is not available
+    const geocodeWithNominatim = useCallback(async (query) => {
+        setIsGeocoding(true);
+        try {
+            const res = await fetch(
+                `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`
+            );
+            const results = await res.json();
+            if (results && results.length > 0) {
+                const loc = results[0];
+                handlePlaceSelected(parseFloat(loc.lat), parseFloat(loc.lon), loc.display_name);
+            }
+        } catch (err) {
+            console.warn('Geocoding failed:', err);
+        } finally {
+            setIsGeocoding(false);
+        }
+    }, [handlePlaceSelected]);
+
     const sortedVehicles = [...vehicles].sort((a, b) => {
         const vendorA = a.vendor || 'Z_No_Vendor';
         const vendorB = b.vendor || 'Z_No_Vendor';
@@ -336,202 +405,176 @@ export default function Vehicles({ vehicles, drivers }) {
                                     {errors.driver_id && <div className="text-rose-400 text-xs mt-1">{errors.driver_id}</div>}
                                 </div>
 
-                                {/* Vehicle Location Picker with Search */}
+                                {/* Google Maps Location Picker */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-1 flex items-center gap-2">
                                         <MapPin className="w-4 h-4 text-electric-blue" /> Vehicle Location (Optional)
                                     </label>
-                                    <p className="text-xs text-gray-500 mb-2">Type an address or place name, or click on the map to set the exact vehicle location.</p>
+                                    <p className="text-xs text-gray-500 mb-2">Search for an address using Google Maps, then fine-tune by clicking the map.</p>
 
-                                    <div className="space-y-2">
-                                        {/* Address Search */}
-                                        <div className="flex gap-2">
-                                            <div className="flex-1 relative">
-                                                <input
-                                                    type="text"
-                                                    value={searchQuery}
-                                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                                    onKeyDown={async (e) => {
-                                                        if (e.key === 'Enter' && searchQuery.trim()) {
-                                                            e.preventDefault();
-                                                            try {
-                                                                const res = await fetch(
-                                                                    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5`
-                                                                );
-                                                                const results = await res.json();
-                                                                if (results && results.length > 0) {
-                                                                    const loc = results[0];
-                                                                    const lat = parseFloat(loc.lat);
-                                                                    const lng = parseFloat(loc.lon);
+                                    {GOOGLE_MAPS_API_KEY ? (
+                                        <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
+                                            <div className="space-y-2">
+                                                {/* Google Places Autocomplete Search */}
+                                                <div className="flex gap-2">
+                                                    <div className="flex-1 relative">
+                                                        <PlacesAutocomplete
+                                                            onPlaceSelected={handlePlaceSelected}
+                                                            searchQuery={searchQuery}
+                                                            setSearchQuery={setSearchQuery}
+                                                        />
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (searchQuery.trim()) geocodeWithNominatim(searchQuery);
+                                                        }}
+                                                        disabled={isGeocoding}
+                                                        className="bg-electric-blue hover:bg-sky-400 text-white px-3 py-2 rounded-lg text-sm transition-colors disabled:opacity-50 flex items-center gap-1"
+                                                    >
+                                                        {isGeocoding ? <Loader className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
+                                                        Search
+                                                    </button>
+                                                </div>
+
+                                                {/* Manual Lat/Lng Input */}
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <div>
+                                                        <input
+                                                            type="number"
+                                                            step="any"
+                                                            value={data.latitude}
+                                                            onChange={(e) => {
+                                                                setData('latitude', e.target.value);
+                                                                if (e.target.value && data.longitude) {
+                                                                    setMapLocation({
+                                                                        latitude: parseFloat(e.target.value),
+                                                                        longitude: parseFloat(data.longitude),
+                                                                    });
+                                                                }
+                                                            }}
+                                                            placeholder="Latitude (e.g. 6.5244)"
+                                                            className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none placeholder-gray-500"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <input
+                                                            type="number"
+                                                            step="any"
+                                                            value={data.longitude}
+                                                            onChange={(e) => {
+                                                                setData('longitude', e.target.value);
+                                                                if (e.target.value && data.latitude) {
+                                                                    setMapLocation({
+                                                                        latitude: parseFloat(data.latitude),
+                                                                        longitude: parseFloat(e.target.value),
+                                                                    });
+                                                                }
+                                                            }}
+                                                            placeholder="Longitude (e.g. 3.3792)"
+                                                            className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none placeholder-gray-500"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                {/* Google Map */}
+                                                <div className={`rounded-lg overflow-hidden border border-white/10 relative transition-all ${showMapPicker ? 'h-48 md:h-56' : 'h-0 border-0'}`}>
+                                                    {showMapPicker && (
+                                                        <GoogleMap
+                                                            mapId="DEMO_MAP_ID"
+                                                            defaultCenter={{ lat: mapLocation.latitude, lng: mapLocation.longitude }}
+                                                            defaultZoom={16}
+                                                            onClick={(e) => {
+                                                                if (e.detail && e.detail.latLng) {
+                                                                    const lat = e.detail.latLng.lat;
+                                                                    const lng = e.detail.latLng.lng;
                                                                     setMapLocation({ latitude: lat, longitude: lng });
                                                                     setData('latitude', lat.toString());
                                                                     setData('longitude', lng.toString());
-                                                                    setShowMapPicker(true);
                                                                 }
-                                                            } catch (err) {
-                                                                console.warn('Geocoding failed:', err);
-                                                            }
-                                                        }
-                                                    }}
-                                                    placeholder="e.g. 123 Main Street, Lagos or Ikeja City Mall"
-                                                    className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none placeholder-gray-500"
-                                                />
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={async () => {
-                                                    if (!searchQuery.trim()) return;
-                                                    try {
-                                                        const res = await fetch(
-                                                            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5`
-                                                        );
-                                                        const results = await res.json();
-                                                        if (results && results.length > 0) {
-                                                            const loc = results[0];
-                                                            const lat = parseFloat(loc.lat);
-                                                            const lng = parseFloat(loc.lon);
-                                                            setMapLocation({ latitude: lat, longitude: lng });
-                                                            setData('latitude', lat.toString());
-                                                            setData('longitude', lng.toString());
-                                                            setShowMapPicker(true);
-                                                        }
-                                                    } catch (err) {
-                                                        console.warn('Geocoding failed:', err);
-                                                    }
-                                                }}
-                                                className="bg-electric-blue hover:bg-sky-400 text-white px-3 py-2 rounded-lg text-sm transition-colors"
-                                            >
-                                                Search
-                                            </button>
-                                        </div>
-
-                                        {/* Manual Lat/Lng Input */}
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <div>
-                                                <input
-                                                    type="number"
-                                                    step="any"
-                                                    value={data.latitude}
-                                                    onChange={(e) => {
-                                                        setData('latitude', e.target.value);
-                                                        if (e.target.value && data.longitude) {
-                                                            setMapLocation({
-                                                                latitude: parseFloat(e.target.value),
-                                                                longitude: parseFloat(data.longitude),
-                                                            });
-                                                        }
-                                                    }}
-                                                    placeholder="Latitude (e.g. 6.5244)"
-                                                    className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none placeholder-gray-500"
-                                                />
-                                            </div>
-                                            <div>
-                                                <input
-                                                    type="number"
-                                                    step="any"
-                                                    value={data.longitude}
-                                                    onChange={(e) => {
-                                                        setData('longitude', e.target.value);
-                                                        if (e.target.value && data.latitude) {
-                                                            setMapLocation({
-                                                                latitude: parseFloat(data.latitude),
-                                                                longitude: parseFloat(e.target.value),
-                                                            });
-                                                        }
-                                                    }}
-                                                    placeholder="Longitude (e.g. 3.3792)"
-                                                    className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none placeholder-gray-500"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        {/* Map Picker */}
-                                        <div className={`rounded-lg overflow-hidden border border-white/10 relative transition-all ${showMapPicker ? 'h-48 md:h-56' : 'h-0 border-0'}`}>
-                                            {showMapPicker && (
-                                                <MapLibreMap
-                                                    mapStyle="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
-                                                    initialViewState={{
-                                                        longitude: mapLocation.longitude,
-                                                        latitude: mapLocation.latitude,
-                                                        zoom: 15,
-                                                    }}
-                                                    onClick={(e) => {
-                                                        const lngLat = e.lngLat;
-                                                        setMapLocation({
-                                                            latitude: lngLat.lat,
-                                                            longitude: lngLat.lng,
-                                                        });
-                                                        setData('latitude', lngLat.lat.toString());
-                                                        setData('longitude', lngLat.lng.toString());
-                                                    }}
-                                                    style={{ width: '100%', height: '100%' }}
-                                                >
-                                                    {data.latitude && data.longitude && (
-                                                        <MapLibreMarker
-                                                            longitude={parseFloat(data.longitude)}
-                                                            latitude={parseFloat(data.latitude)}
-                                                            anchor="bottom"
+                                                            }}
+                                                            disableDefaultUI={true}
+                                                            style={{ width: '100%', height: '100%' }}
                                                         >
-                                                            <div className="bg-electric-blue w-6 h-6 rounded-full flex items-center justify-center shadow-lg shadow-electric-blue/50 border-2 border-white">
-                                                                <MapPin className="w-3 h-3 text-white" />
-                                                            </div>
-                                                        </MapLibreMarker>
+                                                            {data.latitude && data.longitude && (
+                                                                <AdvancedMarker
+                                                                    position={{ lat: parseFloat(data.latitude), lng: parseFloat(data.longitude) }}
+                                                                >
+                                                                    <div className="bg-electric-blue w-6 h-6 rounded-full flex items-center justify-center shadow-lg shadow-electric-blue/50 border-2 border-white">
+                                                                        <MapPin className="w-3 h-3 text-white" />
+                                                                    </div>
+                                                                </AdvancedMarker>
+                                                            )}
+                                                        </GoogleMap>
                                                     )}
-                                                </MapLibreMap>
-                                            )}
-                                        </div>
+                                                </div>
 
-                                        {/* Map toggle + coords display */}
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                {data.latitude && data.longitude ? (
-                                                    <span className="text-xs text-emerald-400">
-                                                        ✓ {parseFloat(data.latitude).toFixed(6)}, {parseFloat(data.longitude).toFixed(6)}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-xs text-gray-500">No location set</span>
-                                                )}
+                                                {/* Map toggle + coords display */}
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-2">
+                                                        {data.latitude && data.longitude ? (
+                                                            <span className="text-xs text-emerald-400">
+                                                                ✓ {parseFloat(data.latitude).toFixed(6)}, {parseFloat(data.longitude).toFixed(6)}
+                                                                {searchResultAddress && <span className="text-gray-400 ml-1">• {searchResultAddress.substring(0, 30)}...</span>}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-xs text-gray-500">No location set</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        {!showMapPicker ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setMapLocation({
+                                                                        latitude: parseFloat(data.latitude) || 6.5244,
+                                                                        longitude: parseFloat(data.longitude) || 3.3792,
+                                                                    });
+                                                                    setShowMapPicker(true);
+                                                                }}
+                                                                className="text-xs text-electric-blue hover:text-sky-300 transition-colors"
+                                                            >
+                                                                Show Map
+                                                            </button>
+                                                        ) : (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setShowMapPicker(false)}
+                                                                className="text-xs text-gray-400 hover:text-white transition-colors"
+                                                            >
+                                                                Hide Map
+                                                            </button>
+                                                        )}
+                                                        {data.latitude && data.longitude && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setData('latitude', '');
+                                                                    setData('longitude', '');
+                                                                    setSearchQuery('');
+                                                                    setSearchResultAddress('');
+                                                                }}
+                                                                className="text-xs text-rose-400 hover:text-rose-300 transition-colors"
+                                                            >
+                                                                Clear
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="flex gap-2">
-                                                {!showMapPicker ? (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setMapLocation({
-                                                                latitude: parseFloat(data.latitude) || 6.5244,
-                                                                longitude: parseFloat(data.longitude) || 3.3792,
-                                                            });
-                                                            setShowMapPicker(true);
-                                                        }}
-                                                        className="text-xs text-electric-blue hover:text-sky-300 transition-colors"
-                                                    >
-                                                        Show Map
-                                                    </button>
-                                                ) : (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setShowMapPicker(false)}
-                                                        className="text-xs text-gray-400 hover:text-white transition-colors"
-                                                    >
-                                                        Hide Map
-                                                    </button>
-                                                )}
-                                                {data.latitude && data.longitude && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setData('latitude', '');
-                                                            setData('longitude', '');
-                                                            setSearchQuery('');
-                                                        }}
-                                                        className="text-xs text-rose-400 hover:text-rose-300 transition-colors"
-                                                    >
-                                                        Clear
-                                                    </button>
-                                                )}
+                                        </APIProvider>
+                                    ) : (
+                                        <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                                            <p className="text-xs text-amber-300">
+                                                Google Maps API key not found. Set <code className="text-white font-mono">VITE_GOOGLE_MAPS_API_KEY</code> in your .env file to enable address search.
+                                                You can still type coordinates manually below.
+                                            </p>
+                                            <div className="grid grid-cols-2 gap-2 mt-2">
+                                                <input type="number" step="any" value={data.latitude} onChange={e => setData('latitude', e.target.value)} placeholder="Latitude" className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm outline-none placeholder-gray-500" />
+                                                <input type="number" step="any" value={data.longitude} onChange={e => setData('longitude', e.target.value)} placeholder="Longitude" className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm outline-none placeholder-gray-500" />
                                             </div>
                                         </div>
-                                    </div>
+                                    )}
                                     {errors.latitude && <div className="text-rose-400 text-xs mt-1">{errors.latitude}</div>}
                                     {errors.longitude && <div className="text-rose-400 text-xs mt-1">{errors.longitude}</div>}
                                 </div>
