@@ -336,46 +336,124 @@ export default function Vehicles({ vehicles, drivers }) {
                                     {errors.driver_id && <div className="text-rose-400 text-xs mt-1">{errors.driver_id}</div>}
                                 </div>
 
-                                {/* Vehicle Location Picker */}
+                                {/* Vehicle Location Picker with Search */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-1 flex items-center gap-2">
                                         <MapPin className="w-4 h-4 text-electric-blue" /> Vehicle Location (Optional)
                                     </label>
+                                    <p className="text-xs text-gray-500 mb-2">Type an address or place name, or click on the map to set the exact vehicle location.</p>
 
-                                    {!showMapPicker ? (
-                                        <div className="flex items-center gap-2">
+                                    <div className="space-y-2">
+                                        {/* Address Search */}
+                                        <div className="flex gap-2">
+                                            <div className="flex-1 relative">
+                                                <input
+                                                    type="text"
+                                                    value={searchQuery}
+                                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                                    onKeyDown={async (e) => {
+                                                        if (e.key === 'Enter' && searchQuery.trim()) {
+                                                            e.preventDefault();
+                                                            try {
+                                                                const res = await fetch(
+                                                                    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5`
+                                                                );
+                                                                const results = await res.json();
+                                                                if (results && results.length > 0) {
+                                                                    const loc = results[0];
+                                                                    const lat = parseFloat(loc.lat);
+                                                                    const lng = parseFloat(loc.lon);
+                                                                    setMapLocation({ latitude: lat, longitude: lng });
+                                                                    setData('latitude', lat.toString());
+                                                                    setData('longitude', lng.toString());
+                                                                    setShowMapPicker(true);
+                                                                }
+                                                            } catch (err) {
+                                                                console.warn('Geocoding failed:', err);
+                                                            }
+                                                        }
+                                                    }}
+                                                    placeholder="e.g. 123 Main Street, Lagos or Ikeja City Mall"
+                                                    className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none placeholder-gray-500"
+                                                />
+                                            </div>
                                             <button
                                                 type="button"
-                                                onClick={() => setShowMapPicker(true)}
-                                                className="bg-white/5 hover:bg-white/10 text-gray-300 px-4 py-2 rounded-lg border border-white/10 transition-colors text-sm flex items-center gap-2"
+                                                onClick={async () => {
+                                                    if (!searchQuery.trim()) return;
+                                                    try {
+                                                        const res = await fetch(
+                                                            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5`
+                                                        );
+                                                        const results = await res.json();
+                                                        if (results && results.length > 0) {
+                                                            const loc = results[0];
+                                                            const lat = parseFloat(loc.lat);
+                                                            const lng = parseFloat(loc.lon);
+                                                            setMapLocation({ latitude: lat, longitude: lng });
+                                                            setData('latitude', lat.toString());
+                                                            setData('longitude', lng.toString());
+                                                            setShowMapPicker(true);
+                                                        }
+                                                    } catch (err) {
+                                                        console.warn('Geocoding failed:', err);
+                                                    }
+                                                }}
+                                                className="bg-electric-blue hover:bg-sky-400 text-white px-3 py-2 rounded-lg text-sm transition-colors"
                                             >
-                                                <MapPin className="w-4 h-4" />
-                                                {data.latitude && data.longitude
-                                                    ? `📍 ${parseFloat(data.latitude).toFixed(4)}, ${parseFloat(data.longitude).toFixed(4)}`
-                                                    : '📍 Set on Map'}
+                                                Search
                                             </button>
-                                            {data.latitude && data.longitude && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setData('latitude', '');
-                                                        setData('longitude', '');
-                                                    }}
-                                                    className="text-xs text-rose-400 hover:text-rose-300"
-                                                >
-                                                    Clear
-                                                </button>
-                                            )}
                                         </div>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            <div className="h-48 md:h-64 rounded-lg overflow-hidden border border-white/10 relative">
+
+                                        {/* Manual Lat/Lng Input */}
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div>
+                                                <input
+                                                    type="number"
+                                                    step="any"
+                                                    value={data.latitude}
+                                                    onChange={(e) => {
+                                                        setData('latitude', e.target.value);
+                                                        if (e.target.value && data.longitude) {
+                                                            setMapLocation({
+                                                                latitude: parseFloat(e.target.value),
+                                                                longitude: parseFloat(data.longitude),
+                                                            });
+                                                        }
+                                                    }}
+                                                    placeholder="Latitude (e.g. 6.5244)"
+                                                    className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none placeholder-gray-500"
+                                                />
+                                            </div>
+                                            <div>
+                                                <input
+                                                    type="number"
+                                                    step="any"
+                                                    value={data.longitude}
+                                                    onChange={(e) => {
+                                                        setData('longitude', e.target.value);
+                                                        if (e.target.value && data.latitude) {
+                                                            setMapLocation({
+                                                                latitude: parseFloat(data.latitude),
+                                                                longitude: parseFloat(e.target.value),
+                                                            });
+                                                        }
+                                                    }}
+                                                    placeholder="Longitude (e.g. 3.3792)"
+                                                    className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none placeholder-gray-500"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Map Picker */}
+                                        <div className={`rounded-lg overflow-hidden border border-white/10 relative transition-all ${showMapPicker ? 'h-48 md:h-56' : 'h-0 border-0'}`}>
+                                            {showMapPicker && (
                                                 <MapLibreMap
                                                     mapStyle="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
                                                     initialViewState={{
                                                         longitude: mapLocation.longitude,
                                                         latitude: mapLocation.latitude,
-                                                        zoom: 13,
+                                                        zoom: 15,
                                                     }}
                                                     onClick={(e) => {
                                                         const lngLat = e.lngLat;
@@ -388,33 +466,72 @@ export default function Vehicles({ vehicles, drivers }) {
                                                     }}
                                                     style={{ width: '100%', height: '100%' }}
                                                 >
-                                                    <MapLibreMarker
-                                                        longitude={mapLocation.longitude}
-                                                        latitude={mapLocation.latitude}
-                                                        anchor="bottom"
-                                                    >
-                                                        <div className="bg-electric-blue w-6 h-6 rounded-full flex items-center justify-center shadow-lg shadow-electric-blue/50 border-2 border-white">
-                                                            <MapPin className="w-3 h-3 text-white" />
-                                                        </div>
-                                                    </MapLibreMarker>
+                                                    {data.latitude && data.longitude && (
+                                                        <MapLibreMarker
+                                                            longitude={parseFloat(data.longitude)}
+                                                            latitude={parseFloat(data.latitude)}
+                                                            anchor="bottom"
+                                                        >
+                                                            <div className="bg-electric-blue w-6 h-6 rounded-full flex items-center justify-center shadow-lg shadow-electric-blue/50 border-2 border-white">
+                                                                <MapPin className="w-3 h-3 text-white" />
+                                                            </div>
+                                                        </MapLibreMarker>
+                                                    )}
                                                 </MapLibreMap>
+                                            )}
+                                        </div>
+
+                                        {/* Map toggle + coords display */}
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                {data.latitude && data.longitude ? (
+                                                    <span className="text-xs text-emerald-400">
+                                                        ✓ {parseFloat(data.latitude).toFixed(6)}, {parseFloat(data.longitude).toFixed(6)}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-xs text-gray-500">No location set</span>
+                                                )}
                                             </div>
-                                            <div className="flex items-center justify-between text-xs text-gray-400">
-                                                <span>
-                                                    {data.latitude && data.longitude
-                                                        ? `Selected: ${parseFloat(data.latitude).toFixed(6)}, ${parseFloat(data.longitude).toFixed(6)}`
-                                                        : 'Click on the map to set the vehicle location'}
-                                                </span>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowMapPicker(false)}
-                                                    className="text-electric-blue hover:text-sky-300 transition-colors"
-                                                >
-                                                    Done
-                                                </button>
+                                            <div className="flex gap-2">
+                                                {!showMapPicker ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setMapLocation({
+                                                                latitude: parseFloat(data.latitude) || 6.5244,
+                                                                longitude: parseFloat(data.longitude) || 3.3792,
+                                                            });
+                                                            setShowMapPicker(true);
+                                                        }}
+                                                        className="text-xs text-electric-blue hover:text-sky-300 transition-colors"
+                                                    >
+                                                        Show Map
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowMapPicker(false)}
+                                                        className="text-xs text-gray-400 hover:text-white transition-colors"
+                                                    >
+                                                        Hide Map
+                                                    </button>
+                                                )}
+                                                {data.latitude && data.longitude && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setData('latitude', '');
+                                                            setData('longitude', '');
+                                                            setSearchQuery('');
+                                                        }}
+                                                        className="text-xs text-rose-400 hover:text-rose-300 transition-colors"
+                                                    >
+                                                        Clear
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
-                                    )}
+                                    </div>
                                     {errors.latitude && <div className="text-rose-400 text-xs mt-1">{errors.latitude}</div>}
                                     {errors.longitude && <div className="text-rose-400 text-xs mt-1">{errors.longitude}</div>}
                                 </div>
