@@ -26,7 +26,7 @@ export default function VehicleSidebar({ vehicle, onClose }) {
 
                     {/* Content */}
                     <div className="p-6 flex-1 overflow-y-auto flex flex-col gap-6">
-                        
+
                         {/* Status Badge */}
                         <div className="flex items-center gap-3">
                             <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)] animate-pulse"></div>
@@ -42,7 +42,7 @@ export default function VehicleSidebar({ vehicle, onClose }) {
                                 </div>
                                 <div className="text-2xl font-bold text-white">{vehicle.speed} <span className="text-sm text-gray-500 font-normal">mph</span></div>
                             </div>
-                            
+
                             <div className="bg-black/30 rounded-xl p-4 border border-white/5">
                                 <div className="flex items-center gap-2 text-gray-400 mb-2">
                                     <AlertCircle className="w-4 h-4 text-rose-400" />
@@ -55,7 +55,7 @@ export default function VehicleSidebar({ vehicle, onClose }) {
                         {/* Driver Info */}
                         <div className="mt-4">
                             <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Current Driver</h3>
-                            
+
                             {vehicle.active_driver ? (
                                 <div className="flex items-center gap-4 bg-white/5 rounded-xl p-4 border border-white/5 relative">
                                     <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-electric-blue to-purple-500 flex items-center justify-center text-lg font-bold">
@@ -68,9 +68,9 @@ export default function VehicleSidebar({ vehicle, onClose }) {
                                             Active Trip
                                         </div>
                                     </div>
-                                    {vehicle.trips && vehicle.trips[0] && (
+                                    {vehicle.trip_id && (
                                         <Link
-                                            href={route('dashboard.trips.end', vehicle.trips[0].id)}
+                                            href={route('dashboard.trips.end', vehicle.trip_id)}
                                             method="put"
                                             as="button"
                                             onClick={onClose}

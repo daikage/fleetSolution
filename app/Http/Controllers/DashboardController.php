@@ -20,10 +20,10 @@ class DashboardController extends Controller
         $vehicles = Vehicle::with([
             'latestLocation',
             'currentTrip.driver.user'
-        ])->get()->map(function($vehicle) {
+        ])->get()->map(function ($vehicle) {
             $latestLocation = $vehicle->latestLocation;
             $activeTrip = $vehicle->currentTrip;
-            
+
             return [
                 'id' => $vehicle->id,
                 'make' => $vehicle->make,
@@ -32,9 +32,10 @@ class DashboardController extends Controller
                 'latitude' => $latestLocation ? $latestLocation->latitude : 6.5244, // Default Lagos
                 'longitude' => $latestLocation ? $latestLocation->longitude : 3.3792,
                 'speed' => $latestLocation ? $latestLocation->speed : 0,
-                'active_driver' => $activeTrip && $activeTrip->driver && $activeTrip->driver->user 
-                    ? $activeTrip->driver->user->name 
+                'active_driver' => $activeTrip && $activeTrip->driver && $activeTrip->driver->user
+                    ? $activeTrip->driver->user->name
                     : null,
+                'trip_id' => $activeTrip ? $activeTrip->id : null,
             ];
         });
 
@@ -71,7 +72,7 @@ class DashboardController extends Controller
         }
 
         $vehicles = Vehicle::with(['currentTrip.driver.user', 'documents'])->latest()->get();
-        
+
         $drivers = \App\Models\Driver::with('user')->get();
 
         return Inertia::render('Dashboard/Vehicles', [
@@ -177,7 +178,7 @@ class DashboardController extends Controller
         if ($user) {
             $user->delete();
         }
-        
+
         return back();
     }
 
@@ -294,7 +295,7 @@ class DashboardController extends Controller
         // Maintenance doesn't directly have a driver_id in the migration, only vehicle_id.
         // We'll try to find the driver currently using the vehicle, or latest trip.
         $driver = $maintenance->vehicle->currentTrip?->driver ?? $maintenance->vehicle->trips()->latest()->first()?->driver;
-        
+
         if ($driver && $driver->user) {
             Mail::to($driver->user->email)->send(new MaintenanceRequestDecision($maintenance));
         }
@@ -377,7 +378,7 @@ class DashboardController extends Controller
         $data = [];
         if (($handle = fopen($file->getRealPath(), 'r')) !== false) {
             $headers = fgetcsv($handle, 1000, ',');
-            $headers = array_map(function($header) {
+            $headers = array_map(function ($header) {
                 return trim(strtolower($header));
             }, $headers);
 
@@ -397,8 +398,9 @@ class DashboardController extends Controller
         $rows = $this->parseCsv($request->file('file'));
 
         foreach ($rows as $row) {
-            if (!isset($row['vin']) || !isset($row['license_plate'])) continue;
-            
+            if (!isset($row['vin']) || !isset($row['license_plate']))
+                continue;
+
             Vehicle::updateOrCreate(
                 ['vin' => $row['vin']],
                 [
@@ -422,7 +424,8 @@ class DashboardController extends Controller
         $rows = $this->parseCsv($request->file('file'));
 
         foreach ($rows as $row) {
-            if (!isset($row['email']) || !isset($row['license_no'])) continue;
+            if (!isset($row['email']) || !isset($row['license_no']))
+                continue;
 
             $user = \App\Models\User::firstOrCreate(
                 ['email' => $row['email']],
@@ -461,13 +464,15 @@ class DashboardController extends Controller
                 }
             }
 
-            if (!$plateKey || empty($row[$plateKey])) continue;
+            if (!$plateKey || empty($row[$plateKey]))
+                continue;
 
             $vehicle = Vehicle::where('license_plate', trim($row[$plateKey]))->first();
-            if (!$vehicle) continue;
+            if (!$vehicle)
+                continue;
 
             // Helper to find a field robustly
-            $findField = function($names) use ($row) {
+            $findField = function ($names) use ($row) {
                 foreach ($row as $key => $value) {
                     $cleanKey = str_replace([' ', '(', ')'], ['_', '', ''], strtolower($key));
                     if (in_array($cleanKey, $names)) {
@@ -478,7 +483,7 @@ class DashboardController extends Controller
             };
 
             $cost = $findField(['amount', 'amount_n', 'cost']) ?? 0;
-            
+
             \App\Models\Maintenance::create([
                 'vehicle_id' => $vehicle->id,
                 'type' => $findField(['type']) ?? 'Regular Servicing',
@@ -506,17 +511,20 @@ class DashboardController extends Controller
         $rows = $this->parseCsv($request->file('file'));
 
         foreach ($rows as $row) {
-            if (!isset($row['license_plate']) || !isset($row['liters']) || !isset($row['cost'])) continue;
+            if (!isset($row['license_plate']) || !isset($row['liters']) || !isset($row['cost']))
+                continue;
 
             $vehicle = Vehicle::where('license_plate', $row['license_plate'])->first();
-            if (!$vehicle) continue;
+            if (!$vehicle)
+                continue;
 
             $driverId = null;
             if (!empty($row['driver_email'])) {
                 $user = \App\Models\User::where('email', $row['driver_email'])->first();
                 if ($user) {
                     $driver = \App\Models\Driver::where('user_id', $user->id)->first();
-                    if ($driver) $driverId = $driver->id;
+                    if ($driver)
+                        $driverId = $driver->id;
                 }
             }
 
@@ -542,7 +550,8 @@ class DashboardController extends Controller
         $rows = $this->parseCsv($request->file('file'));
 
         foreach ($rows as $row) {
-            if (!isset($row['entity_type']) || !isset($row['entity_identifier']) || !isset($row['document_type'])) continue;
+            if (!isset($row['entity_type']) || !isset($row['entity_identifier']) || !isset($row['document_type']))
+                continue;
 
             $type = strtolower($row['entity_type']);
             $morphClass = null;
@@ -565,7 +574,8 @@ class DashboardController extends Controller
                 }
             }
 
-            if (!$morphClass || !$morphId) continue;
+            if (!$morphClass || !$morphId)
+                continue;
 
             \App\Models\Document::create([
                 'documentable_type' => $morphClass,
@@ -632,7 +642,7 @@ class DashboardController extends Controller
 
         return back();
     }
-    
+
     public function reports()
     {
         if (auth()->user()->role === 'driver') {
@@ -646,11 +656,11 @@ class DashboardController extends Controller
 
         $totalVehicles = Vehicle::count();
         $activeDrivers = \App\Models\Driver::count();
-        
+
         $totalMaintenanceCost = \App\Models\Maintenance::whereBetween('date', [$start, $end])
             ->where('status', 'Accepted')
             ->sum('cost');
-            
+
         $totalFuelCost = \App\Models\FuelLog::whereBetween('date', [$start, $end])
             ->where('status', 'Accepted')
             ->sum('cost');
@@ -658,7 +668,7 @@ class DashboardController extends Controller
         $maintenanceRecords = \App\Models\Maintenance::with('vehicle')
             ->whereBetween('date', [$start, $end])
             ->latest()->get();
-            
+
         $fuelRecords = \App\Models\FuelLog::with('vehicle')
             ->whereBetween('date', [$start, $end])
             ->latest()->get();
