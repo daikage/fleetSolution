@@ -92,6 +92,13 @@ Route::get('/dashboard/reports', [\App\Http\Controllers\DashboardController::cla
     ->middleware(['auth', 'verified'])
     ->name('dashboard.reports');
 
+Route::get('/dashboard/users', [\App\Http\Controllers\DashboardController::class, 'users'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.users');
+Route::put('/dashboard/users/{user}', [\App\Http\Controllers\DashboardController::class, 'updateUser'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.users.update');
+
 Route::get('/dashboard/fleet/locations', [\App\Http\Controllers\Api\TelematicsController::class, 'latestLocations'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.fleet.locations');

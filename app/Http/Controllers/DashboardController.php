@@ -662,6 +662,35 @@ class DashboardController extends Controller
         return back();
     }
 
+    public function users()
+    {
+        if (auth()->user()->role !== 'superadmin') {
+            abort(403, 'Unauthorized access.');
+        }
+
+        $users = \App\Models\User::all();
+        return Inertia::render('Dashboard/Users', [
+            'users' => $users
+        ]);
+    }
+
+    public function updateUser(Request $request, User $user)
+    {
+        if (auth()->user()->role !== 'superadmin') {
+            abort(403, 'Unauthorized access.');
+        }
+
+        $request->validate([
+            'role' => 'required|in:admin,superadmin,manager,driver',
+        ]);
+
+        $user->update([
+            'role' => $request->role,
+        ]);
+
+        return back();
+    }
+
     public function reports()
     {
         if (auth()->user()->role === 'driver') {
