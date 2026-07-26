@@ -1,10 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Dimensions, Image } from 'react-native';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../api/config';
 
 const { width, height } = Dimensions.get('window');
+
+// Configure notification behavior
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -12,6 +23,89 @@ export default function LoginScreen({ navigation }) {
   const [serverUrl, setServerUrl] = useState(API_BASE_URL);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [expoPushToken, setExpoPushToken] = useState('');
+
+  // Register for push notifications
+  useEffect(() => {
+    registerForPushNotifications();
+  }, []);
+
+  // Listen for notifications when app is in foreground
+  useEffect(() => {
+    const subscription = Notifications.addNotificationReceivedListener(notification => {
+      console.log('Notification received:', notification);
+      // If force-start notification received, show alert
+      if (notification.request.content.data?.type === 'force_start_tracking') {
+        Alert.alert(
+          'Start Tracking',
+          'Your manager has requested you to start tracking. Please go to the Tracking screen.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Navigation will be handled by the user
+                console.log('Navigate to tracking screen');
+              }
+            }
+          ]
+        );
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
+
+  const registerForPushNotifications = async () => {
+    try {
+      if (Device.isDevice) {
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+
+        if (existingStatus !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+
+        if (finalStatus !== 'granted') {
+          Alert.alert('Error', 'Push notification permission not granted!');
+          return;
+        }
+
+        const token = (await Notifications.getExpoPushTokenAsync()).data;
+        setExpoPushToken(token);
+        console.log('Push token:', token);
+      } else {
+        Alert.alert('Error', 'Push notifications only work on physical devices');
+      }
+
+      if (Platform.OS === 'android') {
+        Notifications.setNotificationChannelAsync('default', {
+          name: 'default',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#3B82F6',
+        });
+      }
+    } catch (error) {
+      console.error('Push notification registration error:', error);
+    }
+  };
+
+  const registerPushToken = async (token, userToken) => {
+    try {
+      const baseUrl = serverUrl.replace(/\/+$/, '');
+      await axios.post(
+        `${baseUrl}/api/push/register-token`,
+        { push_token: token },
+        {
+          headers: { Authorization: `Bearer ${userToken}` },
+        }
+      );
+      console.log('Push token registered with backend');
+    } catch (error) {
+      console.error('Failed to register push token:', error);
+    }
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -36,6 +130,11 @@ export default function LoginScreen({ navigation }) {
         await AsyncStorage.setItem('vehicleId', vehicle_id.toString());
       } else {
         await AsyncStorage.removeItem('vehicleId');
+      }
+
+      // Register push token with backend
+      if (expoPushToken) {
+        await registerPushToken(expoPushToken, token);
       }
 
       navigation.replace('Tracking');

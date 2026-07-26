@@ -59,6 +59,10 @@ Route::middleware('auth:sanctum')->group(function () {
             'trip_id' => $trip ? $trip->id : null,
         ]);
     });
+
+    // Push notifications
+    Route::post('/push/register-token', [\App\Http\Controllers\Api\PushNotificationController::class, 'registerToken']);
+    Route::post('/push/force-start', [\App\Http\Controllers\Api\PushNotificationController::class, 'forceStart']);
 });
 
 // OsmAnd / Generic GET tracker route — unprotected, uses vehicle_id as identifier

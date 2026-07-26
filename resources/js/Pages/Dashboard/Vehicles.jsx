@@ -353,6 +353,31 @@ export default function Vehicles({ vehicles, drivers }) {
                                                                 </Link>
                                                             </>
                                                         )}
+                                                        {vehicle.currentTrip?.driver && (
+                                                            <button
+                                                                onClick={async () => {
+                                                                    try {
+                                                                        const token = localStorage.getItem('auth_token') || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                                                                        await fetch('/api/push/force-start', {
+                                                                            method: 'POST',
+                                                                            headers: {
+                                                                                'Content-Type': 'application/json',
+                                                                                'Authorization': `Bearer ${token}`,
+                                                                            },
+                                                                            body: JSON.stringify({ driver_id: vehicle.currentTrip.driver.id }),
+                                                                        });
+                                                                        alert('Push notification sent to driver!');
+                                                                    } catch (error) {
+                                                                        console.error('Failed to send push:', error);
+                                                                        alert('Failed to send push notification');
+                                                                    }
+                                                                }}
+                                                                className="p-2 text-gray-400 hover:text-electric-blue bg-white/5 rounded-lg hover:bg-electric-blue/10 transition-colors"
+                                                                title="Force Start Tracking"
+                                                            >
+                                                                <Navigation className="w-4 h-4" />
+                                                            </button>
+                                                        )}
                                                         <Link
                                                             href={route('dashboard.vehicles.destroy', vehicle.id)}
                                                             method="delete"
