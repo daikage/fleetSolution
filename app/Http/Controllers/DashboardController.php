@@ -44,6 +44,12 @@ class DashboardController extends Controller
                     ? $activeTrip->driver->user->name
                     : null,
                 'trip_id' => $activeTrip ? $activeTrip->id : null,
+                'currentTrip' => $activeTrip ? [
+                    'id' => $activeTrip->id,
+                    'driver' => $activeTrip->driver ? [
+                        'id' => $activeTrip->driver->id,
+                    ] : null,
+                ] : null,
             ];
         });
 

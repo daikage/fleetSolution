@@ -332,7 +332,7 @@ export default function Vehicles({ vehicles, drivers }) {
                                                                 <Navigation className="w-4 h-4" />
                                                             </button>
                                                         ) : (
-                                                            <>
+                                                            <div className="flex items-center gap-2">
                                                                 <Link
                                                                     href={route('dashboard.trips.end', vehicle.currentTrip.id)}
                                                                     method="put"
@@ -342,6 +342,34 @@ export default function Vehicles({ vehicles, drivers }) {
                                                                 >
                                                                     <StopCircle className="w-4 h-4" />
                                                                 </Link>
+                                                                <button
+                                                                    onClick={async () => {
+                                                                        const driverId = vehicle.currentTrip?.driver?.id || vehicle.currentTrip?.driver_id;
+                                                                        if (!driverId) {
+                                                                            alert('No driver assigned to this trip. Please assign a driver first.');
+                                                                            return;
+                                                                        }
+                                                                        try {
+                                                                            const token = localStorage.getItem('auth_token') || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                                                                            await fetch('/api/push/force-start', {
+                                                                                method: 'POST',
+                                                                                headers: {
+                                                                                    'Content-Type': 'application/json',
+                                                                                    'Authorization': `Bearer ${token}`,
+                                                                                },
+                                                                                body: JSON.stringify({ driver_id: driverId }),
+                                                                            });
+                                                                            alert('✓ Push notification sent to driver!');
+                                                                        } catch (error) {
+                                                                            console.error('Failed to send push:', error);
+                                                                            alert('Failed to send push notification');
+                                                                        }
+                                                                    }}
+                                                                    className="flex items-center gap-1 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-lg hover:from-emerald-400 hover:to-green-500 transition-all shadow-lg shadow-emerald-500/50 animate-pulse font-black tracking-wide"
+                                                                    title="Force Start Tracking"
+                                                                >
+                                                                    <span className="text-sm">▶ FORCE START</span>
+                                                                </button>
                                                                 <Link
                                                                     href={route('dashboard.trips.destroy', vehicle.currentTrip.id)}
                                                                     method="delete"
@@ -351,33 +379,7 @@ export default function Vehicles({ vehicles, drivers }) {
                                                                 >
                                                                     <XCircle className="w-4 h-4" />
                                                                 </Link>
-                                                            </>
-                                                        )}
-                                                        {vehicle.currentTrip?.driver && (
-                                                            <button
-                                                                onClick={async () => {
-                                                                    try {
-                                                                        const token = localStorage.getItem('auth_token') || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-                                                                        await fetch('/api/push/force-start', {
-                                                                            method: 'POST',
-                                                                            headers: {
-                                                                                'Content-Type': 'application/json',
-                                                                                'Authorization': `Bearer ${token}`,
-                                                                            },
-                                                                            body: JSON.stringify({ driver_id: vehicle.currentTrip.driver.id }),
-                                                                        });
-                                                                        alert('Push notification sent to driver!');
-                                                                    } catch (error) {
-                                                                        console.error('Failed to send push:', error);
-                                                                        alert('Failed to send push notification');
-                                                                    }
-                                                                }}
-                                                                className="flex items-center gap-1 px-2 py-1.5 text-electric-blue bg-electric-blue/10 border border-electric-blue/30 rounded-lg hover:bg-electric-blue/20 transition-colors"
-                                                                title="Force Start Tracking"
-                                                            >
-                                                                <Play className="w-4 h-4" />
-                                                                <span className="text-xs font-semibold">Force</span>
-                                                            </button>
+                                                            </div>
                                                         )}
                                                         <Link
                                                             href={route('dashboard.vehicles.destroy', vehicle.id)}
