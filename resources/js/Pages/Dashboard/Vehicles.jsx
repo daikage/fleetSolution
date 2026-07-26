@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Head, useForm, Link, usePage } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import BulkImportModal from '@/Components/BulkImportModal';
-import { Plus, Settings, Trash2, X, Navigation, FileText, File as FileIcon, ChevronDown, ChevronUp, StopCircle, XCircle, MapPin, Search, Loader } from 'lucide-react';
+import { Plus, Settings, Trash2, X, Navigation, FileText, File as FileIcon, ChevronDown, ChevronUp, StopCircle, XCircle, MapPin, Search, Loader, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ExportButtons from '@/Components/ExportButtons';
 import { APIProvider, Map as GoogleMap, AdvancedMarker, useMapsLibrary } from '@vis.gl/react-google-maps';
@@ -372,10 +372,11 @@ export default function Vehicles({ vehicles, drivers }) {
                                                                         alert('Failed to send push notification');
                                                                     }
                                                                 }}
-                                                                className="p-2 text-gray-400 hover:text-electric-blue bg-white/5 rounded-lg hover:bg-electric-blue/10 transition-colors"
+                                                                className="flex items-center gap-1 px-2 py-1.5 text-electric-blue bg-electric-blue/10 border border-electric-blue/30 rounded-lg hover:bg-electric-blue/20 transition-colors"
                                                                 title="Force Start Tracking"
                                                             >
-                                                                <Navigation className="w-4 h-4" />
+                                                                <Play className="w-4 h-4" />
+                                                                <span className="text-xs font-semibold">Force</span>
                                                             </button>
                                                         )}
                                                         <Link
