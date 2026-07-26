@@ -80,7 +80,7 @@ class DashboardController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
-        $vehicles = Vehicle::with(['currentTrip.driver.user', 'documents'])->latest()->paginate(20);
+        $vehicles = Vehicle::with(['currentTrip.driver.user', 'documents'])->latest()->get();
 
         $drivers = \App\Models\Driver::with('user')->get();
 
@@ -137,7 +137,7 @@ class DashboardController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
-        $drivers = \App\Models\Driver::with('user')->latest()->paginate(20);
+        $drivers = \App\Models\Driver::with('user')->latest()->get();
         return Inertia::render('Dashboard/Drivers', [
             'drivers' => $drivers
         ]);
@@ -238,7 +238,7 @@ class DashboardController extends Controller
             $query->where('cost', '>', 20000);
         }
 
-        $maintenances = $query->paginate(20);
+        $maintenances = $query->get();
         $vehicles = Vehicle::latest()->get();
 
         return Inertia::render('Dashboard/Maintenance', [
@@ -328,7 +328,7 @@ class DashboardController extends Controller
             $query->where('cost', '>', 20000);
         }
 
-        $fuelLogs = $query->paginate(20);
+        $fuelLogs = $query->get();
         $vehicles = Vehicle::latest()->get();
         $drivers = \App\Models\Driver::with('user')->get();
 
@@ -609,7 +609,7 @@ class DashboardController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
-        $documents = \App\Models\Document::with('documentable')->latest()->paginate(20);
+        $documents = \App\Models\Document::with('documentable')->latest()->get();
         $vehicles = Vehicle::latest()->get();
         $drivers = \App\Models\Driver::with('user')->get();
 
