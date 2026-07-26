@@ -664,7 +664,7 @@ class DashboardController extends Controller
 
     public function users()
     {
-        if (auth()->user()->role !== 'superadmin') {
+        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin'])) {
             abort(403, 'Unauthorized access.');
         }
 
@@ -676,7 +676,7 @@ class DashboardController extends Controller
 
     public function updateUser(Request $request, User $user)
     {
-        if (auth()->user()->role !== 'superadmin') {
+        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin'])) {
             abort(403, 'Unauthorized access.');
         }
 
