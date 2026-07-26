@@ -25,14 +25,13 @@ class DashboardController extends Controller
             $latestLocation = $vehicle->latestLocation;
             $activeTrip = $vehicle->currentTrip;
 
-            // Priority: GPS ping → vehicle registered location → default Lagos
-            $latitude = $latestLocation?->latitude
-                ?? $vehicle->latitude
-                ?? 6.5244;
-            $longitude = $latestLocation?->longitude
-                ?? $vehicle->longitude
-                ?? 3.3792;
+            // Priority: GPS ping → vehicle registered location
+            $latitude = $latestLocation?->latitude ?? $vehicle->latitude;
+            $longitude = $latestLocation?->longitude ?? $vehicle->longitude;
 
+            // Only include vehicles that have a meaningful location
+            // Vehicles with no GPS data and no registered location will show
+            // as NULL — the FleetMap component will skip them automatically
             return [
                 'id' => $vehicle->id,
                 'make' => $vehicle->make,
