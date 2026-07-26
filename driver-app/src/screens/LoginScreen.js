@@ -1,21 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Dimensions, Image } from 'react-native';
-import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../api/config';
 
 const { width, height } = Dimensions.get('window');
 
-// Configure notification behavior
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+// Try to load notification libraries (optional feature)
+let Notifications, Device;
+try {
+  Notifications = require('expo-notifications');
+  Device = require('expo-device');
+} catch (e) {
+  console.log('Push notifications not available:', e.message);
+}
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -25,13 +23,17 @@ export default function LoginScreen({ navigation }) {
   const [showPassword, setShowPassword] = useState(false);
   const [expoPushToken, setExpoPushToken] = useState('');
 
-  // Register for push notifications
+  // Register for push notifications (optional)
   useEffect(() => {
-    registerForPushNotifications();
+    if (Notifications && Device) {
+      registerForPushNotifications();
+    }
   }, []);
 
   // Listen for notifications when app is in foreground
   useEffect(() => {
+    if (!Notifications) return;
+
     const subscription = Notifications.addNotificationReceivedListener(notification => {
       console.log('Notification received:', notification);
       // If force-start notification received, show alert
@@ -79,7 +81,7 @@ export default function LoginScreen({ navigation }) {
       }
 
       if (Platform.OS === 'android') {
-        Notifications.setNotificationChannelAsync('default', {
+        await Notifications.setNotificationChannelAsync('default', {
           name: 'default',
           importance: Notifications.AndroidImportance.MAX,
           vibrationPattern: [0, 250, 250, 250],
