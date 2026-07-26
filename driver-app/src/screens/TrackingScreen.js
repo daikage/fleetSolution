@@ -21,12 +21,17 @@ export default function TrackingScreen({ navigation }) {
 
   const locationSubscription = useRef(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const watchSubscription = useRef(null);
+  const [lastSentLocation, setLastSentLocation] = useState(null);
 
   useEffect(() => {
     initializeApp();
     return () => {
       if (locationSubscription.current) {
         locationSubscription.current.remove();
+      }
+      if (watchSubscription.current) {
+        watchSubscription.current.remove();
       }
     };
   }, []);
@@ -61,26 +66,6 @@ export default function TrackingScreen({ navigation }) {
       console.warn('Initialization error:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const getInitialLocation = async () => {
-    try {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Foreground location permission is required.');
-        return;
-      }
-
-      let loc = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced
-      });
-      setCurrentLocation(loc.coords);
-
-      // Sync initial location
-      await syncLocation(loc.coords);
-    } catch (e) {
-      console.warn('getInitialLocation error:', e.message);
     }
   };
 
@@ -131,6 +116,7 @@ export default function TrackingScreen({ navigation }) {
     }
 
     try {
+      // Start background location task
       await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
         accuracy: Location.Accuracy.BestForNavigation,
         timeInterval: 5000,
@@ -147,8 +133,36 @@ export default function TrackingScreen({ navigation }) {
         },
       });
 
-      // Get initial location
-      await getInitialLocation();
+      // Start foreground watch to update the map in real-time
+      watchSubscription.current = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.BestForNavigation,
+          timeInterval: 3000,
+          distanceInterval: 5,
+        },
+        (newLocation) => {
+          const coords = newLocation.coords;
+          setCurrentLocation(coords);
+
+          // Append to location history for trail
+          setLocationHistory((prev) => {
+            const updated = [...prev, { latitude: coords.latitude, longitude: coords.longitude }];
+            // Keep last 200 points to avoid memory issues
+            return updated.length > 200 ? updated.slice(-200) : updated;
+          });
+
+          // Send to server every 5 seconds (avoid flooding)
+          const now = Date.now();
+          setLastSentLocation((prev) => {
+            if (!prev || now - prev.timestamp > 5000) {
+              syncLocation(coords);
+              return { timestamp: now };
+            }
+            return prev;
+          });
+        }
+      );
+
       setIsTracking(true);
       startPulseAnimation();
     } catch (e) {
@@ -159,12 +173,20 @@ export default function TrackingScreen({ navigation }) {
 
   const stopTracking = async () => {
     try {
+      // Stop the background task
       const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
       if (hasStarted) {
         await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
-        setIsTracking(false);
-        stopPulseAnimation();
       }
+
+      // Stop the foreground watch
+      if (watchSubscription.current) {
+        watchSubscription.current.remove();
+        watchSubscription.current = null;
+      }
+
+      setIsTracking(false);
+      stopPulseAnimation();
     } catch (e) {
       console.warn('Error stopping tracking:', e);
     }
@@ -251,12 +273,10 @@ export default function TrackingScreen({ navigation }) {
         {/* Location History Trail */}
         {locationHistory.length > 1 && (
           <Polyline
-            coordinates={locationHistory.map(loc => ({
-              latitude: loc.latitude,
-              longitude: loc.longitude,
-            }))}
+            coordinates={locationHistory}
             strokeColor="#3B82F6"
             strokeWidth={3}
+            lineDashPattern={[1, 0]}
           />
         )}
       </MapView>
@@ -285,6 +305,12 @@ export default function TrackingScreen({ navigation }) {
         <View style={styles.infoCard}>
           <Text style={styles.infoLabel}>Vehicle ID</Text>
           <Text style={styles.infoValue}>{vehicleId || 'Not Assigned'}</Text>
+        </View>
+
+        {/* Location Points Count */}
+        <View style={styles.infoCard}>
+          <Text style={styles.infoLabel}>Trail Points</Text>
+          <Text style={styles.infoValue}>{locationHistory.length}</Text>
         </View>
 
         {/* Speed Display */}

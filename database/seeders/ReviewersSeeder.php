@@ -40,7 +40,7 @@ class ReviewersSeeder extends Seeder
             [
                 'name' => 'Sheriff',
                 'password' => Hash::make('password'),
-                'role' => 'super_admin',
+                'role' => 'superadmin',
             ]
         );
     }

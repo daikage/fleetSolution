@@ -116,4 +116,4 @@ Route::middleware('auth')->group(function () {
         ->name('settings.update');
 });
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';

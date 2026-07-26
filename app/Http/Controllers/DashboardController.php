@@ -80,7 +80,7 @@ class DashboardController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
-        $vehicles = Vehicle::with(['currentTrip.driver.user', 'documents'])->latest()->get();
+        $vehicles = Vehicle::with(['currentTrip.driver.user', 'documents'])->latest()->paginate(20);
 
         $drivers = \App\Models\Driver::with('user')->get();
 
@@ -137,7 +137,7 @@ class DashboardController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
-        $drivers = \App\Models\Driver::with('user')->latest()->get();
+        $drivers = \App\Models\Driver::with('user')->latest()->paginate(20);
         return Inertia::render('Dashboard/Drivers', [
             'drivers' => $drivers
         ]);
@@ -234,11 +234,11 @@ class DashboardController extends Controller
 
         if ($user->role === 'admin') {
             $query->where('cost', '<=', 20000);
-        } elseif ($user->role === 'super_admin') {
+        } elseif ($user->role === 'superadmin') {
             $query->where('cost', '>', 20000);
         }
 
-        $maintenances = $query->get();
+        $maintenances = $query->paginate(20);
         $vehicles = Vehicle::latest()->get();
 
         return Inertia::render('Dashboard/Maintenance', [
@@ -252,7 +252,7 @@ class DashboardController extends Controller
         if ($cost <= 20000) {
             $user = \App\Models\User::where('role', 'admin')->first();
         } else {
-            $user = \App\Models\User::where('role', 'super_admin')->first();
+            $user = \App\Models\User::where('role', 'superadmin')->first();
         }
         return $user ? $user->id : null;
     }
@@ -324,11 +324,11 @@ class DashboardController extends Controller
 
         if ($user->role === 'admin') {
             $query->where('cost', '<=', 20000);
-        } elseif ($user->role === 'super_admin') {
+        } elseif ($user->role === 'superadmin') {
             $query->where('cost', '>', 20000);
         }
 
-        $fuelLogs = $query->get();
+        $fuelLogs = $query->paginate(20);
         $vehicles = Vehicle::latest()->get();
         $drivers = \App\Models\Driver::with('user')->get();
 
@@ -609,7 +609,7 @@ class DashboardController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
-        $documents = \App\Models\Document::with('documentable')->latest()->get();
+        $documents = \App\Models\Document::with('documentable')->latest()->paginate(20);
         $vehicles = Vehicle::latest()->get();
         $drivers = \App\Models\Driver::with('user')->get();
 

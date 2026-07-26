@@ -77,14 +77,15 @@ class TelematicsController extends Controller
 
     /**
      * Return latest location for all vehicles (polling fallback for dashboard).
+     * Falls back: GPS ping → vehicle registered location → null.
      */
     public function latestLocations()
     {
         $vehicles = \App\Models\Vehicle::with(['latestLocation', 'currentTrip.driver.user'])->get()
             ->map(fn($v) => [
                 'id' => $v->id,
-                'latitude' => $v->latestLocation?->latitude,
-                'longitude' => $v->latestLocation?->longitude,
+                'latitude' => $v->latestLocation?->latitude ?? $v->latitude,
+                'longitude' => $v->latestLocation?->longitude ?? $v->longitude,
                 'speed' => $v->latestLocation?->speed ?? 0,
                 'updated_at' => $v->latestLocation?->created_at,
                 'driver' => $v->currentTrip && $v->currentTrip->driver && $v->currentTrip->driver->user
