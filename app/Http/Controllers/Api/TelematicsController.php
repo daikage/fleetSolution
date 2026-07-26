@@ -36,14 +36,16 @@ class TelematicsController extends Controller
             return response()->json($validator->errors(), 422);
         }
 
-        ProcessVehicleLocation::dispatch(
+        // Process immediately for real-time tracking (works without queue workers on Laravel Cloud)
+        $job = new \App\Jobs\ProcessVehicleLocation(
             $request->vehicle_id,
             $request->latitude,
             $request->longitude,
             (int) ($request->speed ?? 0)
         );
+        $job->handle();
 
-        return response()->json(['status' => 'queued']);
+        return response()->json(['status' => 'processed']);
     }
 
     public function storeOsmAnd(Request $request)
@@ -65,14 +67,15 @@ class TelematicsController extends Controller
             return response()->json($validator->errors(), 422);
         }
 
-        ProcessVehicleLocation::dispatch(
+        $job = new \App\Jobs\ProcessVehicleLocation(
             $request->id,
             $request->lat,
             $request->lon,
             (int) ($request->speed ?? 0)
         );
+        $job->handle();
 
-        return response()->json(['status' => 'queued']);
+        return response()->json(['status' => 'processed']);
     }
 
     /**

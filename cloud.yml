@@ -1,0 +1,32 @@
+# Laravel Cloud Queue Worker Configuration
+# This file configures the queue worker that processes location updates
+# and other background jobs in real-time for the GPS tracking system.
+
+# Worker configuration
+workers:
+  # Main queue worker for GPS tracking and notifications
+  queue-worker:
+    - name: queue-worker
+      command: php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+      autoscaling:
+        min: 1
+        max: 2  # Scale up during high GPS activity
+    
+  # Separate worker for high-priority tracking jobs
+  tracking-worker:
+    - name: tracking-worker
+      command: php artisan queue:work --sleep=1 --tries=3 --max-time=3600
+      autoscaling:
+        min: 1
+        max: 2
+
+# Environment variables needed for queue workers
+env:
+  QUEUE_CONNECTION: database
+  BROADCAST_CONNECTION: reverb
+
+# Notes:
+# 1. This configuration creates 1-2 queue workers on Laravel Cloud
+# 2. Workers process jobs like ProcessVehicleLocation every 1-3 seconds
+# 3. Minimum 1 worker ensures tracking always works
+# 4. Scale to 2 during peak hours if needed
