@@ -38,7 +38,7 @@ class Vehicle extends Model
 
     public function currentTrip()
     {
-        return $this->hasOne(Trip::class)->whereNull('end_time')->latestOfMany();
+        return $this->hasOne(Trip::class)->whereNull('end_time')->where('status', 'active')->latestOfMany();
     }
 
     public function fuelLogs()
