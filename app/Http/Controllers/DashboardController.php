@@ -224,39 +224,48 @@ class DashboardController extends Controller
 
     public function endTrip(\Illuminate\Http\Request $request, \App\Models\Trip $trip)
     {
-        // Ensure vehicle relationship is loaded for odometer update
-        $trip->load('vehicle');
+        try {
+            // Ensure vehicle relationship is loaded for odometer update
+            $trip->load('vehicle');
 
-        $validated = $request->validate([
-            'end_odometer' => 'nullable|numeric|min:0',
-            'end_location' => 'nullable|string|max:255',
-            'distance_km' => 'nullable|numeric|min:0',
-            'notes' => 'nullable|string',
-        ]);
-
-        $endTime = now();
-
-        $duration = $trip->start_time ? $trip->start_time->diffInMinutes($endTime) : null;
-
-        $trip->update([
-            'end_time' => $endTime,
-            'end_odometer' => $validated['end_odometer'] ?? null,
-            'end_location' => $validated['end_location'] ?? null,
-            'distance_km' => $validated['distance_km'] ?? null,
-            'notes' => $validated['notes'] ?? null,
-            'duration_minutes' => $duration,
-            'status' => 'completed',
-        ]);
-
-        // If end_odometer is provided, update vehicle odometer
-        if (!empty($validated['end_odometer']) && $trip->vehicle) {
-            $trip->vehicle->update([
-                'odometer' => $validated['end_odometer'],
+            $validated = $request->validate([
+                'end_odometer' => 'nullable|numeric|min:0',
+                'end_location' => 'nullable|string|max:255',
+                'distance_km' => 'nullable|numeric|min:0',
+                'notes' => 'nullable|string',
             ]);
-        }
 
-        // Use 303 redirect to force Inertia to re-fetch the page with fresh data
-        return redirect()->back(303);
+            $endTime = now();
+
+            $duration = $trip->start_time ? $trip->start_time->diffInMinutes($endTime) : null;
+
+            $trip->update([
+                'end_time' => $endTime,
+                'end_odometer' => !empty($validated['end_odometer']) ? $validated['end_odometer'] : null,
+                'end_location' => $validated['end_location'] ?? null,
+                'distance_km' => $validated['distance_km'] ?? null,
+                'notes' => $validated['notes'] ?? null,
+                'duration_minutes' => $duration,
+                'status' => 'completed',
+            ]);
+
+            // If end_odometer is provided, update vehicle odometer
+            if (!empty($validated['end_odometer']) && $trip->vehicle) {
+                $trip->vehicle->update([
+                    'odometer' => $validated['end_odometer'],
+                ]);
+            }
+
+            // Use 303 redirect to force Inertia to re-fetch the page with fresh data
+            return redirect()->back(303);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('End trip failed', [
+                'trip_id' => $trip->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return redirect()->back()->withErrors(['error' => 'Failed to end trip: ' . $e->getMessage()]);
+        }
     }
 
     public function destroyTrip(\App\Models\Trip $trip)
