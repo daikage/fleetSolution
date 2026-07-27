@@ -88,6 +88,10 @@ Route::delete('/dashboard/drivers/{driver}', [\App\Http\Controllers\DashboardCon
     ->middleware(['auth', 'verified'])
     ->name('dashboard.drivers.destroy');
 
+Route::get('/dashboard/trips', [\App\Http\Controllers\DashboardController::class, 'trips'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.trips');
+
 Route::get('/dashboard/reports', [\App\Http\Controllers\DashboardController::class, 'reports'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.reports');

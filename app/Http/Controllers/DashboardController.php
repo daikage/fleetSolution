@@ -205,22 +205,51 @@ class DashboardController extends Controller
         $validated = $request->validate([
             'vehicle_id' => 'required|exists:vehicles,id',
             'driver_id' => 'required|exists:drivers,id',
+            'start_odometer' => 'nullable|numeric|min:0',
+            'start_location' => 'nullable|string|max:255',
         ]);
 
         \App\Models\Trip::create([
             'vehicle_id' => $validated['vehicle_id'],
             'driver_id' => $validated['driver_id'],
             'start_time' => now(),
+            'start_odometer' => $validated['start_odometer'] ?? null,
+            'start_location' => $validated['start_location'] ?? null,
+            'status' => 'active',
         ]);
 
         return back();
     }
 
-    public function endTrip(\App\Models\Trip $trip)
+    public function endTrip(\Illuminate\Http\Request $request, \App\Models\Trip $trip)
     {
-        $trip->update([
-            'end_time' => now(),
+        $validated = $request->validate([
+            'end_odometer' => 'nullable|numeric|min:0',
+            'end_location' => 'nullable|string|max:255',
+            'distance_km' => 'nullable|numeric|min:0',
+            'notes' => 'nullable|string',
         ]);
+
+        $endTime = now();
+
+        $duration = $trip->start_time ? $trip->start_time->diffInMinutes($endTime) : null;
+
+        $trip->update([
+            'end_time' => $endTime,
+            'end_odometer' => $validated['end_odometer'] ?? null,
+            'end_location' => $validated['end_location'] ?? null,
+            'distance_km' => $validated['distance_km'] ?? null,
+            'notes' => $validated['notes'] ?? null,
+            'duration_minutes' => $duration,
+            'status' => 'completed',
+        ]);
+
+        // If end_odometer is provided, update vehicle odometer
+        if (!empty($validated['end_odometer'])) {
+            $trip->vehicle->update([
+                'odometer' => $validated['end_odometer'],
+            ]);
+        }
 
         // Use 303 redirect to force Inertia to re-fetch the page with fresh data
         return redirect()->back(303);
@@ -230,6 +259,39 @@ class DashboardController extends Controller
     {
         $trip->delete();
         return back();
+    }
+
+    public function trips()
+    {
+        if (auth()->user()->role === 'driver') {
+            abort(403, 'Unauthorized access.');
+        }
+
+        $query = \App\Models\Trip::with(['vehicle', 'driver.user'])->latest();
+
+        // Filter by driver if provided
+        if (request('driver_id')) {
+            $query->where('driver_id', request('driver_id'));
+        }
+
+        // Filter by date range if provided
+        if (request('start_date')) {
+            $query->whereDate('start_time', '>=', request('start_date'));
+        }
+        if (request('end_date')) {
+            $query->whereDate('start_time', '<=', request('end_date'));
+        }
+
+        $trips = $query->paginate(50);
+        $drivers = \App\Models\Driver::with('user')->get();
+        $vehicles = Vehicle::all();
+
+        return Inertia::render('Dashboard/Trips', [
+            'trips' => $trips,
+            'drivers' => $drivers,
+            'vehicles' => $vehicles,
+            'filters' => request()->only(['driver_id', 'start_date', 'end_date']),
+        ]);
     }
 
     public function maintenances()

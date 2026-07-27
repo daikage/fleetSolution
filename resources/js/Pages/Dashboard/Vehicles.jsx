@@ -132,7 +132,9 @@ export default function Vehicles({ vehicles, drivers }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
+    const [isEndTripModalOpen, setIsEndTripModalOpen] = useState(false);
     const [selectedVehicle, setSelectedVehicle] = useState(null);
+    const [endTripVehicle, setEndTripVehicle] = useState(null);
     const [expandedVehicleId, setExpandedVehicleId] = useState(null);
     const [isGeocoding, setIsGeocoding] = useState(false);
 
@@ -161,6 +163,13 @@ export default function Vehicles({ vehicles, drivers }) {
     const dispatchForm = useForm({
         vehicle_id: '',
         driver_id: '',
+    });
+
+    const endTripForm = useForm({
+        end_odometer: '',
+        end_location: '',
+        distance_km: '',
+        notes: '',
     });
 
     const submit = (e) => {
@@ -333,15 +342,22 @@ export default function Vehicles({ vehicles, drivers }) {
                                                             </button>
                                                         ) : (
                                                             <div className="flex items-center gap-2">
-                                                                <Link
-                                                                    href={route('dashboard.trips.end', vehicle.currentTrip.id)}
-                                                                    method="put"
-                                                                    as="button"
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setEndTripVehicle(vehicle);
+                                                                        endTripForm.setData({
+                                                                            end_odometer: vehicle.odometer || '',
+                                                                            end_location: '',
+                                                                            distance_km: '',
+                                                                            notes: '',
+                                                                        });
+                                                                        setIsEndTripModalOpen(true);
+                                                                    }}
                                                                     className="p-2 text-gray-400 hover:text-amber-400 bg-white/5 rounded-lg hover:bg-amber-500/10 transition-colors"
                                                                     title="End Trip"
                                                                 >
                                                                     <StopCircle className="w-4 h-4" />
-                                                                </Link>
+                                                                </button>
                                                                 <button
                                                                     onClick={async () => {
                                                                         const driverId = vehicle.currentTrip?.driver?.id || vehicle.currentTrip?.driver_id;
@@ -748,6 +764,97 @@ export default function Vehicles({ vehicles, drivers }) {
                                     <button type="button" onClick={() => { setIsDispatchModalOpen(false); dispatchForm.reset(); }} className="px-4 py-2 text-gray-400 hover:text-white transition-colors">Cancel</button>
                                     <button type="submit" disabled={dispatchForm.processing} className="bg-emerald-500 hover:bg-emerald-400 text-white px-6 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-emerald-500/20 disabled:opacity-50">
                                         {dispatchForm.processing ? 'Starting...' : 'Start Trip'}
+                                    </button>
+                                </div>
+                            </form>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {isEndTripModalOpen && endTripVehicle && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="glass-panel w-full max-w-md overflow-hidden flex flex-col"
+                        >
+                            <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/20">
+                                <h2 className="text-xl font-bold text-white">End Trip</h2>
+                                <button onClick={() => { setIsEndTripModalOpen(false); endTripForm.reset(); }} className="p-2 rounded-full hover:bg-white/10 text-gray-400 transition-colors">
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <form onSubmit={(e) => {
+                                e.preventDefault();
+                                endTripForm.put(route('dashboard.trips.end', endTripVehicle.currentTrip.id), {
+                                    onSuccess: () => {
+                                        setIsEndTripModalOpen(false);
+                                        endTripForm.reset();
+                                        setEndTripVehicle(null);
+                                    },
+                                });
+                            }} className="p-6 flex flex-col gap-4">
+                                <div>
+                                    <p className="text-gray-300 text-sm mb-4">
+                                        Ending trip for: <strong className="text-white">{endTripVehicle.make} {endTripVehicle.model} ({endTripVehicle.license_plate})</strong>
+                                    </p>
+
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-1">End Odometer (km)</label>
+                                            <input
+                                                type="number"
+                                                value={endTripForm.data.end_odometer}
+                                                onChange={e => endTripForm.setData('end_odometer', e.target.value)}
+                                                className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none"
+                                                placeholder="e.g. 45000"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-1">End Location</label>
+                                            <input
+                                                type="text"
+                                                value={endTripForm.data.end_location}
+                                                onChange={e => endTripForm.setData('end_location', e.target.value)}
+                                                className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none"
+                                                placeholder="e.g. Fort Knox Office, Lagos"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-1">Distance Traveled (km)</label>
+                                            <input
+                                                type="number"
+                                                step="0.1"
+                                                value={endTripForm.data.distance_km}
+                                                onChange={e => endTripForm.setData('distance_km', e.target.value)}
+                                                className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none"
+                                                placeholder="e.g. 125.5"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-1">Notes</label>
+                                            <textarea
+                                                value={endTripForm.data.notes}
+                                                onChange={e => endTripForm.setData('notes', e.target.value)}
+                                                className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none resize-none"
+                                                rows={3}
+                                                placeholder="Any notes about this trip..."
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-4 flex justify-end gap-3">
+                                    <button type="button" onClick={() => { setIsEndTripModalOpen(false); endTripForm.reset(); }} className="px-4 py-2 text-gray-400 hover:text-white transition-colors">Cancel</button>
+                                    <button type="submit" disabled={endTripForm.processing} className="bg-amber-500 hover:bg-amber-400 text-white px-6 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-amber-500/20 disabled:opacity-50">
+                                        {endTripForm.processing ? 'Ending...' : 'End Trip'}
                                     </button>
                                 </div>
                             </form>
