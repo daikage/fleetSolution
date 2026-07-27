@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Dimensions, Animated } from 'react-native';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Dimensions, Animated, AppState } from 'react-native';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -18,14 +18,32 @@ export default function TrackingScreen({ navigation }) {
   const [serverUrl, setServerUrl] = useState('');
   const [driverName, setDriverName] = useState('');
   const [vehicleInfo, setVehicleInfo] = useState('');
+  const [hasActiveTrip, setHasActiveTrip] = useState(false);
 
   const locationSubscription = useRef(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const watchSubscription = useRef(null);
   const [lastSentLocation, setLastSentLocation] = useState(null);
+  const enforceTimerRef = useRef(null);
+  const appState = useRef(AppState.currentState);
 
   useEffect(() => {
     initializeApp();
+
+    // Subscribe to app state changes to re-check tracking
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+        // App came to foreground - check if we should be tracking
+        checkAndEnforceTracking();
+      }
+      appState.current = nextAppState;
+    });
+
+    // Set up periodic enforcement checks (every 30 seconds)
+    enforceTimerRef.current = setInterval(() => {
+      checkAndEnforceTracking();
+    }, 30000);
+
     return () => {
       if (locationSubscription.current) {
         locationSubscription.current.remove();
@@ -33,6 +51,10 @@ export default function TrackingScreen({ navigation }) {
       if (watchSubscription.current) {
         watchSubscription.current.remove();
       }
+      if (enforceTimerRef.current) {
+        clearInterval(enforceTimerRef.current);
+      }
+      subscription.remove();
     };
   }, []);
 
@@ -59,7 +81,13 @@ export default function TrackingScreen({ navigation }) {
 
         if (tripResponse.data.vehicle_id) {
           setVehicleId(tripResponse.data.vehicle_id.toString());
+          setHasActiveTrip(true);
           await AsyncStorage.setItem('vehicleId', tripResponse.data.vehicle_id.toString());
+
+          // Auto-start tracking if not already tracking
+          setTimeout(() => {
+            autoStartTracking();
+          }, 1000);
         }
       }
     } catch (error) {
@@ -69,51 +97,48 @@ export default function TrackingScreen({ navigation }) {
     }
   };
 
-  const syncLocation = async (coords) => {
+  // Check server if driver should be tracking and enforce it
+  const checkAndEnforceTracking = async () => {
     try {
       const token = await AsyncStorage.getItem('userToken');
-      const vId = await AsyncStorage.getItem('vehicleId');
       const baseUrl = await AsyncStorage.getItem('API_BASE_URL');
+      if (!token || !baseUrl) return;
 
-      if (!token || !vId || !baseUrl) return;
+      const response = await axios.get(`${baseUrl}/api/driver/should-track`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-      const speedKmh = coords.speed && coords.speed > 0 ? coords.speed * 3.6 : 0;
+      if (response.data.should_track) {
+        setHasActiveTrip(true);
 
-      await axios.post(
-        `${baseUrl}/api/telematics/location`,
-        {
-          vehicle_id: vId,
-          latitude: coords.latitude,
-          longitude: coords.longitude,
-          speed: speedKmh,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          timeout: 10000,
+        if (response.data.vehicle_id) {
+          setVehicleId(response.data.vehicle_id.toString());
+          await AsyncStorage.setItem('vehicleId', response.data.vehicle_id.toString());
         }
-      );
+
+        // If tracking is not active on server side, force-start it
+        if (!response.data.is_tracking_active && !isTracking) {
+          console.log('Server reports no recent pings - auto-starting tracking...');
+          await autoStartTracking();
+        }
+      } else {
+        setHasActiveTrip(false);
+      }
     } catch (err) {
-      console.warn('Failed to sync location:', err.message);
+      console.warn('Enforcement check failed:', err);
     }
   };
 
-  const startTracking = async () => {
-    if (!vehicleId) {
-      Alert.alert('No Vehicle', 'You are not assigned to an active trip. Ask your manager to assign you a vehicle.');
-      return;
-    }
+  // Auto-start tracking silently (no alert on success)
+  const autoStartTracking = async () => {
+    if (isTracking) return; // Already tracking
+    if (!vehicleId) return;
 
     const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
-    if (foregroundStatus !== 'granted') {
-      Alert.alert('Permission Denied', 'Foreground location permission is required.');
-      return;
-    }
+    if (foregroundStatus !== 'granted') return;
 
     const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
-    if (backgroundStatus !== 'granted') {
-      Alert.alert('Permission Denied', 'Background location permission is required for live tracking.');
-      return;
-    }
+    if (backgroundStatus !== 'granted') return;
 
     try {
       // Start background location task
@@ -147,7 +172,6 @@ export default function TrackingScreen({ navigation }) {
           // Append to location history for trail
           setLocationHistory((prev) => {
             const updated = [...prev, { latitude: coords.latitude, longitude: coords.longitude }];
-            // Keep last 200 points to avoid memory issues
             return updated.length > 200 ? updated.slice(-200) : updated;
           });
 
@@ -165,10 +189,69 @@ export default function TrackingScreen({ navigation }) {
 
       setIsTracking(true);
       startPulseAnimation();
+
+      // Report status to server
+      reportTrackingStatus(true);
+
+      console.log('Auto-tracking started successfully');
     } catch (e) {
-      console.warn("Could not start tracking:", e);
-      Alert.alert('Error', 'Failed to start tracking. Please try again.');
+      console.warn("Could not auto-start tracking:", e);
     }
+  };
+
+  const syncLocation = async (coords) => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      const vId = await AsyncStorage.getItem('vehicleId');
+      const baseUrl = await AsyncStorage.getItem('API_BASE_URL');
+
+      if (!token || !vId || !baseUrl) return;
+
+      const speedKmh = coords.speed && coords.speed > 0 ? coords.speed * 3.6 : 0;
+
+      await axios.post(
+        `${baseUrl}/api/telematics/location`,
+        {
+          vehicle_id: vId,
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+          speed: speedKmh,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 10000,
+        }
+      );
+    } catch (err) {
+      console.warn('Failed to sync location:', err.message);
+    }
+  };
+
+  const reportTrackingStatus = async (isActive) => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      const baseUrl = await AsyncStorage.getItem('API_BASE_URL');
+      if (!token || !baseUrl) return;
+
+      await axios.post(`${baseUrl}/api/driver/report-status`, {
+        is_tracking: isActive,
+        location_enabled: true,
+        battery_optimization_disabled: true,
+      }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch (err) {
+      console.warn('Failed to report status:', err);
+    }
+  };
+
+  const startTracking = async () => {
+    if (!vehicleId) {
+      Alert.alert('No Vehicle', 'You are not assigned to an active trip. Ask your manager to assign you a vehicle.');
+      return;
+    }
+
+    await autoStartTracking();
   };
 
   const stopTracking = async () => {
@@ -187,6 +270,9 @@ export default function TrackingScreen({ navigation }) {
 
       setIsTracking(false);
       stopPulseAnimation();
+
+      // Report status to server
+      reportTrackingStatus(false);
     } catch (e) {
       console.warn('Error stopping tracking:', e);
     }
@@ -289,6 +375,11 @@ export default function TrackingScreen({ navigation }) {
             {isTracking ? 'LIVE TRACKING' : 'INACTIVE'}
           </Text>
         </View>
+        {hasActiveTrip && (
+          <View style={styles.tripBadge}>
+            <Text style={styles.tripBadgeText}>TRIP ASSIGNED</Text>
+          </View>
+        )}
         <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
@@ -413,6 +504,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1,
+  },
+  tripBadge: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  tripBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   logoutButton: {
     backgroundColor: '#1E293B',

@@ -43,6 +43,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/telematics/location', [\App\Http\Controllers\Api\TelematicsController::class, 'store']);
     Route::get('/fleet/vehicles/locations', [\App\Http\Controllers\Api\TelematicsController::class, 'latestLocations']);
 
+    // Force-start push notification
+    Route::post('/push/force-start', [\App\Http\Controllers\Api\PushNotificationController::class, 'forceStart']);
+    Route::post('/push/register-token', [\App\Http\Controllers\Api\PushNotificationController::class, 'registerToken']);
+
+    // Driver tracking enforcement
+    Route::get('/driver/should-track', [\App\Http\Controllers\Api\DriverTrackingController::class, 'shouldTrack']);
+    Route::post('/driver/report-status', [\App\Http\Controllers\Api\DriverTrackingController::class, 'reportStatus']);
+    Route::post('/driver/auto-ping', [\App\Http\Controllers\Api\DriverTrackingController::class, 'autoPing']);
+
     // Driver app: check for active trip assignment
     Route::get('/driver/active-trip', function (Request $request) {
         $user = $request->user();
@@ -59,10 +68,6 @@ Route::middleware('auth:sanctum')->group(function () {
             'trip_id' => $trip ? $trip->id : null,
         ]);
     });
-
-    // Push notifications
-    Route::post('/push/register-token', [\App\Http\Controllers\Api\PushNotificationController::class, 'registerToken']);
-    Route::post('/push/force-start', [\App\Http\Controllers\Api\PushNotificationController::class, 'forceStart']);
 });
 
 // OsmAnd / Generic GET tracker route — unprotected, uses vehicle_id as identifier
