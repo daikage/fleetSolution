@@ -790,11 +790,13 @@ export default function Vehicles({ vehicles, drivers }) {
 
                             <form onSubmit={(e) => {
                                 e.preventDefault();
-                                endTripForm.put(route('dashboard.trips.end', endTripVehicle.currentTrip.id), {
+                                endTripForm.put(route('dashboard.trips.end.direct', endTripVehicle.currentTrip.id), {
                                     onSuccess: () => {
                                         setIsEndTripModalOpen(false);
                                         endTripForm.reset();
                                         setEndTripVehicle(null);
+                                        // Force page reload to update the map
+                                        window.location.reload();
                                     },
                                 });
                             }} className="p-6 flex flex-col gap-4">

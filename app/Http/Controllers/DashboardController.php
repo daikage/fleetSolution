@@ -222,73 +222,23 @@ class DashboardController extends Controller
         return back();
     }
 
-    public function endTrip(\Illuminate\Http\Request $request, \App\Models\Trip $trip)
+    public function endTrip(\Illuminate\Http\Request $request, $tripId)
     {
-        // Log everything for debugging
-        \Illuminate\Support\Facades\Log::info('End trip attempt', [
-            'trip_id' => $trip->id,
-            'user_id' => auth()->id(),
-            'method' => $request->method(),
-            'all_data' => $request->all(),
-            'headers' => $request->headers->all(),
-        ]);
-
-        // STEP 1: Early validation to catch CSRF/middleware issues
-        if (!auth()->check()) {
-            \Illuminate\Support\Facades\Log::error('End trip failed - no auth');
-            abort(401, 'Unauthorized');
-        }
-
-        // STEP 2: Load trip data
-        $trip->load('vehicle');
-        \Illuminate\Support\Facades\Log::info('Trip loaded', ['trip' => $trip->toArray(), 'vehicle' => $trip->vehicle?->id]);
-
-        // STEP 3: Validate - handle empty strings as null
         try {
-            $validated = $request->validate([
-                'end_odometer' => 'nullable|numeric|min:0',
-                'end_location' => 'nullable|string|max:255',
-                'distance_km' => 'nullable|numeric|min:0',
-                'notes' => 'nullable|string',
-            ]);
+            \Log::info('endTrip called', ['tripId' => $tripId, 'user' => auth()->id()]);
+
+            $trip = \App\Models\Trip::findOrFail($tripId);
+            $trip->end_time = now();
+            $trip->status = 'completed';
+            $trip->save();
+
+            \Log::info('endTrip success', ['trip_id' => $trip->id]);
+
+            return redirect()->back();
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Validation failed', ['error' => $e->getMessage()]);
-            return redirect()->back()->withErrors(['error' => 'Validation failed: ' . $e->getMessage()]);
+            \Log::error('endTrip error', ['error' => $e->getMessage()]);
+            return redirect()->back()->with('error', $e->getMessage());
         }
-
-        // STEP 4: Convert empty strings to null
-        $endOdometer = !empty($validated['end_odometer']) ? $validated['end_odometer'] : null;
-        $endLocation = !empty($validated['end_location']) ? $validated['end_location'] : null;
-        $distanceKm = !empty($validated['distance_km']) ? $validated['distance_km'] : null;
-        $notes = !empty($validated['notes']) ? $validated['notes'] : null;
-
-        // STEP 5: Calculate duration
-        $endTime = now();
-        $duration = $trip->start_time ? $trip->start_time->diffInMinutes($endTime) : null;
-
-        // STEP 6: Update trip
-        $trip->update([
-            'end_time' => $endTime,
-            'end_odometer' => $endOdometer,
-            'end_location' => $endLocation,
-            'distance_km' => $distanceKm,
-            'notes' => $notes,
-            'duration_minutes' => $duration,
-            'status' => 'completed',
-        ]);
-        \Illuminate\Support\Facades\Log::info('Trip updated successfully', ['trip_id' => $trip->id]);
-
-        // STEP 7: Update vehicle odometer if provided
-        if ($endOdometer && $trip->vehicle) {
-            $trip->vehicle->update([
-                'odometer' => $endOdometer,
-            ]);
-            \Illuminate\Support\Facades\Log::info('Vehicle odometer updated', ['vehicle_id' => $trip->vehicle->id]);
-        }
-
-        // STEP 8: Return success
-        \Illuminate\Support\Facades\Log::info('End trip success');
-        return redirect()->back()->with('success', 'Trip ended successfully');
     }
 
     public function destroyTrip(\App\Models\Trip $trip)
