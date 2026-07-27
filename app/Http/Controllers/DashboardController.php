@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Inertia\Inertia;
 use App\Models\Vehicle;
+use App\Models\User;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\MaintenanceRequestDecision;
 use App\Mail\FuelRequestDecision;
@@ -223,6 +224,9 @@ class DashboardController extends Controller
 
     public function endTrip(\Illuminate\Http\Request $request, \App\Models\Trip $trip)
     {
+        // Ensure vehicle relationship is loaded for odometer update
+        $trip->load('vehicle');
+
         $validated = $request->validate([
             'end_odometer' => 'nullable|numeric|min:0',
             'end_location' => 'nullable|string|max:255',
@@ -245,7 +249,7 @@ class DashboardController extends Controller
         ]);
 
         // If end_odometer is provided, update vehicle odometer
-        if (!empty($validated['end_odometer'])) {
+        if (!empty($validated['end_odometer']) && $trip->vehicle) {
             $trip->vehicle->update([
                 'odometer' => $validated['end_odometer'],
             ]);
