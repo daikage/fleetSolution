@@ -346,28 +346,103 @@ class DashboardController extends Controller
             abort(403, 'Managers cannot action requests.');
         }
 
-        $validated = $request->validate([
-            'status' => 'required|in:Accepted,Rejected',
-            'reviewer_comment' => 'required|string',
-        ]);
+        $userRole = auth()->user()->role;
+        $isSuperAdmin = $userRole === 'superadmin' || $userRole === 'super_admin';
+        $isAdmin = $userRole === 'admin';
 
-        $maintenance->update($validated);
+        // Determine if this request needs superadmin approval
+        $needsSuperAdmin = $maintenance->cost > 20000;
 
+        // For admin approving low-cost requests directly
+        if ($isAdmin && !$needsSuperAdmin) {
+            $validated = $request->validate([
+                'status' => 'required|in:Accepted,Rejected',
+                'reviewer_comment' => 'nullable|string',
+            ]);
+
+            $maintenance->update([
+                'status' => $validated['status'],
+                'reviewer_comment' => $validated['reviewer_comment'],
+                'assigned_to' => auth()->id(),
+            ]);
+
+            // Notify all relevant parties
+            $this->notifyMaintenanceDecision($maintenance);
+
+            return back();
+        }
+
+        // For superadmin approving/rejecting high-cost requests
+        if ($isSuperAdmin && $needsSuperAdmin) {
+            $validated = $request->validate([
+                'status' => 'required|in:Accepted,Rejected',
+                'reviewer_comment' => 'required|string',
+            ]);
+
+            $maintenance->update([
+                'status' => $validated['status'],
+                'reviewer_comment' => $validated['reviewer_comment'],
+                'assigned_to' => auth()->id(),
+            ]);
+
+            // Notify all relevant parties
+            $this->notifyMaintenanceDecision($maintenance);
+
+            return back();
+        }
+
+        // Admin forwarding high-cost request to superadmin with comment
+        if ($isAdmin && $needsSuperAdmin) {
+            $validated = $request->validate([
+                'reviewer_comment' => 'required|string',
+            ]);
+
+            // Change status to "Under Review" or keep as Pending but update comment
+            $maintenance->update([
+                'status' => 'Pending',
+                'reviewer_comment' => $validated['reviewer_comment'],
+                'assigned_to' => auth()->id(),
+            ]);
+
+            // Notify superadmin that review is needed
+            $this->notifySuperAdminForReview($maintenance, 'Maintenance');
+
+            return back();
+        }
+
+        abort(403, 'Unauthorized action.');
+    }
+
+    private function notifyMaintenanceDecision($maintenance)
+    {
+        // Notify the creator
         if ($maintenance->createdBy) {
             $maintenance->createdBy->notify(new \App\Notifications\RequestActioned($maintenance, 'Maintenance'));
         }
 
-        // Notify Driver if possible. Find driver through vehicle's current trip or last trip...
-        // Assuming we just email the active driver or all drivers assigned? The prompt says "the driver associated with the request". 
-        // Maintenance doesn't directly have a driver_id in the migration, only vehicle_id.
-        // We'll try to find the driver currently using the vehicle, or latest trip.
+        // Notify the driver if possible
         $driver = $maintenance->vehicle->currentTrip?->driver ?? $maintenance->vehicle->trips()->latest()->first()?->driver;
-
         if ($driver && $driver->user) {
             Mail::to($driver->user->email)->send(new MaintenanceRequestDecision($maintenance));
         }
 
-        return back();
+        // Notify the admin who processed it (if superadmin is acting)
+        if (auth()->user()->role === 'superadmin' || auth()->user()->role === 'super_admin') {
+            $admin = $maintenance->assignedTo;
+            if ($admin && $admin->id !== auth()->id()) {
+                $admin->notify(new \App\Notifications\RequestActioned($maintenance, 'Maintenance'));
+            }
+        }
+    }
+
+    private function notifySuperAdminForReview($maintenance, $type)
+    {
+        // Find all superadmins
+        $superadmins = \App\Models\User::whereIn('role', ['superadmin', 'super_admin'])->get();
+
+        foreach ($superadmins as $superadmin) {
+            $superadmin->notify(new \App\Notifications\RequestSubmitted($maintenance, $type));
+        }
     }
 
     public function fuel()
@@ -422,22 +497,88 @@ class DashboardController extends Controller
             abort(403, 'Managers cannot action requests.');
         }
 
-        $validated = $request->validate([
-            'status' => 'required|in:Accepted,Rejected',
-            'reviewer_comment' => 'required|string',
-        ]);
+        $userRole = auth()->user()->role;
+        $isSuperAdmin = $userRole === 'superadmin' || $userRole === 'super_admin';
+        $isAdmin = $userRole === 'admin';
 
-        $fuelLog->update($validated);
+        // Determine if this request needs superadmin approval
+        $needsSuperAdmin = $fuelLog->cost > 20000;
 
+        // For admin approving low-cost requests directly
+        if ($isAdmin && !$needsSuperAdmin) {
+            $validated = $request->validate([
+                'status' => 'required|in:Accepted,Rejected',
+                'reviewer_comment' => 'nullable|string',
+            ]);
+
+            $fuelLog->update([
+                'status' => $validated['status'],
+                'reviewer_comment' => $validated['reviewer_comment'],
+                'assigned_to' => auth()->id(),
+            ]);
+
+            $this->notifyFuelDecision($fuelLog);
+
+            return back();
+        }
+
+        // For superadmin approving/rejecting high-cost requests
+        if ($isSuperAdmin && $needsSuperAdmin) {
+            $validated = $request->validate([
+                'status' => 'required|in:Accepted,Rejected',
+                'reviewer_comment' => 'required|string',
+            ]);
+
+            $fuelLog->update([
+                'status' => $validated['status'],
+                'reviewer_comment' => $validated['reviewer_comment'],
+                'assigned_to' => auth()->id(),
+            ]);
+
+            $this->notifyFuelDecision($fuelLog);
+
+            return back();
+        }
+
+        // Admin forwarding high-cost request to superadmin with comment
+        if ($isAdmin && $needsSuperAdmin) {
+            $validated = $request->validate([
+                'reviewer_comment' => 'required|string',
+            ]);
+
+            $fuelLog->update([
+                'status' => 'Pending',
+                'reviewer_comment' => $validated['reviewer_comment'],
+                'assigned_to' => auth()->id(),
+            ]);
+
+            $this->notifySuperAdminForReview($fuelLog, 'Fuel');
+
+            return back();
+        }
+
+        abort(403, 'Unauthorized action.');
+    }
+
+    private function notifyFuelDecision($fuelLog)
+    {
+        // Notify the creator
         if ($fuelLog->createdBy) {
             $fuelLog->createdBy->notify(new \App\Notifications\RequestActioned($fuelLog, 'Fuel'));
         }
 
+        // Notify the driver
         if ($fuelLog->driver && $fuelLog->driver->user) {
             Mail::to($fuelLog->driver->user->email)->send(new FuelRequestDecision($fuelLog));
         }
 
-        return back();
+        // Notify the admin who processed it (if superadmin is acting)
+        if (auth()->user()->role === 'superadmin' || auth()->user()->role === 'super_admin') {
+            $admin = $fuelLog->assignedTo;
+            if ($admin && $admin->id !== auth()->id()) {
+                $admin->notify(new \App\Notifications\RequestActioned($fuelLog, 'Fuel'));
+            }
+        }
     }
 
     private function parseCsv($file)
