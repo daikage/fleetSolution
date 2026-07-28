@@ -14,6 +14,13 @@ class PushNotificationController extends Controller
      */
     public function forceStart(Request $request)
     {
+        // Only admin and superadmin can force-start tracking
+        $user = $request->user();
+        $role = $user->role;
+        if (!in_array($role, ['manager', 'admin', 'superadmin', 'super_admin'])) {
+            return response()->json(['error' => 'Unauthorized. Only manager/admin/superadmin can force-start tracking.'], 403);
+        }
+
         $request->validate([
             'driver_id' => 'required|exists:drivers,id',
         ]);

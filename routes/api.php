@@ -4,13 +4,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/user', function (Request $request) {
-    return $request->user();
+    return $request->user()->only(['id', 'name', 'email', 'role']);
 })->middleware('auth:sanctum');
 
 Route::post('/mobile/login', function (Request $request) {
     $request->validate([
         'email' => 'required|email',
-        'password' => 'required',
+        'password' => 'required|string',
     ]);
 
     $user = \App\Models\User::where('email', $request->email)->first();
@@ -29,21 +29,22 @@ Route::post('/mobile/login', function (Request $request) {
     $trip = \App\Models\Trip::where('driver_id', $driver->id)->whereNull('end_time')->latest()->first();
     $vehicleId = $trip ? $trip->vehicle_id : null;
 
-    $token = $user->createToken('mobile-app')->plainTextToken;
+    $token = $user->createToken('mobile-app-driver', ['driver'])->plainTextToken;
 
     return response()->json([
         'token' => $token,
-        'user' => $user,
-        'driver' => $driver,
+        'user' => $user->only(['id', 'name', 'email']),
+        'driver' => $driver->only(['id', 'license_no', 'phone']),
         'vehicle_id' => $vehicleId,
     ]);
-});
+})->middleware('throttle:10,1');
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
     Route::post('/telematics/location', [\App\Http\Controllers\Api\TelematicsController::class, 'store']);
-    Route::get('/fleet/vehicles/locations', [\App\Http\Controllers\Api\TelematicsController::class, 'latestLocations']);
+    Route::get('/fleet/vehicles/locations', [\App\Http\Controllers\Api\TelematicsController::class, 'latestLocations'])
+        ->middleware('can:view-vehicles');
 
-    // Force-start push notification
+    // Force-start push notification - admin/superadmin only
     Route::post('/push/force-start', [\App\Http\Controllers\Api\PushNotificationController::class, 'forceStart']);
     Route::post('/push/register-token', [\App\Http\Controllers\Api\PushNotificationController::class, 'registerToken']);
 
@@ -70,5 +71,5 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 });
 
-// OsmAnd / Generic GET tracker route — unprotected, uses vehicle_id as identifier
+// OsmAnd tracker — uses shared secret in query param for auth
 Route::get('/telematics/osmand', [\App\Http\Controllers\Api\TelematicsController::class, 'storeOsmAnd']);

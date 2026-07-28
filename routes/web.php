@@ -42,17 +42,6 @@ Route::put('/dashboard/trips/{tripId}/end', [\App\Http\Controllers\DashboardCont
     ->middleware(['auth', 'verified'])
     ->name('dashboard.trips.end.direct');
 
-// Debug route - remove after testing
-Route::get('/debug/trip/{trip}', function ($trip) {
-    $t = \App\Models\Trip::findOrFail($trip);
-    return response()->json([
-        'id' => $t->id,
-        'end_time' => $t->end_time,
-        'status' => $t->status,
-        'vehicle_id' => $t->vehicle_id,
-        'driver_id' => $t->driver_id,
-    ]);
-});
 Route::delete('/dashboard/trips/{trip}', [\App\Http\Controllers\DashboardController::class, 'destroyTrip'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.trips.destroy');

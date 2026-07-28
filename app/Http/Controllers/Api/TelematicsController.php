@@ -55,12 +55,21 @@ class TelematicsController extends Controller
             return response()->json(['error' => 'OsmAnd tracking is not enabled.'], 403);
         }
 
-        // OsmAnd typically sends: ?id=12345&lat=40.0&lon=-73.0&speed=50.0
+        // Require shared secret for authentication
+        $sharedSecret = \App\Models\Setting::where('key', 'osmand_secret')->value('value');
+        $providedSecret = $request->query('secret', '');
+
+        if (!$sharedSecret || $providedSecret !== $sharedSecret) {
+            \Illuminate\Support\Facades\Log::warning('Unauthorized OsmAnd access attempt from IP: ' . $request->ip());
+            return response()->json(['error' => 'Invalid or missing shared secret.'], 403);
+        }
+
+        // OsmAnd typically sends: ?id=12345&lat=40.0&lon=-73.0&speed=50.0&secret=xxx
         $validator = Validator::make($request->all(), [
             'id' => 'required|exists:vehicles,id',
-            'lat' => 'required|numeric',
-            'lon' => 'required|numeric',
-            'speed' => 'nullable|numeric',
+            'lat' => 'required|numeric|between:-90,90',
+            'lon' => 'required|numeric|between:-180,180',
+            'speed' => 'nullable|numeric|between:0,500',
         ]);
 
         if ($validator->fails()) {
