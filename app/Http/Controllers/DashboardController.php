@@ -382,7 +382,14 @@ class DashboardController extends Controller
             ]);
 
             // Notify superadmin that review is needed
-            $this->notifySuperAdminForReview($maintenance, 'Maintenance');
+            try {
+                $this->notifySuperAdminForReview($maintenance, 'Maintenance');
+            } catch (\Exception $e) {
+                \Log::error('Failed to notify superadmin for maintenance review', [
+                    'maintenance_id' => $maintenance->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
 
             return back();
         }
@@ -531,7 +538,14 @@ class DashboardController extends Controller
                 'assigned_to' => $superadmin ? $superadmin->id : auth()->id(),
             ]);
 
-            $this->notifySuperAdminForReview($fuelLog, 'Fuel');
+            try {
+                $this->notifySuperAdminForReview($fuelLog, 'Fuel');
+            } catch (\Exception $e) {
+                \Log::error('Failed to notify superadmin for fuel review', [
+                    'fuel_log_id' => $fuelLog->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
 
             return back();
         }
