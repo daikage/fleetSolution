@@ -6,7 +6,7 @@ import { Plus, X, Fuel as FuelIcon, Calendar, Droplet, FileText, CheckCircle, XC
 import { motion, AnimatePresence } from 'framer-motion';
 import ExportButtons from '@/Components/ExportButtons';
 
-export default function Fuel({ fuelLogs, vehicles, drivers }) {
+export default function Fuel({ fuelLogs, vehicles, drivers, userRole }) {
     const { auth } = usePage().props;
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -54,10 +54,17 @@ export default function Fuel({ fuelLogs, vehicles, drivers }) {
     const openActionModal = (log, type) => {
         setSelectedFuelLog(log);
         setActionType(type);
-        actionForm.setData({
-            status: type,
-            reviewer_comment: '',
-        });
+        if (type === 'SubmitReview') {
+            actionForm.setData({
+                status: '',
+                reviewer_comment: '',
+            });
+        } else {
+            actionForm.setData({
+                status: type,
+                reviewer_comment: '',
+            });
+        }
         setActionModalOpen(true);
     };
 
@@ -150,25 +157,77 @@ export default function Fuel({ fuelLogs, vehicles, drivers }) {
                                             <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                                                 log.status === 'Accepted' ? 'bg-emerald-500/20 text-emerald-400' :
                                                 log.status === 'Rejected' ? 'bg-rose-500/20 text-rose-400' :
+                                                log.status === 'Under Review' ? 'bg-violet-500/20 text-violet-400' :
                                                 'bg-amber-500/20 text-amber-400'
                                             }`}>
                                                 {log.status}
                                             </span>
                                         </td>
                                         <td className="p-4 text-right">
-                                            {log.status === 'Pending' && auth.user.role !== 'manager' && (
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <button onClick={() => openActionModal(log, 'Accepted')} className="p-1.5 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-md transition-colors" title="Accept">
-                                                        <CheckCircle className="w-5 h-5" />
-                                                    </button>
-                                                    <button onClick={() => openActionModal(log, 'Rejected')} className="p-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-md transition-colors" title="Reject">
-                                                        <XCircle className="w-5 h-5" />
-                                                    </button>
-                                                </div>
-                                            )}
-                                            {log.status !== 'Pending' && (
-                                                <span className="text-xs text-gray-500 italic">Actioned</span>
-                                            )}
+                                                {(() => {
+                                                    const isAdmin = userRole === 'admin';
+                                                    const isSuperAdmin = userRole === 'superadmin' || userRole === 'super_admin';
+                                                    const isHighCost = Number(log.cost) > 20000;
+
+                                                    // Pending + low cost: only admin can approve/reject
+                                                    if (log.status === 'Pending' && !isHighCost && isAdmin) {
+                                                        return (
+                                                            <div className="flex items-center justify-end gap-2">
+                                                                <button onClick={() => openActionModal(log, 'Accepted')} className="p-1.5 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-md transition-colors" title="Accept">
+                                                                    <CheckCircle className="w-5 h-5" />
+                                                                </button>
+                                                                <button onClick={() => openActionModal(log, 'Rejected')} className="p-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-md transition-colors" title="Reject">
+                                                                    <XCircle className="w-5 h-5" />
+                                                                </button>
+                                                            </div>
+                                                        );
+                                                    }
+
+                                                    // Pending + high cost: admin can only submit for review
+                                                    if (log.status === 'Pending' && isHighCost && isAdmin) {
+                                                        return (
+                                                            <button onClick={() => openActionModal(log, 'SubmitReview')} className="px-3 py-1.5 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 rounded-md transition-colors text-xs font-medium" title="Submit for Super Admin Review">
+                                                                Submit for Review
+                                                            </button>
+                                                        );
+                                                    }
+
+                                                    // Under Review: only superadmin can approve/reject
+                                                    if (log.status === 'Under Review' && isSuperAdmin) {
+                                                        return (
+                                                            <div className="flex items-center justify-end gap-2">
+                                                                <button onClick={() => openActionModal(log, 'Accepted')} className="p-1.5 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-md transition-colors" title="Accept">
+                                                                    <CheckCircle className="w-5 h-5" />
+                                                                </button>
+                                                                <button onClick={() => openActionModal(log, 'Rejected')} className="p-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-md transition-colors" title="Reject">
+                                                                    <XCircle className="w-5 h-5" />
+                                                                </button>
+                                                            </div>
+                                                        );
+                                                    }
+
+                                                    // Under Review + admin: show waiting label
+                                                    if (log.status === 'Under Review' && isAdmin) {
+                                                        return <span className="text-xs text-violet-400 italic">Pending Super Admin Review</span>;
+                                                    }
+
+                                                    // Pending + high cost + superadmin: awaiting admin review
+                                                    if (log.status === 'Pending' && isHighCost && isSuperAdmin) {
+                                                        return <span className="text-xs text-gray-500 italic">Awaiting Admin Review</span>;
+                                                    }
+
+                                                    // Pending + low cost + superadmin: admin handles these
+                                                    if (log.status === 'Pending' && !isHighCost && isSuperAdmin) {
+                                                        return <span className="text-xs text-gray-500 italic">Admin Approval</span>;
+                                                    }
+
+                                                    // Already actioned
+                                                    if (log.status === 'Accepted' || log.status === 'Rejected') {
+                                                        return <span className="text-xs text-gray-500 italic">Actioned</span>;
+                                                    }
+
+                                                    return null;
+                                                })()}
                                         </td>
                                     </tr>
                                 ))}
@@ -301,9 +360,13 @@ export default function Fuel({ fuelLogs, vehicles, drivers }) {
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
                             className="glass-panel w-full max-w-md overflow-hidden flex flex-col"
                         >
-                            <div className={`p-6 border-b border-white/10 flex justify-between items-center ${actionType === 'Accepted' ? 'bg-emerald-500/20' : 'bg-rose-500/20'}`}>
+                            <div className={`p-6 border-b border-white/10 flex justify-between items-center ${
+                                actionType === 'Accepted' ? 'bg-emerald-500/20' :
+                                actionType === 'Rejected' ? 'bg-rose-500/20' :
+                                'bg-amber-500/20'
+                            }`}>
                                 <h2 className="text-xl font-bold text-white">
-                                    {actionType === 'Accepted' ? 'Accept' : 'Reject'} Request
+                                    {actionType === 'Accepted' ? 'Accept' : actionType === 'Rejected' ? 'Reject' : 'Submit for Review'} Request
                                 </h2>
                                 <button onClick={() => setActionModalOpen(false)} className="p-2 rounded-full hover:bg-white/10 text-gray-400 transition-colors">
                                     <X className="w-5 h-5" />
@@ -312,16 +375,22 @@ export default function Fuel({ fuelLogs, vehicles, drivers }) {
 
                             <form onSubmit={submitAction} className="p-6 flex flex-col gap-4">
                                 <p className="text-gray-300 text-sm mb-2">
-                                    You are about to <strong>{actionType.toLowerCase()}</strong> the fuel request for ₦{Number(selectedFuelLog?.cost).toLocaleString()} from {selectedFuelLog?.vehicle?.license_plate}.
+                                    {actionType === 'SubmitReview' ? (
+                                        <>You are about to <strong>forward</strong> this fuel request (₦{Number(selectedFuelLog?.cost).toLocaleString()}) from {selectedFuelLog?.vehicle?.license_plate} to the <strong>Super Admin</strong> for review.</>
+                                    ) : (
+                                        <>You are about to <strong>{actionType.toLowerCase()}</strong> the fuel request for ₦{Number(selectedFuelLog?.cost).toLocaleString()} from {selectedFuelLog?.vehicle?.license_plate}.</>
+                                    )}
                                 </p>
                                 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-300 mb-1">Reviewer Comment</label>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                                        {actionType === 'SubmitReview' ? 'Review Comment (Required)' : 'Reviewer Comment'}
+                                    </label>
                                     <textarea
                                         value={actionForm.data.reviewer_comment}
                                         onChange={e => actionForm.setData('reviewer_comment', e.target.value)}
                                         className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue outline-none min-h-[100px]"
-                                        placeholder="Explain your decision..."
+                                        placeholder={actionType === 'SubmitReview' ? 'Add your review notes for the Super Admin...' : 'Explain your decision...'}
                                         required
                                     />
                                     {actionForm.errors.reviewer_comment && <div className="text-rose-400 text-xs mt-1">{actionForm.errors.reviewer_comment}</div>}
@@ -329,8 +398,12 @@ export default function Fuel({ fuelLogs, vehicles, drivers }) {
 
                                 <div className="mt-4 flex justify-end gap-3">
                                     <button type="button" onClick={() => setActionModalOpen(false)} className="px-4 py-2 text-gray-400 hover:text-white transition-colors">Cancel</button>
-                                    <button type="submit" disabled={actionForm.processing} className={`${actionType === 'Accepted' ? 'bg-emerald-500 hover:bg-emerald-400' : 'bg-rose-500 hover:bg-rose-400'} text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50`}>
-                                        {actionForm.processing ? 'Saving...' : 'Confirm Action'}
+                                    <button type="submit" disabled={actionForm.processing} className={`${
+                                        actionType === 'Accepted' ? 'bg-emerald-500 hover:bg-emerald-400' :
+                                        actionType === 'Rejected' ? 'bg-rose-500 hover:bg-rose-400' :
+                                        'bg-amber-500 hover:bg-amber-400'
+                                    } text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50`}>
+                                        {actionForm.processing ? 'Saving...' : actionType === 'SubmitReview' ? 'Forward to Super Admin' : 'Confirm Action'}
                                     </button>
                                 </div>
                             </form>

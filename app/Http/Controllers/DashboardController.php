@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\MaintenanceRequestDecision;
 use App\Mail\FuelRequestDecision;
+use App\Notifications\ReviewRequestForwarded;
 
 class DashboardController extends Controller
 {
@@ -285,28 +286,22 @@ class DashboardController extends Controller
         $user = auth()->user();
         $query = \App\Models\Maintenance::with(['vehicle', 'assignedTo'])->latest();
 
-        if ($user->role === 'admin') {
-            $query->where('cost', '<=', 20000);
-        } elseif ($user->role === 'superadmin') {
-            $query->where('cost', '>', 20000);
-        }
+        // Both admin and superadmin see ALL records (no cost-based filtering)
 
         $maintenances = $query->get();
         $vehicles = Vehicle::latest()->get();
 
         return Inertia::render('Dashboard/Maintenance', [
             'maintenances' => $maintenances,
-            'vehicles' => $vehicles
+            'vehicles' => $vehicles,
+            'userRole' => $user->role,
         ]);
     }
 
     private function getAssigneeForCost($cost)
     {
-        if ($cost <= 20000) {
-            $user = \App\Models\User::where('role', 'admin')->first();
-        } else {
-            $user = \App\Models\User::where('role', 'superadmin')->first();
-        }
+        // Always assign to admin first — admin is the first-line reviewer for all requests
+        $user = \App\Models\User::where('role', 'admin')->first();
         return $user ? $user->id : null;
     }
 
@@ -353,8 +348,8 @@ class DashboardController extends Controller
         // Determine if this request needs superadmin approval
         $needsSuperAdmin = $maintenance->cost > 20000;
 
-        // For admin approving low-cost requests directly
-        if ($isAdmin && !$needsSuperAdmin) {
+        // Admin approving/rejecting low-cost requests (≤₦20,000) directly
+        if ($isAdmin && !$needsSuperAdmin && $maintenance->status === 'Pending') {
             $validated = $request->validate([
                 'status' => 'required|in:Accepted,Rejected',
                 'reviewer_comment' => 'nullable|string',
@@ -366,14 +361,34 @@ class DashboardController extends Controller
                 'assigned_to' => auth()->id(),
             ]);
 
-            // Notify all relevant parties
             $this->notifyMaintenanceDecision($maintenance);
 
             return back();
         }
 
-        // For superadmin approving/rejecting high-cost requests
-        if ($isSuperAdmin && $needsSuperAdmin) {
+        // Admin forwarding high-cost request (>₦20,000) to superadmin
+        if ($isAdmin && $needsSuperAdmin && $maintenance->status === 'Pending') {
+            $validated = $request->validate([
+                'reviewer_comment' => 'required|string',
+            ]);
+
+            // Find the superadmin to assign to
+            $superadmin = \App\Models\User::whereIn('role', ['superadmin', 'super_admin'])->first();
+
+            $maintenance->update([
+                'status' => 'Under Review',
+                'reviewer_comment' => $validated['reviewer_comment'],
+                'assigned_to' => $superadmin ? $superadmin->id : auth()->id(),
+            ]);
+
+            // Notify superadmin that review is needed
+            $this->notifySuperAdminForReview($maintenance, 'Maintenance');
+
+            return back();
+        }
+
+        // Superadmin approving/rejecting high-cost requests that are Under Review
+        if ($isSuperAdmin && $needsSuperAdmin && $maintenance->status === 'Under Review') {
             $validated = $request->validate([
                 'status' => 'required|in:Accepted,Rejected',
                 'reviewer_comment' => 'required|string',
@@ -385,27 +400,7 @@ class DashboardController extends Controller
                 'assigned_to' => auth()->id(),
             ]);
 
-            // Notify all relevant parties
             $this->notifyMaintenanceDecision($maintenance);
-
-            return back();
-        }
-
-        // Admin forwarding high-cost request to superadmin with comment
-        if ($isAdmin && $needsSuperAdmin) {
-            $validated = $request->validate([
-                'reviewer_comment' => 'required|string',
-            ]);
-
-            // Change status to "Under Review" or keep as Pending but update comment
-            $maintenance->update([
-                'status' => 'Pending',
-                'reviewer_comment' => $validated['reviewer_comment'],
-                'assigned_to' => auth()->id(),
-            ]);
-
-            // Notify superadmin that review is needed
-            $this->notifySuperAdminForReview($maintenance, 'Maintenance');
 
             return back();
         }
@@ -435,13 +430,15 @@ class DashboardController extends Controller
         }
     }
 
-    private function notifySuperAdminForReview($maintenance, $type)
+    private function notifySuperAdminForReview($request, $type)
     {
-        // Find all superadmins
+        $adminName = auth()->user()->name;
+
+        // Find all superadmins and send the forwarded review notification
         $superadmins = \App\Models\User::whereIn('role', ['superadmin', 'super_admin'])->get();
 
         foreach ($superadmins as $superadmin) {
-            $superadmin->notify(new \App\Notifications\RequestSubmitted($maintenance, $type));
+            $superadmin->notify(new ReviewRequestForwarded($request, $type, $adminName));
         }
     }
 
@@ -450,11 +447,7 @@ class DashboardController extends Controller
         $user = auth()->user();
         $query = \App\Models\FuelLog::with(['vehicle', 'driver.user', 'assignedTo'])->latest();
 
-        if ($user->role === 'admin') {
-            $query->where('cost', '<=', 20000);
-        } elseif ($user->role === 'superadmin') {
-            $query->where('cost', '>', 20000);
-        }
+        // Both admin and superadmin see ALL records (no cost-based filtering)
 
         $fuelLogs = $query->get();
         $vehicles = Vehicle::latest()->get();
@@ -463,7 +456,8 @@ class DashboardController extends Controller
         return Inertia::render('Dashboard/Fuel', [
             'fuelLogs' => $fuelLogs,
             'vehicles' => $vehicles,
-            'drivers' => $drivers
+            'drivers' => $drivers,
+            'userRole' => $user->role,
         ]);
     }
 
@@ -504,8 +498,8 @@ class DashboardController extends Controller
         // Determine if this request needs superadmin approval
         $needsSuperAdmin = $fuelLog->cost > 20000;
 
-        // For admin approving low-cost requests directly
-        if ($isAdmin && !$needsSuperAdmin) {
+        // Admin approving/rejecting low-cost requests (≤₦20,000) directly
+        if ($isAdmin && !$needsSuperAdmin && $fuelLog->status === 'Pending') {
             $validated = $request->validate([
                 'status' => 'required|in:Accepted,Rejected',
                 'reviewer_comment' => 'nullable|string',
@@ -522,8 +516,28 @@ class DashboardController extends Controller
             return back();
         }
 
-        // For superadmin approving/rejecting high-cost requests
-        if ($isSuperAdmin && $needsSuperAdmin) {
+        // Admin forwarding high-cost request (>₦20,000) to superadmin
+        if ($isAdmin && $needsSuperAdmin && $fuelLog->status === 'Pending') {
+            $validated = $request->validate([
+                'reviewer_comment' => 'required|string',
+            ]);
+
+            // Find the superadmin to assign to
+            $superadmin = \App\Models\User::whereIn('role', ['superadmin', 'super_admin'])->first();
+
+            $fuelLog->update([
+                'status' => 'Under Review',
+                'reviewer_comment' => $validated['reviewer_comment'],
+                'assigned_to' => $superadmin ? $superadmin->id : auth()->id(),
+            ]);
+
+            $this->notifySuperAdminForReview($fuelLog, 'Fuel');
+
+            return back();
+        }
+
+        // Superadmin approving/rejecting high-cost requests that are Under Review
+        if ($isSuperAdmin && $needsSuperAdmin && $fuelLog->status === 'Under Review') {
             $validated = $request->validate([
                 'status' => 'required|in:Accepted,Rejected',
                 'reviewer_comment' => 'required|string',
@@ -536,23 +550,6 @@ class DashboardController extends Controller
             ]);
 
             $this->notifyFuelDecision($fuelLog);
-
-            return back();
-        }
-
-        // Admin forwarding high-cost request to superadmin with comment
-        if ($isAdmin && $needsSuperAdmin) {
-            $validated = $request->validate([
-                'reviewer_comment' => 'required|string',
-            ]);
-
-            $fuelLog->update([
-                'status' => 'Pending',
-                'reviewer_comment' => $validated['reviewer_comment'],
-                'assigned_to' => auth()->id(),
-            ]);
-
-            $this->notifySuperAdminForReview($fuelLog, 'Fuel');
 
             return back();
         }
