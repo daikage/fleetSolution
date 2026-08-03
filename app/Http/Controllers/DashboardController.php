@@ -164,7 +164,7 @@ class DashboardController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
-        $drivers = \App\Models\Driver::with('user')->latest()->get();
+        $drivers = \App\Models\Driver::with(['user', 'documents'])->latest()->get();
         return Inertia::render('Dashboard/Drivers', [
             'drivers' => $drivers
         ]);
@@ -965,6 +965,7 @@ class DashboardController extends Controller
             'document_type' => 'required|string|max:255',
             'expiry_date' => 'nullable|date',
             'url' => 'nullable|string',
+            'document_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
         ]);
 
         $typeMap = [
@@ -972,12 +973,18 @@ class DashboardController extends Controller
             'driver' => \App\Models\Driver::class,
         ];
 
+        $url = $validated['url'] ?? null;
+        if ($request->hasFile('document_file')) {
+            $path = $request->file('document_file')->store('documents', 'public');
+            $url = '/storage/' . $path;
+        }
+
         \App\Models\Document::create([
             'documentable_type' => $typeMap[$validated['documentable_type']],
             'documentable_id' => $validated['documentable_id'],
             'document_type' => $validated['document_type'],
-            'expiry_date' => $validated['expiry_date'],
-            'url' => $validated['url'],
+            'expiry_date' => $validated['expiry_date'] ?? null,
+            'url' => $url,
         ]);
 
         return back();

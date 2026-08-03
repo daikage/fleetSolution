@@ -114,9 +114,33 @@ export default function Drivers({ drivers }) {
                                 <span className="text-gray-400">License No</span>
                                 <span className="text-white font-mono">{driver.license_no}</span>
                             </div>
-                            <div className="w-full flex justify-between text-sm mt-2">
+                                                        <div className="w-full flex justify-between text-sm mt-2">
                                 <span className="text-gray-400">Expires</span>
                                 <span className="text-white">{new Date(driver.license_exp).toLocaleDateString()}</span>
+                            </div>
+
+                            <div className="w-full mt-4 text-left">
+                                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Compliance Documents</h4>
+                                {driver.documents && driver.documents.length > 0 ? (
+                                    <ul className="space-y-2">
+                                        {driver.documents.map(doc => (
+                                            <li key={doc.id} className="flex justify-between items-center bg-white/5 rounded p-2 border border-white/5 text-xs">
+                                                {doc.url ? (
+                                                    <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-electric-blue hover:underline truncate mr-2">
+                                                        {doc.document_type}
+                                                    </a>
+                                                ) : (
+                                                    <span className="text-white truncate mr-2">{doc.document_type}</span>
+                                                )}
+                                                <span className={`px-1.5 py-0.5 rounded whitespace-nowrap ${new Date(doc.expiry_date) < new Date() ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                                                    {doc.expiry_date ? new Date(doc.expiry_date).toLocaleDateString() : 'N/A'}
+                                                </span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <div className="text-xs text-gray-500 italic">No documents uploaded.</div>
+                                )}
                             </div>
                         </div>
                     ))}

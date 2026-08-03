@@ -457,7 +457,13 @@ export default function Vehicles({ vehicles, drivers }) {
                                                                     <ul className="space-y-2">
                                                                         {vehicle.documents.map(doc => (
                                                                             <li key={doc.id} className="flex justify-between items-center p-3 bg-white/5 rounded-lg border border-white/5">
-                                                                                <span className="text-white font-medium text-sm">{doc.document_type}</span>
+                                                                                {doc.url ? (
+    <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-electric-blue hover:underline font-medium text-sm">
+        {doc.document_type}
+    </a>
+) : (
+    <span className="text-white font-medium text-sm">{doc.document_type}</span>
+)}
                                                                                 <span className={`text-xs px-2 py-1 rounded-full ${new Date(doc.expiry_date) < new Date() ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
                                                                                     Expires: {new Date(doc.expiry_date).toLocaleDateString()}
                                                                                 </span>

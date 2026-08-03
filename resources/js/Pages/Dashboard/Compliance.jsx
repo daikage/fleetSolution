@@ -15,6 +15,7 @@ export default function Compliance({ documents, vehicles, drivers }) {
         document_type: '',
         expiry_date: '',
         url: '',
+        document_file: null,
     });
 
     const submit = (e) => {
@@ -97,7 +98,13 @@ export default function Compliance({ documents, vehicles, drivers }) {
                                             </td>
                                             <td className="p-4 text-gray-300 capitalize flex items-center gap-2">
                                                 <FileText className="w-4 h-4 text-gray-400" />
-                                                {doc.document_type}
+                                                {doc.url ? (
+                                                    <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-electric-blue hover:underline">
+                                                        {doc.document_type}
+                                                    </a>
+                                                ) : (
+                                                    doc.document_type
+                                                )}
                                             </td>
                                             <td className="p-4 text-gray-300 flex items-center gap-2">
                                                 <Calendar className="w-4 h-4 text-gray-500" />
@@ -187,6 +194,28 @@ export default function Compliance({ documents, vehicles, drivers }) {
                                         className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue outline-none"
                                         placeholder="e.g. Driver's License, Insurance"
                                         required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Upload File (Optional)</label>
+                                    <input
+                                        type="file"
+                                        onChange={e => setData('document_file', e.target.files[0])}
+                                        className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white focus:border-electric-blue outline-none"
+                                        accept=".pdf,.jpg,.jpeg,.png"
+                                    />
+                                    {errors.document_file && <div className="text-rose-400 text-xs mt-1">{errors.document_file}</div>}
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Or Document URL (Optional)</label>
+                                    <input
+                                        type="text"
+                                        value={data.url}
+                                        onChange={e => setData('url', e.target.value)}
+                                        className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue outline-none"
+                                        placeholder="https://..."
                                     />
                                 </div>
 
