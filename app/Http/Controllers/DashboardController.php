@@ -348,6 +348,19 @@ class DashboardController extends Controller
         // Determine if this request needs superadmin approval
         $needsSuperAdmin = $maintenance->cost > 20000;
 
+        \Log::info('actionMaintenance called', [
+            'maintenance_id' => $maintenance->id,
+            'cost' => $maintenance->cost,
+            'cost_type' => gettype($maintenance->cost),
+            'current_status' => $maintenance->status,
+            'user_role' => $userRole,
+            'is_admin' => $isAdmin,
+            'is_super_admin' => $isSuperAdmin,
+            'needs_super_admin' => $needsSuperAdmin,
+            'request_status' => $request->input('status'),
+            'request_comment' => $request->input('reviewer_comment'),
+        ]);
+
         // Admin approving/rejecting low-cost requests (≤₦20,000) directly
         if ($isAdmin && !$needsSuperAdmin && $maintenance->status === 'Pending') {
             $validated = $request->validate([
@@ -368,6 +381,8 @@ class DashboardController extends Controller
 
         // Admin forwarding high-cost request (>₦20,000) to superadmin
         if ($isAdmin && $needsSuperAdmin && $maintenance->status === 'Pending') {
+            \Log::info('Entering maintenance forwarding block for superadmin review');
+
             $validated = $request->validate([
                 'reviewer_comment' => 'required|string',
             ]);
@@ -381,23 +396,28 @@ class DashboardController extends Controller
                     return back()->with('error', 'No Super Admin user found. Please contact support.');
                 }
 
+                \Log::info('Found superadmin', ['superadmin_id' => $superadmin->id, 'superadmin_role' => $superadmin->role]);
+
                 $maintenance->update([
                     'status' => 'Under Review',
                     'reviewer_comment' => $validated['reviewer_comment'],
                     'assigned_to' => $superadmin->id,
                 ]);
+
+                \Log::info('Maintenance status updated to Under Review', ['maintenance_id' => $maintenance->id]);
             } catch (\Exception $e) {
                 \Log::error('Failed to update maintenance status for review', [
                     'maintenance_id' => $maintenance->id,
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString(),
                 ]);
-                return back()->with('error', 'Failed to forward request. Please try again.');
+                return back()->with('error', 'Failed to forward request: ' . $e->getMessage());
             }
 
             // Notify superadmin that review is needed (non-critical)
             try {
                 $this->notifySuperAdminForReview($maintenance, 'Maintenance');
+                \Log::info('Superadmin notified for maintenance review', ['maintenance_id' => $maintenance->id]);
             } catch (\Exception $e) {
                 \Log::error('Failed to notify superadmin for maintenance review', [
                     'maintenance_id' => $maintenance->id,
@@ -405,7 +425,7 @@ class DashboardController extends Controller
                 ]);
             }
 
-            return back();
+            return back()->with('success', 'Request forwarded to Super Admin for review.');
         }
 
         // Superadmin approving/rejecting high-cost requests that are Under Review
@@ -423,8 +443,18 @@ class DashboardController extends Controller
 
             $this->notifyMaintenanceDecision($maintenance);
 
-            return back();
+            return back()->with('success', 'Request has been ' . strtolower($validated['status']) . '.');
         }
+
+        \Log::warning('actionMaintenance: No condition matched', [
+            'maintenance_id' => $maintenance->id,
+            'status' => $maintenance->status,
+            'cost' => $maintenance->cost,
+            'user_role' => $userRole,
+            'is_admin' => $isAdmin,
+            'is_super_admin' => $isSuperAdmin,
+            'needs_super_admin' => $needsSuperAdmin,
+        ]);
 
         abort(403, 'Unauthorized action.');
     }
@@ -519,6 +549,19 @@ class DashboardController extends Controller
         // Determine if this request needs superadmin approval
         $needsSuperAdmin = $fuelLog->cost > 20000;
 
+        \Log::info('actionFuel called', [
+            'fuel_log_id' => $fuelLog->id,
+            'cost' => $fuelLog->cost,
+            'cost_type' => gettype($fuelLog->cost),
+            'current_status' => $fuelLog->status,
+            'user_role' => $userRole,
+            'is_admin' => $isAdmin,
+            'is_super_admin' => $isSuperAdmin,
+            'needs_super_admin' => $needsSuperAdmin,
+            'request_status' => $request->input('status'),
+            'request_comment' => $request->input('reviewer_comment'),
+        ]);
+
         // Admin approving/rejecting low-cost requests (≤₦20,000) directly
         if ($isAdmin && !$needsSuperAdmin && $fuelLog->status === 'Pending') {
             $validated = $request->validate([
@@ -539,6 +582,8 @@ class DashboardController extends Controller
 
         // Admin forwarding high-cost request (>₦20,000) to superadmin
         if ($isAdmin && $needsSuperAdmin && $fuelLog->status === 'Pending') {
+            \Log::info('Entering fuel forwarding block for superadmin review');
+
             $validated = $request->validate([
                 'reviewer_comment' => 'required|string',
             ]);
@@ -552,23 +597,28 @@ class DashboardController extends Controller
                     return back()->with('error', 'No Super Admin user found. Please contact support.');
                 }
 
+                \Log::info('Found superadmin', ['superadmin_id' => $superadmin->id, 'superadmin_role' => $superadmin->role]);
+
                 $fuelLog->update([
                     'status' => 'Under Review',
                     'reviewer_comment' => $validated['reviewer_comment'],
                     'assigned_to' => $superadmin->id,
                 ]);
+
+                \Log::info('Fuel status updated to Under Review', ['fuel_log_id' => $fuelLog->id]);
             } catch (\Exception $e) {
                 \Log::error('Failed to update fuel log status for review', [
                     'fuel_log_id' => $fuelLog->id,
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString(),
                 ]);
-                return back()->with('error', 'Failed to forward request. Please try again.');
+                return back()->with('error', 'Failed to forward request: ' . $e->getMessage());
             }
 
             // Notify superadmin that review is needed (non-critical)
             try {
                 $this->notifySuperAdminForReview($fuelLog, 'Fuel');
+                \Log::info('Superadmin notified for fuel review', ['fuel_log_id' => $fuelLog->id]);
             } catch (\Exception $e) {
                 \Log::error('Failed to notify superadmin for fuel review', [
                     'fuel_log_id' => $fuelLog->id,
@@ -576,7 +626,7 @@ class DashboardController extends Controller
                 ]);
             }
 
-            return back();
+            return back()->with('success', 'Request forwarded to Super Admin for review.');
         }
 
         // Superadmin approving/rejecting high-cost requests that are Under Review
@@ -594,8 +644,18 @@ class DashboardController extends Controller
 
             $this->notifyFuelDecision($fuelLog);
 
-            return back();
+            return back()->with('success', 'Request has been ' . strtolower($validated['status']) . '.');
         }
+
+        \Log::warning('actionFuel: No condition matched', [
+            'fuel_log_id' => $fuelLog->id,
+            'status' => $fuelLog->status,
+            'cost' => $fuelLog->cost,
+            'user_role' => $userRole,
+            'is_admin' => $isAdmin,
+            'is_super_admin' => $isSuperAdmin,
+            'needs_super_admin' => $needsSuperAdmin,
+        ]);
 
         abort(403, 'Unauthorized action.');
     }

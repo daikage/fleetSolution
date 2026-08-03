@@ -1,20 +1,63 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, usePage } from '@inertiajs/react';
-import { Car, Map as MapIcon, Settings, Users, LogOut, Wrench, Fuel, FileText, Menu, X, Bell, Shield, Route, BarChart3 } from 'lucide-react';
+import { Car, Map as MapIcon, Settings, Users, LogOut, Wrench, Fuel, FileText, Menu, X, Bell, Shield, Route, BarChart3, CheckCircle, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function DashboardLayout({ children }) {
     const { url, props } = usePage();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [toast, setToast] = useState(null);
 
     const unreadCount = props.auth?.unreadNotificationsCount || 0;
     const userRole = props.auth?.user?.role || '';
+
+    // Flash message toast
+    useEffect(() => {
+        if (props.flash?.error) {
+            setToast({ type: 'error', message: props.flash.error });
+        } else if (props.flash?.success) {
+            setToast({ type: 'success', message: props.flash.success });
+        }
+    }, [props.flash?.error, props.flash?.success]);
+
+    // Auto-dismiss toast
+    useEffect(() => {
+        if (toast) {
+            const timer = setTimeout(() => setToast(null), 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [toast]);
 
     const toggleMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
     const closeMenu = () => setIsMobileMenuOpen(false);
 
     return (
         <div className="h-screen w-full bg-gray-900 text-white flex overflow-hidden">
+
+            {/* Flash Toast Notification */}
+            <AnimatePresence>
+                {toast && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -20, x: 20 }}
+                        animate={{ opacity: 1, y: 0, x: 0 }}
+                        exit={{ opacity: 0, y: -20, x: 20 }}
+                        className={`fixed top-4 right-4 z-[100] flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-2xl border backdrop-blur-md max-w-md ${
+                            toast.type === 'error'
+                                ? 'bg-rose-500/20 border-rose-500/30 text-rose-200'
+                                : 'bg-emerald-500/20 border-emerald-500/30 text-emerald-200'
+                        }`}
+                    >
+                        {toast.type === 'error'
+                            ? <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0" />
+                            : <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
+                        }
+                        <span className="text-sm font-medium">{toast.message}</span>
+                        <button onClick={() => setToast(null)} className="ml-2 p-1 rounded-full hover:bg-white/10 transition-colors shrink-0">
+                            <X className="w-4 h-4" />
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Mobile Header (Visible only on small screens) */}
             <div className="md:hidden absolute top-0 left-0 w-full h-16 bg-gray-900/80 backdrop-blur-md z-40 border-b border-white/10 flex items-center justify-between px-4">
