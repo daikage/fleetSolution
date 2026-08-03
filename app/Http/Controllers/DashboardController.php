@@ -372,16 +372,30 @@ class DashboardController extends Controller
                 'reviewer_comment' => 'required|string',
             ]);
 
-            // Find the superadmin to assign to
-            $superadmin = \App\Models\User::whereIn('role', ['superadmin', 'super_admin'])->first();
+            try {
+                // Find the superadmin to assign to
+                $superadmin = \App\Models\User::whereIn('role', ['superadmin', 'super_admin'])->first();
 
-            $maintenance->update([
-                'status' => 'Under Review',
-                'reviewer_comment' => $validated['reviewer_comment'],
-                'assigned_to' => $superadmin ? $superadmin->id : auth()->id(),
-            ]);
+                if (!$superadmin) {
+                    \Log::warning('No superadmin found to forward maintenance request', ['maintenance_id' => $maintenance->id]);
+                    return back()->with('error', 'No Super Admin user found. Please contact support.');
+                }
 
-            // Notify superadmin that review is needed
+                $maintenance->update([
+                    'status' => 'Under Review',
+                    'reviewer_comment' => $validated['reviewer_comment'],
+                    'assigned_to' => $superadmin->id,
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('Failed to update maintenance status for review', [
+                    'maintenance_id' => $maintenance->id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+                return back()->with('error', 'Failed to forward request. Please try again.');
+            }
+
+            // Notify superadmin that review is needed (non-critical)
             try {
                 $this->notifySuperAdminForReview($maintenance, 'Maintenance');
             } catch (\Exception $e) {
@@ -529,15 +543,30 @@ class DashboardController extends Controller
                 'reviewer_comment' => 'required|string',
             ]);
 
-            // Find the superadmin to assign to
-            $superadmin = \App\Models\User::whereIn('role', ['superadmin', 'super_admin'])->first();
+            try {
+                // Find the superadmin to assign to
+                $superadmin = \App\Models\User::whereIn('role', ['superadmin', 'super_admin'])->first();
 
-            $fuelLog->update([
-                'status' => 'Under Review',
-                'reviewer_comment' => $validated['reviewer_comment'],
-                'assigned_to' => $superadmin ? $superadmin->id : auth()->id(),
-            ]);
+                if (!$superadmin) {
+                    \Log::warning('No superadmin found to forward fuel request', ['fuel_log_id' => $fuelLog->id]);
+                    return back()->with('error', 'No Super Admin user found. Please contact support.');
+                }
 
+                $fuelLog->update([
+                    'status' => 'Under Review',
+                    'reviewer_comment' => $validated['reviewer_comment'],
+                    'assigned_to' => $superadmin->id,
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('Failed to update fuel log status for review', [
+                    'fuel_log_id' => $fuelLog->id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+                return back()->with('error', 'Failed to forward request. Please try again.');
+            }
+
+            // Notify superadmin that review is needed (non-critical)
             try {
                 $this->notifySuperAdminForReview($fuelLog, 'Fuel');
             } catch (\Exception $e) {
