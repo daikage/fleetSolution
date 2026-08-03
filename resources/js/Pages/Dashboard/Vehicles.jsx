@@ -148,13 +148,23 @@ export default function Vehicles({ vehicles, drivers }) {
     const [searchResultAddress, setSearchResultAddress] = useState('');
 
     const { data, setData, post, processing, errors, reset } = useForm({
-        make: '',
-        model: '',
-        year: '',
+        name: '',
+        chassis_number: '',
         vin: '',
-        license_plate: '',
-        odometer: '',
         vendor: '',
+        year: '',
+        license_plate: '',
+        base_location: '',
+        color: '',
+        assigned_user: '',
+        vehicle_license: '',
+        road_worthiness: '',
+        insurance: '',
+        stage_carriage: '',
+        mot: '',
+        hackney: '',
+        lg_papers: '',
+        battery: '',
         driver_id: '',
         latitude: '',
         longitude: '',
@@ -223,25 +233,52 @@ export default function Vehicles({ vehicles, drivers }) {
     }, [handlePlaceSelected]);
 
     const sortedVehicles = [...vehicles].sort((a, b) => {
-        const vendorA = a.vendor || 'Z_No_Vendor';
-        const vendorB = b.vendor || 'Z_No_Vendor';
-        return vendorA.localeCompare(vendorB);
+        const idA = a.vehicle_id || 'Z_No_ID';
+        const idB = b.vehicle_id || 'Z_No_ID';
+        return idA.localeCompare(idB);
     });
 
     const exportColumns = [
-        { header: 'Vendor', key: 'vendor' },
-        { header: 'Make', key: 'make' },
-        { header: 'Model', key: 'model' },
-        { header: 'Year', key: 'year' },
-        { header: 'License Plate', key: 'license_plate' },
+        { header: 'ID', key: 'vehicle_id' },
         { header: 'VIN', key: 'vin' },
-        { header: 'Odometer (mi)', key: 'odometer' },
-        { header: 'Status', key: 'status' }
+        { header: 'Vendor', key: 'vendor' },
+        { header: 'Year', key: 'year' },
+        { header: 'Vehicle Name', key: 'name' },
+        { header: 'Plate Number', key: 'license_plate' },
+        { header: 'Chasis', key: 'chassis_number' },
+        { header: 'Location', key: 'base_location' },
+        { header: 'Colour', key: 'color' },
+        { header: 'User', key: 'assigned_user' },
+        { header: 'Vehicle License', key: 'vehicle_license' },
+        { header: 'Road worthiness', key: 'road_worthiness' },
+        { header: 'Insurance', key: 'insurance' },
+        { header: 'stage cariage', key: 'stage_carriage' },
+        { header: 'MOT', key: 'mot' },
+        { header: 'Hackney', key: 'hackney' },
+        { header: 'LG papers', key: 'lg_papers' },
+        { header: 'Battery', key: 'battery' }
     ];
 
     const exportData = sortedVehicles.map(v => ({
         ...v,
-        vendor: v.vendor || 'N/A'
+        vehicle_id: v.vehicle_id || 'N/A',
+        name: v.name || 'N/A',
+        vin: v.vin || 'N/A',
+        vendor: v.vendor || 'N/A',
+        year: v.year || 'N/A',
+        chassis_number: v.chassis_number || 'N/A',
+        license_plate: v.license_plate || 'N/A',
+        base_location: v.base_location || 'N/A',
+        color: v.color || 'N/A',
+        assigned_user: v.assigned_user || 'N/A',
+        vehicle_license: v.vehicle_license || 'N/A',
+        road_worthiness: v.road_worthiness || 'N/A',
+        insurance: v.insurance || 'N/A',
+        stage_carriage: v.stage_carriage || 'N/A',
+        mot: v.mot || 'N/A',
+        hackney: v.hackney || 'N/A',
+        lg_papers: v.lg_papers || 'N/A',
+        battery: v.battery || 'N/A'
     }));
 
     const toggleExpand = (id) => {
@@ -283,18 +320,18 @@ export default function Vehicles({ vehicles, drivers }) {
                             <thead>
                                 <tr className="border-b border-white/10 bg-black/20">
                                     <th className="p-4 text-sm font-semibold text-gray-300 w-10"></th>
-                                    <th className="p-4 text-sm font-semibold text-gray-300">Vendor</th>
-                                    <th className="p-4 text-sm font-semibold text-gray-300">Vehicle</th>
+                                    <th className="p-4 text-sm font-semibold text-gray-300">ID</th>
+                                    <th className="p-4 text-sm font-semibold text-gray-300">Vehicle Name</th>
                                     <th className="p-4 text-sm font-semibold text-gray-300">License Plate</th>
                                     <th className="p-4 text-sm font-semibold text-gray-300">Status</th>
-                                    <th className="p-4 text-sm font-semibold text-gray-300">Odometer</th>
+                                    <th className="p-4 text-sm font-semibold text-gray-300">User</th>
                                     <th className="p-4 text-sm font-semibold text-gray-300 text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {sortedVehicles.map((vehicle, index) => {
                                     const isExpanded = expandedVehicleId === vehicle.id;
-                                    const showVendorGroupHeader = index === 0 || sortedVehicles[index - 1].vendor !== vehicle.vendor;
+                                    const showVendorGroupHeader = false; // index === 0 || sortedVehicles[index - 1].vehicle_id !== vehicle.vehicle_id;
 
                                     return (
                                         <React.Fragment key={vehicle.id}>
@@ -311,10 +348,10 @@ export default function Vehicles({ vehicles, drivers }) {
                                                         {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                                                     </button>
                                                 </td>
-                                                <td className="p-4 text-gray-300 text-sm font-medium">{vehicle.vendor || 'N/A'}</td>
+                                                <td className="p-4 text-gray-300 text-sm font-medium">{vehicle.vehicle_id || 'N/A'}</td>
                                                 <td className="p-4">
-                                                    <div className="font-medium text-white">{vehicle.make} {vehicle.model}</div>
-                                                    <div className="text-sm text-gray-400">{vehicle.year} • {vehicle.vin}</div>
+                                                    <div className="font-medium text-white">{vehicle.name}</div>
+                                                    <div className="text-sm text-gray-400">{vehicle.chassis_number}</div>
                                                 </td>
                                                 <td className="p-4 text-gray-300">{vehicle.license_plate}</td>
                                                 <td className="p-4">
@@ -325,7 +362,7 @@ export default function Vehicles({ vehicles, drivers }) {
                                                         {vehicle.status.replace('_', ' ')}
                                                     </span>
                                                 </td>
-                                                <td className="p-4 text-gray-300">{vehicle.odometer.toLocaleString()} mi</td>
+                                                <td className="p-4 text-gray-300">{vehicle.assigned_user || 'N/A'}</td>
                                                 <td className="p-4 text-right">
                                                     <div className="flex items-center justify-end gap-2">
                                                         {!vehicle.currentTrip ? (
@@ -434,9 +471,19 @@ export default function Vehicles({ vehicles, drivers }) {
                                                             <div>
                                                                 <h4 className="text-sm font-semibold text-gray-300 mb-3">Vehicle Details</h4>
                                                                 <div className="space-y-2 text-sm">
-                                                                    <div className="flex justify-between p-2 border-b border-white/5"><span className="text-gray-400">VIN</span><span className="text-white font-mono">{vehicle.vin}</span></div>
-                                                                    <div className="flex justify-between p-2 border-b border-white/5"><span className="text-gray-400">Year</span><span className="text-white">{vehicle.year}</span></div>
-                                                                    <div className="flex justify-between p-2"><span className="text-gray-400">Vendor</span><span className="text-white">{vehicle.vendor || 'N/A'}</span></div>
+                                                                    <div className="flex justify-between p-2 border-b border-white/5"><span className="text-gray-400">VIN</span><span className="text-white font-mono">{vehicle.vin || 'N/A'}</span></div>
+                                                                    <div className="flex justify-between p-2 border-b border-white/5"><span className="text-gray-400">Vendor</span><span className="text-white">{vehicle.vendor || 'N/A'}</span></div>
+                                                                    <div className="flex justify-between p-2 border-b border-white/5"><span className="text-gray-400">Year</span><span className="text-white">{vehicle.year || 'N/A'}</span></div>
+                                                                    <div className="flex justify-between p-2 border-b border-white/5"><span className="text-gray-400">Location</span><span className="text-white font-mono">{vehicle.base_location || 'N/A'}</span></div>
+                                                                    <div className="flex justify-between p-2 border-b border-white/5"><span className="text-gray-400">Color</span><span className="text-white">{vehicle.color || 'N/A'}</span></div>
+                                                                    <div className="flex justify-between p-2 border-b border-white/5"><span className="text-gray-400">Vehicle License</span><span className="text-white">{vehicle.vehicle_license || 'N/A'}</span></div>
+                                                                    <div className="flex justify-between p-2 border-b border-white/5"><span className="text-gray-400">Road Worthiness</span><span className="text-white">{vehicle.road_worthiness || 'N/A'}</span></div>
+                                                                    <div className="flex justify-between p-2 border-b border-white/5"><span className="text-gray-400">Insurance</span><span className="text-white">{vehicle.insurance || 'N/A'}</span></div>
+                                                                    <div className="flex justify-between p-2 border-b border-white/5"><span className="text-gray-400">Stage Carriage</span><span className="text-white">{vehicle.stage_carriage || 'N/A'}</span></div>
+                                                                    <div className="flex justify-between p-2 border-b border-white/5"><span className="text-gray-400">MOT</span><span className="text-white">{vehicle.mot || 'N/A'}</span></div>
+                                                                    <div className="flex justify-between p-2 border-b border-white/5"><span className="text-gray-400">Hackney</span><span className="text-white">{vehicle.hackney || 'N/A'}</span></div>
+                                                                    <div className="flex justify-between p-2 border-b border-white/5"><span className="text-gray-400">LG Papers</span><span className="text-white">{vehicle.lg_papers || 'N/A'}</span></div>
+                                                                    <div className="flex justify-between p-2"><span className="text-gray-400">Battery</span><span className="text-white">{vehicle.battery || 'N/A'}</span></div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -476,47 +523,105 @@ export default function Vehicles({ vehicles, drivers }) {
                             </div>
 
                             <form onSubmit={submit} className="p-6 overflow-y-auto flex-1 flex flex-col gap-4">
+                                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">VIN (Optional)</label>
+                                        <input type="text" value={data.vin} onChange={e => setData('vin', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none uppercase font-mono" placeholder="VIN..." />
+                                        {errors.vin && <div className="text-rose-400 text-xs mt-1">{errors.vin}</div>}
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Vendor (Optional)</label>
+                                        <input type="text" value={data.vendor} onChange={e => setData('vendor', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="Vendor" />
+                                        {errors.vendor && <div className="text-rose-400 text-xs mt-1">{errors.vendor}</div>}
+                                    </div>
+                                </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-300 mb-1">Make</label>
-                                        <input type="text" value={data.make} onChange={e => setData('make', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2 md:p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="Ford" required />
-                                        {errors.make && <div className="text-rose-400 text-xs mt-1">{errors.make}</div>}
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Year (Optional)</label>
+                                        <input type="number" value={data.year} onChange={e => setData('year', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="2024" />
+                                        {errors.year && <div className="text-rose-400 text-xs mt-1">{errors.year}</div>}
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Vehicle Name</label>
+                                        <input type="text" value={data.name} onChange={e => setData('name', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2 md:p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="Ford Transit" required />
+                                        {errors.name && <div className="text-rose-400 text-xs mt-1">{errors.name}</div>}
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-300 mb-1">Model</label>
-                                        <input type="text" value={data.model} onChange={e => setData('model', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2 md:p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="Transit Connect" required />
-                                        {errors.model && <div className="text-rose-400 text-xs mt-1">{errors.model}</div>}
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">License Plate</label>
+                                        <input type="text" value={data.license_plate} onChange={e => setData('license_plate', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2 md:p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none uppercase" placeholder="ABC-1234" required />
+                                        {errors.license_plate && <div className="text-rose-400 text-xs mt-1">{errors.license_plate}</div>}
                                     </div>
                                 </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-300 mb-1">Year</label>
-                                    <input type="number" value={data.year} onChange={e => setData('year', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="2024" required />
-                                    {errors.year && <div className="text-rose-400 text-xs mt-1">{errors.year}</div>}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Chassis Number</label>
+                                        <input type="text" value={data.chassis_number} onChange={e => setData('chassis_number', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none uppercase font-mono" placeholder="1FTBR1ZC..." required />
+                                        {errors.chassis_number && <div className="text-rose-400 text-xs mt-1">{errors.chassis_number}</div>}
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Base Location</label>
+                                        <input type="text" value={data.base_location} onChange={e => setData('base_location', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="Lagos HQ" />
+                                        {errors.base_location && <div className="text-rose-400 text-xs mt-1">{errors.base_location}</div>}
+                                    </div>
+                                </div>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Colour</label>
+                                        <input type="text" value={data.color} onChange={e => setData('color', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="White" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Assigned User</label>
+                                        <input type="text" value={data.assigned_user} onChange={e => setData('assigned_user', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="John Doe" />
+                                    </div>
                                 </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-300 mb-1">Vendor / Assignee (Optional)</label>
-                                    <input type="text" value={data.vendor} onChange={e => setData('vendor', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="e.g. Acme Corp" />
-                                    {errors.vendor && <div className="text-rose-400 text-xs mt-1">{errors.vendor}</div>}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Vehicle License</label>
+                                        <input type="text" value={data.vehicle_license} onChange={e => setData('vehicle_license', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="Valid till 2027" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Road Worthiness</label>
+                                        <input type="text" value={data.road_worthiness} onChange={e => setData('road_worthiness', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="Valid till 2027" />
+                                    </div>
                                 </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-300 mb-1">VIN</label>
-                                    <input type="text" value={data.vin} onChange={e => setData('vin', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none uppercase font-mono" placeholder="1FTBR1ZC..." required />
-                                    {errors.vin && <div className="text-rose-400 text-xs mt-1">{errors.vin}</div>}
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Insurance</label>
+                                        <input type="text" value={data.insurance} onChange={e => setData('insurance', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="Comprehensive" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Stage Carriage</label>
+                                        <input type="text" value={data.stage_carriage} onChange={e => setData('stage_carriage', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="Valid" />
+                                    </div>
                                 </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-300 mb-1">License Plate</label>
-                                    <input type="text" value={data.license_plate} onChange={e => setData('license_plate', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none uppercase" placeholder="ABC-1234" required />
-                                    {errors.license_plate && <div className="text-rose-400 text-xs mt-1">{errors.license_plate}</div>}
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">MOT</label>
+                                        <input type="text" value={data.mot} onChange={e => setData('mot', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="Valid" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Hackney</label>
+                                        <input type="text" value={data.hackney} onChange={e => setData('hackney', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="Valid" />
+                                    </div>
                                 </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-300 mb-1">Initial Odometer (miles)</label>
-                                    <input type="number" value={data.odometer} onChange={e => setData('odometer', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="15000" required />
-                                    {errors.odometer && <div className="text-rose-400 text-xs mt-1">{errors.odometer}</div>}
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">LG Papers</label>
+                                        <input type="text" value={data.lg_papers} onChange={e => setData('lg_papers', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="Valid" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Battery</label>
+                                        <input type="text" value={data.battery} onChange={e => setData('battery', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="New" />
+                                    </div>
                                 </div>
 
                                 <div>
@@ -870,7 +975,7 @@ export default function Vehicles({ vehicles, drivers }) {
                 onClose={() => setIsImportModalOpen(false)}
                 title="Import Vehicles"
                 importRoute="dashboard.vehicles.import"
-                templateHeaders={['make', 'model', 'year', 'vin', 'license_plate', 'vendor', 'odometer']}
+                templateHeaders={['ID', 'Vehicle Name', 'Plate Number', 'vin', 'vendor', 'year', 'Chasis', 'Location', 'Colour', 'User', 'Vehicle License', 'Road worthiness', 'Insurance', 'stage cariage', 'MOT', 'Hackney', 'LG papers', 'Battery']}
                 templateFilename="FKG.Fleet_vehicles_template.csv"
             />
         </DashboardLayout>

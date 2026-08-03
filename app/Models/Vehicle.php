@@ -16,6 +16,19 @@ class Vehicle extends Model
         ];
     }
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($vehicle) {
+            if (empty($vehicle->vehicle_id)) {
+                $latest = static::orderBy('id', 'desc')->first();
+                $nextId = $latest ? $latest->id + 1 : 1;
+                $vehicle->vehicle_id = 'veh' . str_pad($nextId, 3, '0', STR_PAD_LEFT);
+            }
+        });
+    }
+
     public function trips()
     {
         return $this->hasMany(Trip::class);

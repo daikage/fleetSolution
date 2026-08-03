@@ -100,13 +100,23 @@ class DashboardController extends Controller
     public function storeVehicle(\Illuminate\Http\Request $request)
     {
         $validated = $request->validate([
-            'make' => 'required|string|max:255',
-            'model' => 'required|string|max:255',
-            'year' => 'required|integer|min:1900|max:2100',
-            'vin' => 'required|string|unique:vehicles|max:255',
+            'name' => 'required|string|max:255',
+            'chassis_number' => 'required|string|unique:vehicles|max:255',
             'license_plate' => 'required|string|unique:vehicles|max:255',
-            'odometer' => 'required|numeric|min:0',
+            'vin' => 'nullable|string|max:255',
             'vendor' => 'nullable|string|max:255',
+            'year' => 'nullable|integer|min:1900|max:2100',
+            'base_location' => 'nullable|string|max:255',
+            'color' => 'nullable|string|max:255',
+            'assigned_user' => 'nullable|string|max:255',
+            'vehicle_license' => 'nullable|string|max:255',
+            'road_worthiness' => 'nullable|string|max:255',
+            'insurance' => 'nullable|string|max:255',
+            'stage_carriage' => 'nullable|string|max:255',
+            'mot' => 'nullable|string|max:255',
+            'hackney' => 'nullable|string|max:255',
+            'lg_papers' => 'nullable|string|max:255',
+            'battery' => 'nullable|string|max:255',
             'driver_id' => 'nullable|exists:drivers,id',
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
@@ -115,13 +125,23 @@ class DashboardController extends Controller
         $validated['status'] = 'active';
 
         $vehicle = Vehicle::create([
-            'make' => $validated['make'],
-            'model' => $validated['model'],
-            'year' => $validated['year'],
-            'vin' => $validated['vin'],
+            'name' => $validated['name'],
+            'chassis_number' => $validated['chassis_number'],
             'license_plate' => $validated['license_plate'],
-            'odometer' => $validated['odometer'],
-            'vendor' => $validated['vendor'],
+            'vin' => $validated['vin'] ?? null,
+            'vendor' => $validated['vendor'] ?? null,
+            'year' => $validated['year'] ?? null,
+            'base_location' => $validated['base_location'] ?? null,
+            'color' => $validated['color'] ?? null,
+            'assigned_user' => $validated['assigned_user'] ?? null,
+            'vehicle_license' => $validated['vehicle_license'] ?? null,
+            'road_worthiness' => $validated['road_worthiness'] ?? null,
+            'insurance' => $validated['insurance'] ?? null,
+            'stage_carriage' => $validated['stage_carriage'] ?? null,
+            'mot' => $validated['mot'] ?? null,
+            'hackney' => $validated['hackney'] ?? null,
+            'lg_papers' => $validated['lg_papers'] ?? null,
+            'battery' => $validated['battery'] ?? null,
             'latitude' => $validated['latitude'] ?? null,
             'longitude' => $validated['longitude'] ?? null,
             'status' => $validated['status'],
@@ -706,18 +726,30 @@ class DashboardController extends Controller
         $rows = $this->parseCsv($request->file('file'));
 
         foreach ($rows as $row) {
-            if (!isset($row['vin']) || !isset($row['license_plate']))
+            if (!isset($row['chasis']) || !isset($row['plate_number'])) {
                 continue;
+            }
 
             Vehicle::updateOrCreate(
-                ['vin' => $row['vin']],
+                ['chassis_number' => $row['chasis']],
                 [
-                    'make' => $row['make'] ?? 'Unknown',
-                    'model' => $row['model'] ?? 'Unknown',
-                    'year' => $row['year'] ?? date('Y'),
-                    'license_plate' => $row['license_plate'],
-                    'odometer' => $row['odometer'] ?? 0,
+                    'vehicle_id' => !empty($row['id']) ? $row['id'] : null,
+                    'name' => $row['vehicle_name'] ?? 'Unknown',
+                    'license_plate' => $row['plate_number'],
+                    'vin' => $row['vin'] ?? null,
                     'vendor' => $row['vendor'] ?? null,
+                    'year' => $row['year'] ?? null,
+                    'base_location' => $row['location'] ?? null,
+                    'color' => $row['colour'] ?? null,
+                    'assigned_user' => $row['user'] ?? null,
+                    'vehicle_license' => $row['vehicle_license'] ?? null,
+                    'road_worthiness' => $row['road_worthiness'] ?? null,
+                    'insurance' => $row['insurance'] ?? null,
+                    'stage_carriage' => $row['stage_cariage'] ?? null,
+                    'mot' => $row['mot'] ?? null,
+                    'hackney' => $row['hackney'] ?? null,
+                    'lg_papers' => $row['lg_papers'] ?? null,
+                    'battery' => $row['battery'] ?? null,
                     'status' => 'active'
                 ]
             );
