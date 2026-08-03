@@ -934,4 +934,36 @@ class DashboardController extends Controller
             'fuel_records' => $fuelRecords,
         ]);
     }
+
+    public function financialReports()
+    {
+        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin'])) {
+            abort(403, 'Unauthorized access.');
+        }
+
+        $viewMode = request('view_mode', 'monthly');
+        $year = (int) request('year', now()->year);
+        $month = (int) request('month', now()->month);
+
+        $maintenanceQuery = \App\Models\Maintenance::with('vehicle')
+            ->where('status', 'Accepted')
+            ->whereYear('date', $year);
+
+        $fuelQuery = \App\Models\FuelLog::with('vehicle')
+            ->where('status', 'Accepted')
+            ->whereYear('date', $year);
+
+        if ($viewMode === 'monthly') {
+            $maintenanceQuery->whereMonth('date', $month);
+            $fuelQuery->whereMonth('date', $month);
+        }
+
+        return Inertia::render('Dashboard/FinancialReports', [
+            'maintenance_records' => $maintenanceQuery->latest('date')->get(),
+            'fuel_records' => $fuelQuery->latest('date')->get(),
+            'year' => $year,
+            'month' => $month,
+            'view_mode' => $viewMode,
+        ]);
+    }
 }

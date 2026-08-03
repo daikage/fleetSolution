@@ -102,6 +102,10 @@ Route::get('/dashboard/reports', [\App\Http\Controllers\DashboardController::cla
     ->middleware(['auth', 'verified'])
     ->name('dashboard.reports');
 
+Route::get('/dashboard/financial-reports', [\App\Http\Controllers\DashboardController::class, 'financialReports'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.financial-reports');
+
 Route::get('/dashboard/users', [\App\Http\Controllers\DashboardController::class, 'users'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.users');

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, usePage } from '@inertiajs/react';
-import { Car, Map as MapIcon, Settings, Users, LogOut, Wrench, Fuel, FileText, Menu, X, Bell, Shield, Route } from 'lucide-react';
+import { Car, Map as MapIcon, Settings, Users, LogOut, Wrench, Fuel, FileText, Menu, X, Bell, Shield, Route, BarChart3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function DashboardLayout({ children }) {
@@ -63,6 +63,7 @@ export default function DashboardLayout({ children }) {
                                     <NavItem href={route('dashboard.fuel')} icon={<Fuel />} label="Fuel" active={url.startsWith('/dashboard/fuel')} onClick={closeMenu} isMobile />
                                     {userRole !== 'driver' && <NavItem href={route('dashboard.trips')} icon={<Route />} label="Trip History" active={url.startsWith('/dashboard/trips')} onClick={closeMenu} isMobile />}
                                     {userRole !== 'driver' && <NavItem href={route('dashboard.compliance')} icon={<FileText />} label="Compliance" active={url.startsWith('/dashboard/compliance')} onClick={closeMenu} isMobile />}
+                                    {['super_admin', 'superadmin', 'admin'].includes(userRole) && <NavItem href={route('dashboard.financial-reports')} icon={<BarChart3 />} label="Financial Reports" active={url.startsWith('/dashboard/financial-reports')} onClick={closeMenu} isMobile />}
                                     {['super_admin', 'superadmin', 'admin'].includes(userRole) && <NavItem href={route('dashboard.users')} icon={<Shield />} label="Users" active={url.startsWith('/dashboard/users')} onClick={closeMenu} isMobile />}
                                     <NavItem href={route('dashboard.notifications')} icon={<Bell />} label="Notifications" active={url.startsWith('/dashboard/notifications')} onClick={closeMenu} isMobile badge={unreadCount} />
                                     <NavItem href={route('profile.edit')} icon={<Settings />} label="Settings" active={url.startsWith('/profile')} onClick={closeMenu} isMobile />
@@ -96,6 +97,7 @@ export default function DashboardLayout({ children }) {
                         <NavItem href={route('dashboard.fuel')} icon={<Fuel />} label="Fuel" active={url.startsWith('/dashboard/fuel')} />
                         {userRole !== 'driver' && <NavItem href={route('dashboard.trips')} icon={<Route />} label="Trip History" active={url.startsWith('/dashboard/trips')} />}
                         {userRole !== 'driver' && <NavItem href={route('dashboard.compliance')} icon={<FileText />} label="Compliance" active={url.startsWith('/dashboard/compliance')} />}
+                        {['super_admin', 'superadmin', 'admin'].includes(userRole) && <NavItem href={route('dashboard.financial-reports')} icon={<BarChart3 />} label="Financial Reports" active={url.startsWith('/dashboard/financial-reports')} />}
                         {['super_admin', 'superadmin', 'admin'].includes(userRole) && <NavItem href={route('dashboard.users')} icon={<Shield />} label="Users" active={url.startsWith('/dashboard/users')} />}
                         <NavItem href={route('dashboard.notifications')} icon={<Bell />} label="Notifications" active={url.startsWith('/dashboard/notifications')} badge={unreadCount} />
                         <NavItem href={route('profile.edit')} icon={<Settings />} label="Settings" active={url.startsWith('/profile')} />
