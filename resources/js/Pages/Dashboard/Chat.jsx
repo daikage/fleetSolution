@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Head, usePage } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
-import { Send, User as UserIcon, MessageSquare, RefreshCw } from 'lucide-react';
+import { Send, User as UserIcon, MessageSquare, RefreshCw, Image as ImageIcon, X } from 'lucide-react';
 import axios from 'axios';
 
 export default function Chat() {
@@ -13,9 +13,13 @@ export default function Chat() {
     const [newMessage, setNewMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [selectedImage, setSelectedImage] = useState(null);
+    const [imagePreview, setImagePreview] = useState(null);
+    const [lightboxImage, setLightboxImage] = useState(null);
     const messagesEndRef = useRef(null);
     const pollIntervalRef = useRef(null);
     const conversationRef = useRef(null);
+    const fileInputRef = useRef(null);
 
     // Keep conversationRef in sync
     useEffect(() => {
@@ -47,7 +51,6 @@ export default function Chat() {
                     channel = window.Echo.private(`conversation.${conversation.id}`)
                         .listen('.message.sent', (e) => {
                             setMessages((prev) => {
-                                // Avoid duplicates (message may arrive from both poll and WS)
                                 if (prev.some(m => m.id === e.message.id)) return prev;
                                 return [...prev, e.message];
                             });
@@ -78,7 +81,7 @@ export default function Chat() {
         stopPolling();
         pollIntervalRef.current = setInterval(() => {
             fetchMessages(conversationId);
-        }, 5000); // Poll every 5 seconds
+        }, 5000);
     };
 
     const stopPolling = () => {
@@ -104,8 +107,6 @@ export default function Chat() {
         try {
             const res = await axios.post(`/api/chat/users/${userId}`);
             setConversation(res.data);
-
-            // Then fetch messages
             await fetchMessages(res.data.id);
         } catch (error) {
             console.error('Error fetching conversation:', error);
@@ -119,7 +120,6 @@ export default function Chat() {
         try {
             const msgRes = await axios.get(`/api/chat/conversations/${conversationId}/messages`);
             setMessages((prev) => {
-                // Only update if there are actually new messages to avoid flickering
                 if (prev.length !== msgRes.data.length ||
                     (prev.length > 0 && msgRes.data.length > 0 && prev[prev.length - 1].id !== msgRes.data[msgRes.data.length - 1].id)) {
                     return msgRes.data;
@@ -131,18 +131,55 @@ export default function Chat() {
         }
     };
 
+    const handleImageSelect = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Validate file size (10MB max)
+        if (file.size > 10 * 1024 * 1024) {
+            setError('Image must be smaller than 10MB.');
+            setTimeout(() => setError(null), 3000);
+            return;
+        }
+
+        // Validate file type
+        if (!['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
+            setError('Only JPEG, PNG, GIF, and WebP images are allowed.');
+            setTimeout(() => setError(null), 3000);
+            return;
+        }
+
+        setSelectedImage(file);
+        setImagePreview(URL.createObjectURL(file));
+    };
+
+    const clearImage = () => {
+        setSelectedImage(null);
+        if (imagePreview) {
+            URL.revokeObjectURL(imagePreview);
+            setImagePreview(null);
+        }
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
+
     const sendMessage = async (e) => {
         e.preventDefault();
-        if (!newMessage.trim() || !conversation) return;
+        if ((!newMessage.trim() && !selectedImage) || !conversation) return;
 
         const content = newMessage;
+        const image = selectedImage;
+        const preview = imagePreview;
         setNewMessage('');
+        clearImage();
 
         // Optimistically add message to the UI
         const tempMessage = {
             id: `temp-${Date.now()}`,
             sender_id: auth.user.id,
             content: content,
+            image_url: preview,
             created_at: new Date().toISOString(),
             sender: { id: auth.user.id, name: auth.user.name },
             _sending: true,
@@ -150,16 +187,26 @@ export default function Chat() {
         setMessages((prev) => [...prev, tempMessage]);
 
         try {
-            const res = await axios.post(`/api/chat/conversations/${conversation.id}/messages`, {
-                content
-            });
+            const formData = new FormData();
+            if (content) {
+                formData.append('content', content);
+            }
+            if (image) {
+                formData.append('image', image);
+            }
+
+            const res = await axios.post(
+                `/api/chat/conversations/${conversation.id}/messages`,
+                formData,
+                { headers: { 'Content-Type': 'multipart/form-data' } }
+            );
+
             // Replace temp message with real one
             setMessages((prev) =>
                 prev.map(m => m.id === tempMessage.id ? res.data : m)
             );
         } catch (error) {
             console.error('Error sending message:', error);
-            // Remove failed temp message and restore input
             setMessages((prev) => prev.filter(m => m.id !== tempMessage.id));
             setNewMessage(content);
             setError('Failed to send message. Please try again.');
@@ -250,7 +297,15 @@ export default function Chat() {
                                                     {msg.sender_id !== auth.user.id && msg.sender && (
                                                         <p className="text-[10px] text-electric-blue font-medium mb-1">{msg.sender.name}</p>
                                                     )}
-                                                    <p>{msg.content}</p>
+                                                    {msg.image_url && (
+                                                        <img
+                                                            src={msg.image_url}
+                                                            alt="Shared image"
+                                                            className="rounded-xl max-w-full max-h-64 object-cover mb-2 cursor-pointer hover:opacity-90 transition-opacity"
+                                                            onClick={() => setLightboxImage(msg.image_url)}
+                                                        />
+                                                    )}
+                                                    {msg.content && <p>{msg.content}</p>}
                                                     <p className={`text-[10px] mt-1 text-right ${msg.sender_id === auth.user.id ? 'text-blue-100' : 'text-gray-400'}`}>
                                                         {msg._sending ? 'Sending...' : new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                     </p>
@@ -261,8 +316,42 @@ export default function Chat() {
                                     <div ref={messagesEndRef} />
                                 </div>
 
+                                {/* Image Preview Strip */}
+                                {imagePreview && (
+                                    <div className="px-4 pt-3 border-t border-white/5 bg-gray-900/30">
+                                        <div className="relative inline-block">
+                                            <img
+                                                src={imagePreview}
+                                                alt="Selected image"
+                                                className="h-20 rounded-lg object-cover border border-white/10"
+                                            />
+                                            <button
+                                                onClick={clearImage}
+                                                className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 transition-colors shadow-lg"
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="p-4 border-t border-white/5 bg-gray-900/50">
                                     <form onSubmit={sendMessage} className="flex gap-2">
+                                        <input
+                                            type="file"
+                                            ref={fileInputRef}
+                                            onChange={handleImageSelect}
+                                            accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                                            className="hidden"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white rounded-xl px-3 py-3 flex items-center justify-center transition-colors border border-gray-700"
+                                            title="Attach image"
+                                        >
+                                            <ImageIcon className="w-5 h-5" />
+                                        </button>
                                         <input
                                             type="text"
                                             value={newMessage}
@@ -272,7 +361,7 @@ export default function Chat() {
                                         />
                                         <button
                                             type="submit"
-                                            disabled={!newMessage.trim()}
+                                            disabled={!newMessage.trim() && !selectedImage}
                                             className="bg-electric-blue hover:bg-blue-600 disabled:opacity-50 disabled:hover:bg-electric-blue text-white rounded-xl px-4 py-3 flex items-center justify-center transition-colors shadow-lg shadow-electric-blue/20"
                                         >
                                             <Send className="w-5 h-5" />
@@ -289,6 +378,27 @@ export default function Chat() {
                     </div>
                 </div>
             </div>
+
+            {/* Image Lightbox Modal */}
+            {lightboxImage && (
+                <div
+                    className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-8 cursor-pointer"
+                    onClick={() => setLightboxImage(null)}
+                >
+                    <button
+                        onClick={() => setLightboxImage(null)}
+                        className="absolute top-6 right-6 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
+                    >
+                        <X className="w-6 h-6" />
+                    </button>
+                    <img
+                        src={lightboxImage}
+                        alt="Full size image"
+                        className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                </div>
+            )}
         </DashboardLayout>
     );
 }

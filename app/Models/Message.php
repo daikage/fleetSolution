@@ -10,11 +10,25 @@ class Message extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['conversation_id', 'sender_id', 'content', 'read_at'];
+    protected $fillable = ['conversation_id', 'sender_id', 'content', 'image_path', 'read_at'];
+
+    protected $appends = ['image_url'];
 
     protected $casts = [
         'read_at' => 'datetime',
     ];
+
+    /**
+     * Get the full URL for the chat image.
+     */
+    public function getImageUrlAttribute(): ?string
+    {
+        if (!$this->image_path) {
+            return null;
+        }
+
+        return asset('storage/' . $this->image_path);
+    }
 
     public function conversation(): BelongsTo
     {

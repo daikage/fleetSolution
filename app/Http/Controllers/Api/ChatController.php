@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Events\MessageSent;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class ChatController extends Controller
 {
@@ -90,13 +91,19 @@ class ChatController extends Controller
     }
 
     /**
-     * Send a message to a conversation.
+     * Send a message to a conversation (text and/or image).
      */
     public function sendMessage(Request $request, Conversation $conversation)
     {
         $request->validate([
-            'content' => 'required|string',
+            'content' => 'nullable|string',
+            'image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp|max:10240', // 10MB max
         ]);
+
+        // At least one of content or image must be present
+        if (!$request->input('content') && !$request->hasFile('image')) {
+            return response()->json(['message' => 'A message must contain text or an image.'], 422);
+        }
 
         $user = $request->user();
 
@@ -104,9 +111,15 @@ class ChatController extends Controller
             abort(403);
         }
 
+        $imagePath = null;
+        if ($request->hasFile('image')) {
+            $imagePath = $request->file('image')->store('chat-images', 'public');
+        }
+
         $message = $conversation->messages()->create([
             'sender_id' => $user->id,
-            'content' => $request->input('content'),
+            'content' => $request->input('content', ''),
+            'image_path' => $imagePath,
         ]);
 
         $conversation->touch(); // Update updated_at for ordering
@@ -126,7 +139,7 @@ class ChatController extends Controller
                 $pushMessages[] = [
                     'to' => $otherUser->driver->push_token,
                     'title' => 'New message from ' . $user->name,
-                    'body' => $message->content,
+                    'body' => $imagePath ? ($message->content ?: '📷 Image') : $message->content,
                     'data' => ['conversation_id' => $conversation->id],
                 ];
             }
