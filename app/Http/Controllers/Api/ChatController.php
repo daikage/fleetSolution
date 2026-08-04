@@ -140,7 +140,14 @@ class ChatController extends Controller
                     'to' => $otherUser->driver->push_token,
                     'title' => 'New message from ' . $user->name,
                     'body' => $imagePath ? ($message->content ?: '📷 Image') : $message->content,
-                    'data' => ['conversation_id' => $conversation->id],
+                    'sound' => 'notification.mp3',
+                    'channelId' => 'chat-messages',
+                    'data' => [
+                        'conversation_id' => $conversation->id,
+                        'sender_id' => $user->id,
+                        'sender_name' => $user->name,
+                        'type' => 'chat_message'
+                    ],
                 ];
             }
         }

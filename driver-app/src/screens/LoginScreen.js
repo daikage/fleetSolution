@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import { API_BASE_URL } from '../api/config';
 
 const { width, height } = Dimensions.get('window');
@@ -73,7 +74,8 @@ export default function LoginScreen({ navigation }) {
           return;
         }
 
-        const token = (await Notifications.getExpoPushTokenAsync()).data;
+        const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId ?? 'eb875d44-e325-43af-96f6-540812ee8e8a';
+        const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
         setExpoPushToken(token);
         console.log('Push token:', token);
       } else {
@@ -86,6 +88,13 @@ export default function LoginScreen({ navigation }) {
           importance: Notifications.AndroidImportance.MAX,
           vibrationPattern: [0, 250, 250, 250],
           lightColor: '#3B82F6',
+        });
+        await Notifications.setNotificationChannelAsync('chat-messages', {
+          name: 'Chat Messages',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#3B82F6',
+          sound: 'notification.mp3',
         });
       }
     } catch (error) {

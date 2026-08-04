@@ -45,6 +45,16 @@
           "locationAlwaysAndWhenInUsePermission": "Allow driver-app to use your location for live fleet tracking.",
           "isAndroidBackgroundLocationEnabled": true
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#3B82F6",
+          "sounds": [
+            "./assets/notification.mp3"
+          ]
+        }
       ]
     ]
   }

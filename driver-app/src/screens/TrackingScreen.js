@@ -89,6 +89,39 @@ export default function TrackingScreen({ navigation }) {
             autoStartTracking();
           }, 1000);
         }
+
+        // Check and register push token on startup
+        try {
+          const Notifications = require('expo-notifications');
+          const Device = require('expo-device');
+          const Constants = require('expo-constants').default;
+          
+          if (Device.isDevice) {
+            const { status: existingStatus } = await Notifications.getPermissionsAsync();
+            if (existingStatus === 'granted') {
+              const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId ?? 'eb875d44-e325-43af-96f6-540812ee8e8a';
+              const pushToken = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+              await axios.post(
+                `${baseUrl}/api/push/register-token`,
+                { push_token: pushToken },
+                { headers: { Authorization: `Bearer ${token}` } }
+              );
+              
+              if (require('react-native').Platform.OS === 'android') {
+                await Notifications.setNotificationChannelAsync('chat-messages', {
+                  name: 'Chat Messages',
+                  importance: Notifications.AndroidImportance.MAX,
+                  vibrationPattern: [0, 250, 250, 250],
+                  lightColor: '#3B82F6',
+                  sound: 'notification.mp3',
+                });
+              }
+            }
+          }
+        } catch (pushErr) {
+          console.log('Failed to register push token on startup:', pushErr.message);
+        }
+
       }
     } catch (error) {
       console.warn('Initialization error:', error);
@@ -479,7 +512,9 @@ const styles = StyleSheet.create({
     left: 20,
     right: 20,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   statusContainer: {
@@ -538,8 +573,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
-    marginLeft: 10,
-    marginRight: 10,
   },
   chatText: {
     color: '#FFFFFF',

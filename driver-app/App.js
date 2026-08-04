@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useEffect, useState, useRef } from 'react';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ActivityIndicator, View } from 'react-native';
+import * as Notifications from 'expo-notifications';
 
 import LoginScreen from './src/screens/LoginScreen';
 import TrackingScreen from './src/screens/TrackingScreen';
@@ -13,10 +14,21 @@ import ChatScreen from './src/screens/ChatScreen';
 import './src/tasks/LocationTask';
 
 const Stack = createNativeStackNavigator();
+export const navigationRef = createNavigationContainerRef();
+
+// Configure notifications to show when app is in foreground
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [userToken, setUserToken] = useState(null);
+  const responseListener = useRef();
 
   useEffect(() => {
     // Check if user is already logged in
@@ -32,6 +44,28 @@ export default function App() {
     };
 
     checkLoginStatus();
+
+    // Listen for notification taps
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+      const data = response.notification.request.content.data;
+      if (data?.type === 'chat_message' && data?.sender_id) {
+        // Wait for navigation container to be ready
+        if (navigationRef.isReady()) {
+          navigationRef.navigate('Chat', {
+            user: {
+              id: data.sender_id,
+              name: data.sender_name || 'User',
+            }
+          });
+        }
+      }
+    });
+
+    return () => {
+      if (responseListener.current) {
+        Notifications.removeNotificationSubscription(responseListener.current);
+      }
+    };
   }, []);
 
   if (isLoading) {
@@ -43,7 +77,7 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator initialRouteName={userToken ? 'Tracking' : 'Login'}>
         <Stack.Screen 
           name="Login" 
