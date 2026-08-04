@@ -6,6 +6,8 @@ import { ActivityIndicator, View } from 'react-native';
 
 import LoginScreen from './src/screens/LoginScreen';
 import TrackingScreen from './src/screens/TrackingScreen';
+import ChatListScreen from './src/screens/ChatListScreen';
+import ChatScreen from './src/screens/ChatScreen';
 
 // Ensure TaskManager task is registered early
 import './src/tasks/LocationTask';
@@ -52,6 +54,16 @@ export default function App() {
           name="Tracking" 
           component={TrackingScreen} 
           options={{ title: 'Fleet Driver', headerBackVisible: false }} 
+        />
+        <Stack.Screen 
+          name="ChatList" 
+          component={ChatListScreen} 
+          options={{ title: 'Messages' }} 
+        />
+        <Stack.Screen 
+          name="Chat" 
+          component={ChatScreen} 
+          options={({ route }) => ({ title: route.params.user.name })} 
         />
       </Stack.Navigator>
     </NavigationContainer>

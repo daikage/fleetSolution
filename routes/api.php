@@ -69,6 +69,13 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
             'trip_id' => $trip ? $trip->id : null,
         ]);
     });
+
+    // Chat system
+    Route::get('/chat/users', [\App\Http\Controllers\Api\ChatController::class, 'users']);
+    Route::get('/chat/conversations', [\App\Http\Controllers\Api\ChatController::class, 'conversations']);
+    Route::get('/chat/conversations/{conversation}/messages', [\App\Http\Controllers\Api\ChatController::class, 'messages']);
+    Route::post('/chat/conversations/{conversation}/messages', [\App\Http\Controllers\Api\ChatController::class, 'sendMessage']);
+    Route::post('/chat/users/{otherUser}', [\App\Http\Controllers\Api\ChatController::class, 'getOrCreateConversation']);
 });
 
 // OsmAnd tracker — uses shared secret in query param for auth

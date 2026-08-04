@@ -26,6 +26,16 @@ class User extends Authenticatable
         return $this->hasOne(Driver::class);
     }
 
+    public function conversations()
+    {
+        return $this->belongsToMany(Conversation::class)->withTimestamps();
+    }
+
+    public function messages()
+    {
+        return $this->hasMany(Message::class, 'sender_id');
+    }
+
     /**
      * Get the attributes that should be cast.
      *

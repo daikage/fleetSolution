@@ -127,6 +127,10 @@ Route::post('/dashboard/notifications/{id}/mark-read', [\App\Http\Controllers\No
     ->middleware(['auth', 'verified'])
     ->name('dashboard.notifications.markAsRead');
 
+Route::get('/dashboard/chat', function () {
+    return Inertia::render('Dashboard/Chat');
+})->middleware(['auth', 'verified'])->name('dashboard.chat');
+
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

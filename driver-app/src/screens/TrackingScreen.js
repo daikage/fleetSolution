@@ -380,6 +380,9 @@ export default function TrackingScreen({ navigation }) {
             <Text style={styles.tripBadgeText}>TRIP ASSIGNED</Text>
           </View>
         )}
+        <TouchableOpacity onPress={() => navigation.navigate('ChatList')} style={styles.chatButton}>
+          <Text style={styles.chatText}>Chat</Text>
+        </TouchableOpacity>
         <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
@@ -527,6 +530,19 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     color: '#EF4444',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  chatButton: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginLeft: 10,
+    marginRight: 10,
+  },
+  chatText: {
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
   },
