@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Head, usePage } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
-import { Send, User as UserIcon } from 'lucide-react';
+import { Send, User as UserIcon, MessageSquare } from 'lucide-react';
 import axios from 'axios';
 
 export default function Chat() {
