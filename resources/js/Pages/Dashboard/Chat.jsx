@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Head, usePage } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
-import { Send, User as UserIcon, MessageSquare } from 'lucide-react';
+import { Send, User as UserIcon, MessageSquare, RefreshCw } from 'lucide-react';
 import axios from 'axios';
 
 export default function Chat() {
@@ -11,10 +11,22 @@ export default function Chat() {
     const [conversation, setConversation] = useState(null);
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState(null);
     const messagesEndRef = useRef(null);
+    const pollIntervalRef = useRef(null);
+    const conversationRef = useRef(null);
+
+    // Keep conversationRef in sync
+    useEffect(() => {
+        conversationRef.current = conversation;
+    }, [conversation]);
 
     useEffect(() => {
         fetchUsers();
+        return () => {
+            stopPolling();
+        };
     }, []);
 
     useEffect(() => {
@@ -25,14 +37,31 @@ export default function Chat() {
 
     useEffect(() => {
         if (conversation) {
-            // Subscribe to private channel for this conversation
-            const channel = window.Echo.private(`conversation.${conversation.id}`)
-                .listen('.message.sent', (e) => {
-                    setMessages((prev) => [...prev, e.message]);
-                });
+            // Start polling for new messages as a reliable fallback
+            startPolling(conversation.id);
+
+            // Also try WebSocket real-time updates if Echo is available
+            let channel = null;
+            if (window.Echo) {
+                try {
+                    channel = window.Echo.private(`conversation.${conversation.id}`)
+                        .listen('.message.sent', (e) => {
+                            setMessages((prev) => {
+                                // Avoid duplicates (message may arrive from both poll and WS)
+                                if (prev.some(m => m.id === e.message.id)) return prev;
+                                return [...prev, e.message];
+                            });
+                        });
+                } catch (err) {
+                    console.warn('Echo not available, relying on polling:', err);
+                }
+            }
 
             return () => {
-                window.Echo.leave(`conversation.${conversation.id}`);
+                stopPolling();
+                if (channel && window.Echo) {
+                    window.Echo.leave(`conversation.${conversation.id}`);
+                }
             };
         }
     }, [conversation]);
@@ -45,25 +74,60 @@ export default function Chat() {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
+    const startPolling = (conversationId) => {
+        stopPolling();
+        pollIntervalRef.current = setInterval(() => {
+            fetchMessages(conversationId);
+        }, 5000); // Poll every 5 seconds
+    };
+
+    const stopPolling = () => {
+        if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+        }
+    };
+
     const fetchUsers = async () => {
         try {
             const res = await axios.get('/api/chat/users');
             setUsers(res.data);
         } catch (error) {
             console.error('Error fetching users:', error);
+            setError('Failed to load users. Please refresh the page.');
         }
     };
 
     const fetchConversation = async (userId) => {
+        setIsLoading(true);
+        setError(null);
         try {
             const res = await axios.post(`/api/chat/users/${userId}`);
             setConversation(res.data);
-            
+
             // Then fetch messages
-            const msgRes = await axios.get(`/api/chat/conversations/${res.data.id}/messages`);
-            setMessages(msgRes.data);
+            await fetchMessages(res.data.id);
         } catch (error) {
             console.error('Error fetching conversation:', error);
+            setError('Failed to load conversation. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const fetchMessages = async (conversationId) => {
+        try {
+            const msgRes = await axios.get(`/api/chat/conversations/${conversationId}/messages`);
+            setMessages((prev) => {
+                // Only update if there are actually new messages to avoid flickering
+                if (prev.length !== msgRes.data.length ||
+                    (prev.length > 0 && msgRes.data.length > 0 && prev[prev.length - 1].id !== msgRes.data[msgRes.data.length - 1].id)) {
+                    return msgRes.data;
+                }
+                return prev;
+            });
+        } catch (error) {
+            console.error('Error fetching messages:', error);
         }
     };
 
@@ -71,25 +135,52 @@ export default function Chat() {
         e.preventDefault();
         if (!newMessage.trim() || !conversation) return;
 
+        const content = newMessage;
+        setNewMessage('');
+
+        // Optimistically add message to the UI
+        const tempMessage = {
+            id: `temp-${Date.now()}`,
+            sender_id: auth.user.id,
+            content: content,
+            created_at: new Date().toISOString(),
+            sender: { id: auth.user.id, name: auth.user.name },
+            _sending: true,
+        };
+        setMessages((prev) => [...prev, tempMessage]);
+
         try {
             const res = await axios.post(`/api/chat/conversations/${conversation.id}/messages`, {
-                content: newMessage
+                content
             });
-            setMessages((prev) => [...prev, res.data]);
-            setNewMessage('');
+            // Replace temp message with real one
+            setMessages((prev) =>
+                prev.map(m => m.id === tempMessage.id ? res.data : m)
+            );
         } catch (error) {
             console.error('Error sending message:', error);
+            // Remove failed temp message and restore input
+            setMessages((prev) => prev.filter(m => m.id !== tempMessage.id));
+            setNewMessage(content);
+            setError('Failed to send message. Please try again.');
+            setTimeout(() => setError(null), 3000);
         }
     };
 
     return (
         <DashboardLayout>
             <Head title="Chat" />
-            
+
             <div className="p-4 lg:p-8 h-full flex flex-col">
                 <div className="mb-6 flex justify-between items-center">
                     <h1 className="text-3xl font-bold text-white tracking-tight">Messaging</h1>
                 </div>
+
+                {error && (
+                    <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-xl text-red-300 text-sm">
+                        {error}
+                    </div>
+                )}
 
                 <div className="flex-1 flex gap-6 overflow-hidden max-h-[calc(100vh-12rem)]">
                     {/* Users Sidebar */}
@@ -103,8 +194,8 @@ export default function Chat() {
                                     key={u.id}
                                     onClick={() => setSelectedUser(u)}
                                     className={`w-full text-left p-3 rounded-xl transition-all duration-200 flex items-center gap-3 ${
-                                        selectedUser?.id === u.id 
-                                            ? 'bg-electric-blue/20 border border-electric-blue/30' 
+                                        selectedUser?.id === u.id
+                                            ? 'bg-electric-blue/20 border border-electric-blue/30'
                                             : 'hover:bg-white/5 border border-transparent'
                                     }`}
                                 >
@@ -133,27 +224,40 @@ export default function Chat() {
                                         <p className="text-xs text-gray-400 capitalize">{selectedUser.role}</p>
                                     </div>
                                 </div>
-                                
+
                                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                                    {messages.map((msg) => (
-                                        <div 
-                                            key={msg.id} 
-                                            className={`flex ${msg.sender_id === auth.user.id ? 'justify-end' : 'justify-start'}`}
-                                        >
-                                            <div 
-                                                className={`max-w-[70%] rounded-2xl px-4 py-2 shadow-sm ${
-                                                    msg.sender_id === auth.user.id 
-                                                        ? 'bg-electric-blue text-white rounded-br-sm' 
-                                                        : 'bg-gray-800 text-gray-100 border border-white/5 rounded-bl-sm'
-                                                }`}
-                                            >
-                                                <p>{msg.content}</p>
-                                                <p className={`text-[10px] mt-1 text-right ${msg.sender_id === auth.user.id ? 'text-blue-100' : 'text-gray-400'}`}>
-                                                    {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                                </p>
-                                            </div>
+                                    {isLoading ? (
+                                        <div className="flex items-center justify-center h-full">
+                                            <RefreshCw className="w-8 h-8 text-gray-500 animate-spin" />
                                         </div>
-                                    ))}
+                                    ) : messages.length === 0 ? (
+                                        <div className="flex items-center justify-center h-full text-gray-500">
+                                            <p>No messages yet. Start the conversation!</p>
+                                        </div>
+                                    ) : (
+                                        messages.map((msg) => (
+                                            <div
+                                                key={msg.id}
+                                                className={`flex ${msg.sender_id === auth.user.id ? 'justify-end' : 'justify-start'}`}
+                                            >
+                                                <div
+                                                    className={`max-w-[70%] rounded-2xl px-4 py-2 shadow-sm ${
+                                                        msg.sender_id === auth.user.id
+                                                            ? 'bg-electric-blue text-white rounded-br-sm'
+                                                            : 'bg-gray-800 text-gray-100 border border-white/5 rounded-bl-sm'
+                                                    } ${msg._sending ? 'opacity-60' : ''}`}
+                                                >
+                                                    {msg.sender_id !== auth.user.id && msg.sender && (
+                                                        <p className="text-[10px] text-electric-blue font-medium mb-1">{msg.sender.name}</p>
+                                                    )}
+                                                    <p>{msg.content}</p>
+                                                    <p className={`text-[10px] mt-1 text-right ${msg.sender_id === auth.user.id ? 'text-blue-100' : 'text-gray-400'}`}>
+                                                        {msg._sending ? 'Sending...' : new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
                                     <div ref={messagesEndRef} />
                                 </div>
 
@@ -166,7 +270,7 @@ export default function Chat() {
                                             placeholder="Type a message..."
                                             className="flex-1 bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-electric-blue focus:ring-1 focus:ring-electric-blue transition-all"
                                         />
-                                        <button 
+                                        <button
                                             type="submit"
                                             disabled={!newMessage.trim()}
                                             className="bg-electric-blue hover:bg-blue-600 disabled:opacity-50 disabled:hover:bg-electric-blue text-white rounded-xl px-4 py-3 flex items-center justify-center transition-colors shadow-lg shadow-electric-blue/20"
