@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "543371802200",
+    "project_id": "driver-app-22807",
+    "storage_bucket": "driver-app-22807.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:543371802200:android:8f565a09eaeabfe642fc2d",
+        "android_client_info": {
+          "package_name": "com.anonymous.driverapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA9oN-w7dr7FCl9-sSUWBOjjViBzO9_tYk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

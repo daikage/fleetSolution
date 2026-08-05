@@ -135,9 +135,9 @@ class ChatController extends Controller
         
         $pushMessages = [];
         foreach ($otherUsers as $otherUser) {
-            if ($otherUser->role === 'driver' && $otherUser->driver && $otherUser->driver->push_token) {
+            if ($otherUser->push_token) {
                 $pushMessages[] = [
-                    'to' => $otherUser->driver->push_token,
+                    'to' => $otherUser->push_token,
                     'title' => 'New message from ' . $user->name,
                     'body' => $imagePath ? ($message->content ?: '📷 Image') : $message->content,
                     'sound' => 'notification.mp3',
@@ -154,7 +154,14 @@ class ChatController extends Controller
 
         if (!empty($pushMessages)) {
             try {
-                \Illuminate\Support\Facades\Http::post('https://exp.host/--/api/v2/push/send', $pushMessages);
+                $response = \Illuminate\Support\Facades\Http::withHeaders([
+                    'Accept' => 'application/json',
+                    'Content-Type' => 'application/json',
+                ])->post('https://exp.host/--/api/v2/push/send', $pushMessages);
+
+                if (!$response->successful()) {
+                    \Illuminate\Support\Facades\Log::error('Expo Push API Error: ' . $response->body());
+                }
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::error('Failed to send Expo push notification: ' . $e->getMessage());
             }

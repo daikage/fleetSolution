@@ -27,7 +27,7 @@ class PushNotificationController extends Controller
 
         $driver = Driver::with('user')->findOrFail($request->driver_id);
 
-        if (!$driver->push_token) {
+        if (!$driver->user || !$driver->user->push_token) {
             return response()->json([
                 'success' => false,
                 'message' => 'Driver has no push token registered. They need to open the app at least once.'
@@ -53,9 +53,8 @@ class PushNotificationController extends Controller
         ]);
 
         $user = $request->user();
-        $driver = Driver::where('user_id', $user->id)->firstOrFail();
 
-        $driver->update([
+        $user->update([
             'push_token' => $request->push_token,
             'push_token_updated_at' => now(),
         ]);
