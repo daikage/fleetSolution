@@ -150,7 +150,9 @@ export default function FleetMap({ vehicles, onSelectVehicle }) {
                 <MapLibreMap
                     {...viewState}
                     onMove={evt => setViewState(evt.viewState)}
-                    mapStyle="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
+                    mapStyle={mapProvider === 'mapbox' 
+                        ? `https://api.mapbox.com/styles/v1/mapbox/dark-v11?access_token=${import.meta.env.VITE_MAPBOX_TOKEN}` 
+                        : "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"}
                     style={{ width: '100%', height: '100%' }}
                 >
                     <NavigationControl position="bottom-right" />

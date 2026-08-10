@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 namespace App\Domains\Driver\Services;
 
