@@ -18,9 +18,30 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
+        $user = $request->user();
+        
+        $twoFactorEnabled = $user->hasEnabledTwoFactorAuthentication();
+        $twoFactorPending = !is_null($user->two_factor_secret) && is_null($user->two_factor_confirmed_at);
+        $twoFactorSecret = null;
+        $twoFactorQrCode = null;
+        
+        if ($twoFactorPending && $user->two_factor_secret) {
+            $google2fa = app(\PragmaRX\Google2FA\Google2FA::class);
+            $twoFactorSecret = decrypt($user->two_factor_secret);
+            $twoFactorQrCode = $google2fa->getQRCodeInline(
+                config('app.name'),
+                $user->email,
+                $twoFactorSecret
+            );
+        }
+
         return Inertia::render('Profile/Edit', [
-            'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
+            'mustVerifyEmail' => $user instanceof MustVerifyEmail,
             'status' => session('status'),
+            'twoFactorEnabled' => $twoFactorEnabled,
+            'twoFactorPending' => $twoFactorPending,
+            'twoFactorSecret' => $twoFactorSecret,
+            'twoFactorQrCode' => $twoFactorQrCode,
         ]);
     }
 

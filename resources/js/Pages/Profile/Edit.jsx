@@ -4,6 +4,7 @@ import DeleteUserForm from './Partials/DeleteUserForm';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm';
 import SystemSettingsForm from './Partials/SystemSettingsForm';
+import TwoFactorAuthenticationForm from './Partials/TwoFactorAuthenticationForm';
 
 export default function Edit({ mustVerifyEmail, status }) {
     const { auth } = usePage().props;
@@ -24,6 +25,10 @@ export default function Edit({ mustVerifyEmail, status }) {
 
                     <div className="glass-panel p-4 shadow sm:p-8">
                         <UpdatePasswordForm className="max-w-xl" />
+                    </div>
+
+                    <div className="glass-panel p-4 shadow sm:p-8">
+                        <TwoFactorAuthenticationForm className="max-w-xl" />
                     </div>
 
                     {canManageSystem && (

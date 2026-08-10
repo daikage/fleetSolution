@@ -33,16 +33,25 @@ class LoginRequest extends FormRequest
         ];
     }
 
-    /**
-     * Attempt to authenticate the request's credentials.
-     *
-     * @throws ValidationException
-     */
     public function authenticate(): void
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+        $credentials = $this->only('email', 'password');
+
+        if (Auth::validate($credentials)) {
+            $user = \App\Domains\Identity\Models\User::where('email', $this->email)->first();
+
+            if ($user && $user->hasEnabledTwoFactorAuthentication()) {
+                // Do not log the user in yet. Put their ID in session and redirect to 2FA challenge.
+                $this->session()->put('login.id', $user->id);
+                $this->session()->put('login.remember', $this->boolean('remember'));
+                RateLimiter::clear($this->throttleKey());
+                return;
+            }
+        }
+
+        if (! Auth::attempt($credentials, $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
