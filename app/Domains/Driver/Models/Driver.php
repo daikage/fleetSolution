@@ -7,6 +7,7 @@ use App\Domains\Telematics\Models\FuelLog;
 use App\Domains\Maintenance\Models\Inspection;
 
 
+use App\Domains\Fleet\Models\Document;
 use Illuminate\Database\Eloquent\Model;
 
 class Driver extends Model
