@@ -113,7 +113,7 @@ Route::put('/dashboard/users/{user}', [\App\Http\Controllers\DashboardController
     ->middleware(['auth', 'verified'])
     ->name('dashboard.users.update');
 
-Route::get('/dashboard/fleet/locations', [\App\Http\Controllers\Api\TelematicsController::class, 'latestLocations'])
+Route::get('/dashboard/fleet/locations', [\App\Domains\Telematics\Controllers\TelematicsController::class, 'latestLocations'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.fleet.locations');
 
