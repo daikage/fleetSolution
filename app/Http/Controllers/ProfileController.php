@@ -68,7 +68,7 @@ class ProfileController extends Controller
     {
         $request->validate([
             'tracker_type' => 'required|string|in:mobile_app,traccar,osmand,custom_iot',
-            'map_provider' => 'required|string|in:map_libre,google_maps',
+            'map_provider' => 'required|string|in:map_libre,mapbox,google_maps',
         ]);
 
         \App\Domains\Identity\Models\Setting::updateOrCreate(
