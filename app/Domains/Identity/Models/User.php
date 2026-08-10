@@ -10,6 +10,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use App\Domains\Driver\Models\Driver;
+use App\Domains\Communication\Models\Conversation;
+use App\Domains\Communication\Models\Message;
 
 #[Fillable(['name', 'email', 'password', 'role', 'push_token', 'push_token_updated_at', 'two_factor_secret', 'two_factor_recovery_codes', 'two_factor_confirmed_at'])]
 #[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'])]
