@@ -19,7 +19,7 @@ class FuelRequestDecision extends Mailable
     /**
      * Create a new message instance.
      */
-    public function __construct(\App\Models\FuelLog $fuelLog)
+    public function __construct(\App\Domains\Telematics\Models\FuelLog $fuelLog)
     {
         $this->fuelLog = $fuelLog;
     }

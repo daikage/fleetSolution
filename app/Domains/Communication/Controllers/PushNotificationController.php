@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Domains\Communication\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Driver;
+use App\Domains\Driver\Models\Driver;
 use App\Notifications\ForceStartTracking;
 
 class PushNotificationController extends Controller

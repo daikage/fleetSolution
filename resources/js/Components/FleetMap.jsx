@@ -139,6 +139,7 @@ export default function FleetMap({ vehicles, onSelectVehicle }) {
                             zoom: ev.detail.zoom
                         })}
                         disableDefaultUI={true}
+                        style={{ width: '100%', height: '100%' }}
                     >
                         {filteredVehicles.map(vehicle =>
                             renderDriverMarker(vehicle, true)
@@ -150,6 +151,7 @@ export default function FleetMap({ vehicles, onSelectVehicle }) {
                     {...viewState}
                     onMove={evt => setViewState(evt.viewState)}
                     mapStyle="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
+                    style={{ width: '100%', height: '100%' }}
                 >
                     <NavigationControl position="bottom-right" />
 

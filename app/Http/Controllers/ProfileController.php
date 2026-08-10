@@ -71,12 +71,12 @@ class ProfileController extends Controller
             'map_provider' => 'required|string|in:map_libre,google_maps',
         ]);
 
-        \App\Models\Setting::updateOrCreate(
+        \App\Domains\Identity\Models\Setting::updateOrCreate(
             ['key' => 'tracker_type'],
             ['value' => $request->tracker_type]
         );
 
-        \App\Models\Setting::updateOrCreate(
+        \App\Domains\Identity\Models\Setting::updateOrCreate(
             ['key' => 'map_provider'],
             ['value' => $request->map_provider]
         );

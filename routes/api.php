@@ -3,80 +3,49 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+// Identity Domain
+use App\Domains\Identity\Controllers\AuthController;
+
+// Telematics Domain
+use App\Domains\Telematics\Controllers\TelematicsController;
+
+// Communication Domain
+use App\Domains\Communication\Controllers\PushNotificationController;
+use App\Domains\Communication\Controllers\ChatController;
+
+// Driver Domain
+use App\Domains\Driver\Controllers\DriverTrackingController;
+
 Route::get('/user', function (Request $request) {
     return $request->user()->only(['id', 'name', 'email', 'role']);
 })->middleware('auth:sanctum');
 
-Route::post('/mobile/login', function (Request $request) {
-    $request->validate([
-        'email' => 'required|email',
-        'password' => 'required|string',
-    ]);
-
-    $user = \App\Models\User::where('email', $request->email)->first();
-    if (!$user || !\Illuminate\Support\Facades\Hash::check($request->password, $user->password)) {
-        return response()->json(['message' => 'Invalid credentials'], 401);
-    }
-
-    if ($user->role !== 'driver') {
-        return response()->json(['message' => 'Unauthorized: Only drivers can login here.'], 403);
-    }
-
-    $driver = \App\Models\Driver::where('user_id', $user->id)->first();
-    if (!$driver) {
-        return response()->json(['message' => 'Driver profile not found for this user.'], 404);
-    }
-    $trip = \App\Models\Trip::where('driver_id', $driver->id)->whereNull('end_time')->latest()->first();
-    $vehicleId = $trip ? $trip->vehicle_id : null;
-
-    $token = $user->createToken('mobile-app-driver', ['driver'])->plainTextToken;
-
-    return response()->json([
-        'token' => $token,
-        'user' => $user->only(['id', 'name', 'email']),
-        'driver' => $driver->only(['id', 'license_no', 'phone']),
-        'vehicle_id' => $vehicleId,
-    ]);
-})->middleware('throttle:10,1');
+Route::post('/mobile/login', [AuthController::class, 'mobileLogin'])->middleware('throttle:10,1');
 
 Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
-    Route::post('/telematics/location', [\App\Http\Controllers\Api\TelematicsController::class, 'store']);
-    Route::get('/fleet/vehicles/locations', [\App\Http\Controllers\Api\TelematicsController::class, 'latestLocations'])
+    Route::post('/telematics/location', [TelematicsController::class, 'store']);
+    Route::get('/fleet/vehicles/locations', [TelematicsController::class, 'latestLocations'])
         ->middleware('can:view-vehicles');
 
     // Force-start push notification - admin/superadmin only
-    Route::post('/push/force-start', [\App\Http\Controllers\Api\PushNotificationController::class, 'forceStart']);
-    Route::post('/push/register-token', [\App\Http\Controllers\Api\PushNotificationController::class, 'registerToken']);
+    Route::post('/push/force-start', [PushNotificationController::class, 'forceStart']);
+    Route::post('/push/register-token', [PushNotificationController::class, 'registerToken']);
 
     // Driver tracking enforcement
-    Route::get('/driver/should-track', [\App\Http\Controllers\Api\DriverTrackingController::class, 'shouldTrack']);
-    Route::post('/driver/report-status', [\App\Http\Controllers\Api\DriverTrackingController::class, 'reportStatus']);
-    Route::post('/driver/auto-ping', [\App\Http\Controllers\Api\DriverTrackingController::class, 'autoPing']);
+    Route::get('/driver/should-track', [DriverTrackingController::class, 'shouldTrack']);
+    Route::post('/driver/report-status', [DriverTrackingController::class, 'reportStatus']);
+    Route::post('/driver/auto-ping', [DriverTrackingController::class, 'autoPing']);
 
     // Driver app: check for active trip assignment
-    Route::get('/driver/active-trip', function (Request $request) {
-        $user = $request->user();
-        $driver = \App\Models\Driver::where('user_id', $user->id)->first();
-        if (!$driver) {
-            return response()->json(['vehicle_id' => null, 'trip_id' => null]);
-        }
-        $trip = \App\Models\Trip::where('driver_id', $driver->id)
-            ->whereNull('end_time')
-            ->latest()
-            ->first();
-        return response()->json([
-            'vehicle_id' => $trip ? $trip->vehicle_id : null,
-            'trip_id' => $trip ? $trip->id : null,
-        ]);
-    });
+    Route::get('/driver/active-trip', [DriverTrackingController::class, 'activeTrip']);
 
     // Chat system
-    Route::get('/chat/users', [\App\Http\Controllers\Api\ChatController::class, 'users']);
-    Route::get('/chat/conversations', [\App\Http\Controllers\Api\ChatController::class, 'conversations']);
-    Route::get('/chat/conversations/{conversation}/messages', [\App\Http\Controllers\Api\ChatController::class, 'messages']);
-    Route::post('/chat/conversations/{conversation}/messages', [\App\Http\Controllers\Api\ChatController::class, 'sendMessage']);
-    Route::post('/chat/users/{otherUser}', [\App\Http\Controllers\Api\ChatController::class, 'getOrCreateConversation']);
+    Route::get('/chat/users', [ChatController::class, 'users']);
+    Route::get('/chat/conversations', [ChatController::class, 'conversations']);
+    Route::get('/chat/conversations/{conversation}/messages', [ChatController::class, 'messages']);
+    Route::post('/chat/conversations/{conversation}/messages', [ChatController::class, 'sendMessage']);
+    Route::post('/chat/users/{otherUser}', [ChatController::class, 'getOrCreateConversation']);
 });
 
 // OsmAnd tracker — uses shared secret in query param for auth
-Route::get('/telematics/osmand', [\App\Http\Controllers\Api\TelematicsController::class, 'storeOsmAnd']);
+Route::get('/telematics/osmand', [TelematicsController::class, 'storeOsmAnd']);

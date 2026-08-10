@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Domains\Communication\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Models\Conversation;
-use App\Models\Message;
-use App\Models\User;
+use App\Domains\Communication\Models\Conversation;
+use App\Domains\Communication\Models\Message;
+use App\Domains\Identity\Models\User;
 use App\Events\MessageSent;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;

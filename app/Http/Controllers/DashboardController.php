@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use Inertia\Inertia;
-use App\Models\Vehicle;
-use App\Models\User;
+use App\Domains\Fleet\Models\Vehicle;
+use App\Domains\Identity\Models\User;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\MaintenanceRequestDecision;
 use App\Mail\FuelRequestDecision;
@@ -56,14 +56,14 @@ class DashboardController extends Controller
         });
 
         // Expiry alerts logic
-        $upcomingExpiries = \App\Models\Document::with('documentable')
+        $upcomingExpiries = \App\Domains\Fleet\Models\Document::with('documentable')
             ->whereNotNull('expiry_date')
             ->where('expiry_date', '<=', now()->addDays(30)->format('Y-m-d'))
             ->get()->map(function ($doc) {
                 $docName = 'Unknown';
-                if ($doc->documentable_type === \App\Models\Vehicle::class && $doc->documentable) {
+                if ($doc->documentable_type === \App\Domains\Fleet\Models\Vehicle::class && $doc->documentable) {
                     $docName = $doc->documentable->make . ' ' . $doc->documentable->model . ' (' . $doc->documentable->license_plate . ')';
-                } elseif ($doc->documentable_type === \App\Models\Driver::class && $doc->documentable && $doc->documentable->user) {
+                } elseif ($doc->documentable_type === \App\Domains\Driver\Models\Driver::class && $doc->documentable && $doc->documentable->user) {
                     $docName = $doc->documentable->user->name;
                 }
                 return [
@@ -89,7 +89,7 @@ class DashboardController extends Controller
 
         $vehicles = Vehicle::with(['currentTrip.driver.user', 'documents'])->latest()->get();
 
-        $drivers = \App\Models\Driver::with('user')->get();
+        $drivers = \App\Domains\Driver\Models\Driver::with('user')->get();
 
         return Inertia::render('Dashboard/Vehicles', [
             'vehicles' => $vehicles,
@@ -148,7 +148,7 @@ class DashboardController extends Controller
         ]);
 
         if (!empty($validated['driver_id'])) {
-            \App\Models\Trip::create([
+            \App\Domains\Driver\Models\Trip::create([
                 'vehicle_id' => $vehicle->id,
                 'driver_id' => $validated['driver_id'],
                 'start_time' => now(),
@@ -164,7 +164,7 @@ class DashboardController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
-        $drivers = \App\Models\Driver::with(['user', 'documents'])->latest()->get();
+        $drivers = \App\Domains\Driver\Models\Driver::with(['user', 'documents'])->latest()->get();
         return Inertia::render('Dashboard/Drivers', [
             'drivers' => $drivers
         ]);
@@ -187,7 +187,7 @@ class DashboardController extends Controller
         }
 
         // Create the user account for the driver
-        $user = \App\Models\User::create([
+        $user = \App\Domains\Identity\Models\User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => \Illuminate\Support\Facades\Hash::make($validated['password']),
@@ -195,7 +195,7 @@ class DashboardController extends Controller
         ]);
 
         // Create the driver profile linked to the user
-        \App\Models\Driver::create([
+        \App\Domains\Driver\Models\Driver::create([
             'user_id' => $user->id,
             'license_no' => $validated['license_no'],
             'license_exp' => $validated['license_exp'],
@@ -211,7 +211,7 @@ class DashboardController extends Controller
         return back();
     }
 
-    public function destroyDriver(\App\Models\Driver $driver)
+    public function destroyDriver(\App\Domains\Driver\Models\Driver $driver)
     {
         $user = $driver->user;
         $driver->delete();
@@ -231,7 +231,7 @@ class DashboardController extends Controller
             'start_location' => 'nullable|string|max:255',
         ]);
 
-        \App\Models\Trip::create([
+        \App\Domains\Driver\Models\Trip::create([
             'vehicle_id' => $validated['vehicle_id'],
             'driver_id' => $validated['driver_id'],
             'start_time' => now(),
@@ -248,7 +248,7 @@ class DashboardController extends Controller
         try {
             \Log::info('endTrip called', ['tripId' => $tripId, 'user' => auth()->id()]);
 
-            $trip = \App\Models\Trip::findOrFail($tripId);
+            $trip = \App\Domains\Driver\Models\Trip::findOrFail($tripId);
             $trip->end_time = now();
             $trip->status = 'completed';
             $trip->save();
@@ -262,7 +262,7 @@ class DashboardController extends Controller
         }
     }
 
-    public function destroyTrip(\App\Models\Trip $trip)
+    public function destroyTrip(\App\Domains\Driver\Models\Trip $trip)
     {
         $trip->delete();
         return back();
@@ -274,7 +274,7 @@ class DashboardController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
-        $query = \App\Models\Trip::with(['vehicle', 'driver.user'])->latest();
+        $query = \App\Domains\Driver\Models\Trip::with(['vehicle', 'driver.user'])->latest();
 
         // Filter by driver if provided
         if (request('driver_id')) {
@@ -290,7 +290,7 @@ class DashboardController extends Controller
         }
 
         $trips = $query->paginate(50);
-        $drivers = \App\Models\Driver::with('user')->get();
+        $drivers = \App\Domains\Driver\Models\Driver::with('user')->get();
         $vehicles = Vehicle::all();
 
         return Inertia::render('Dashboard/Trips', [
@@ -304,7 +304,7 @@ class DashboardController extends Controller
     public function maintenances()
     {
         $user = auth()->user();
-        $query = \App\Models\Maintenance::with(['vehicle', 'assignedTo'])->latest();
+        $query = \App\Domains\Maintenance\Models\Maintenance::with(['vehicle', 'assignedTo'])->latest();
 
         // Both admin and superadmin see ALL records (no cost-based filtering)
 
@@ -321,7 +321,7 @@ class DashboardController extends Controller
     private function getAssigneeForCost($cost)
     {
         // Always assign to admin first — admin is the first-line reviewer for all requests
-        $user = \App\Models\User::where('role', 'admin')->first();
+        $user = \App\Domains\Identity\Models\User::where('role', 'admin')->first();
         return $user ? $user->id : null;
     }
 
@@ -346,7 +346,7 @@ class DashboardController extends Controller
         $validated['assigned_to'] = $this->getAssigneeForCost($validated['cost']);
         $validated['created_by'] = auth()->id();
 
-        $maintenance = \App\Models\Maintenance::create($validated);
+        $maintenance = \App\Domains\Maintenance\Models\Maintenance::create($validated);
 
         if ($maintenance->assignedTo) {
             $maintenance->assignedTo->notify(new \App\Notifications\RequestSubmitted($maintenance, 'Maintenance'));
@@ -355,7 +355,7 @@ class DashboardController extends Controller
         return back();
     }
 
-    public function actionMaintenance(\Illuminate\Http\Request $request, \App\Models\Maintenance $maintenance)
+    public function actionMaintenance(\Illuminate\Http\Request $request, \App\Domains\Maintenance\Models\Maintenance $maintenance)
     {
         if (auth()->user()->role === 'manager') {
             abort(403, 'Managers cannot action requests.');
@@ -409,7 +409,7 @@ class DashboardController extends Controller
 
             try {
                 // Find the superadmin to assign to
-                $superadmin = \App\Models\User::whereIn('role', ['superadmin', 'super_admin'])->first();
+                $superadmin = \App\Domains\Identity\Models\User::whereIn('role', ['superadmin', 'super_admin'])->first();
 
                 if (!$superadmin) {
                     \Log::warning('No superadmin found to forward maintenance request', ['maintenance_id' => $maintenance->id]);
@@ -506,7 +506,7 @@ class DashboardController extends Controller
         $adminName = auth()->user()->name;
 
         // Find all superadmins and send the forwarded review notification
-        $superadmins = \App\Models\User::whereIn('role', ['superadmin', 'super_admin'])->get();
+        $superadmins = \App\Domains\Identity\Models\User::whereIn('role', ['superadmin', 'super_admin'])->get();
 
         foreach ($superadmins as $superadmin) {
             $superadmin->notify(new ReviewRequestForwarded($request, $type, $adminName));
@@ -516,13 +516,13 @@ class DashboardController extends Controller
     public function fuel()
     {
         $user = auth()->user();
-        $query = \App\Models\FuelLog::with(['vehicle', 'driver.user', 'assignedTo'])->latest();
+        $query = \App\Domains\Telematics\Models\FuelLog::with(['vehicle', 'driver.user', 'assignedTo'])->latest();
 
         // Both admin and superadmin see ALL records (no cost-based filtering)
 
         $fuelLogs = $query->get();
         $vehicles = Vehicle::latest()->get();
-        $drivers = \App\Models\Driver::with('user')->get();
+        $drivers = \App\Domains\Driver\Models\Driver::with('user')->get();
 
         return Inertia::render('Dashboard/Fuel', [
             'fuelLogs' => $fuelLogs,
@@ -547,7 +547,7 @@ class DashboardController extends Controller
         $validated['assigned_to'] = $this->getAssigneeForCost($validated['cost']);
         $validated['created_by'] = auth()->id();
 
-        $fuelLog = \App\Models\FuelLog::create($validated);
+        $fuelLog = \App\Domains\Telematics\Models\FuelLog::create($validated);
 
         if ($fuelLog->assignedTo) {
             $fuelLog->assignedTo->notify(new \App\Notifications\RequestSubmitted($fuelLog, 'Fuel'));
@@ -556,7 +556,7 @@ class DashboardController extends Controller
         return back();
     }
 
-    public function actionFuel(\Illuminate\Http\Request $request, \App\Models\FuelLog $fuelLog)
+    public function actionFuel(\Illuminate\Http\Request $request, \App\Domains\Telematics\Models\FuelLog $fuelLog)
     {
         if (auth()->user()->role === 'manager') {
             abort(403, 'Managers cannot action requests.');
@@ -610,7 +610,7 @@ class DashboardController extends Controller
 
             try {
                 // Find the superadmin to assign to
-                $superadmin = \App\Models\User::whereIn('role', ['superadmin', 'super_admin'])->first();
+                $superadmin = \App\Domains\Identity\Models\User::whereIn('role', ['superadmin', 'super_admin'])->first();
 
                 if (!$superadmin) {
                     \Log::warning('No superadmin found to forward fuel request', ['fuel_log_id' => $fuelLog->id]);
@@ -767,7 +767,7 @@ class DashboardController extends Controller
             if (!isset($row['email']) || !isset($row['license_no']))
                 continue;
 
-            $user = \App\Models\User::firstOrCreate(
+            $user = \App\Domains\Identity\Models\User::firstOrCreate(
                 ['email' => $row['email']],
                 [
                     'name' => $row['name'] ?? 'Unknown',
@@ -776,7 +776,7 @@ class DashboardController extends Controller
                 ]
             );
 
-            \App\Models\Driver::updateOrCreate(
+            \App\Domains\Driver\Models\Driver::updateOrCreate(
                 ['license_no' => $row['license_no']],
                 [
                     'user_id' => $user->id,
@@ -824,7 +824,7 @@ class DashboardController extends Controller
 
             $cost = $findField(['amount', 'amount_n', 'cost']) ?? 0;
 
-            \App\Models\Maintenance::create([
+            \App\Domains\Maintenance\Models\Maintenance::create([
                 'vehicle_id' => $vehicle->id,
                 'type' => $findField(['type']) ?? 'Regular Servicing',
                 'service_type' => $findField(['service_type']) ?? 'General Service',
@@ -860,16 +860,16 @@ class DashboardController extends Controller
 
             $driverId = null;
             if (!empty($row['driver_email'])) {
-                $user = \App\Models\User::where('email', $row['driver_email'])->first();
+                $user = \App\Domains\Identity\Models\User::where('email', $row['driver_email'])->first();
                 if ($user) {
-                    $driver = \App\Models\Driver::where('user_id', $user->id)->first();
+                    $driver = \App\Domains\Driver\Models\Driver::where('user_id', $user->id)->first();
                     if ($driver)
                         $driverId = $driver->id;
                 }
             }
 
             $cost = $row['cost'];
-            \App\Models\FuelLog::create([
+            \App\Domains\Telematics\Models\FuelLog::create([
                 'vehicle_id' => $vehicle->id,
                 'driver_id' => $driverId,
                 'liters' => $row['liters'],
@@ -900,15 +900,15 @@ class DashboardController extends Controller
             if ($type === 'vehicle' || $type === 'v') {
                 $vehicle = Vehicle::where('license_plate', $row['entity_identifier'])->first();
                 if ($vehicle) {
-                    $morphClass = \App\Models\Vehicle::class;
+                    $morphClass = \App\Domains\Fleet\Models\Vehicle::class;
                     $morphId = $vehicle->id;
                 }
             } elseif ($type === 'driver' || $type === 'd') {
-                $user = \App\Models\User::where('email', $row['entity_identifier'])->first();
+                $user = \App\Domains\Identity\Models\User::where('email', $row['entity_identifier'])->first();
                 if ($user) {
-                    $driver = \App\Models\Driver::where('user_id', $user->id)->first();
+                    $driver = \App\Domains\Driver\Models\Driver::where('user_id', $user->id)->first();
                     if ($driver) {
-                        $morphClass = \App\Models\Driver::class;
+                        $morphClass = \App\Domains\Driver\Models\Driver::class;
                         $morphId = $driver->id;
                     }
                 }
@@ -917,7 +917,7 @@ class DashboardController extends Controller
             if (!$morphClass || !$morphId)
                 continue;
 
-            \App\Models\Document::create([
+            \App\Domains\Fleet\Models\Document::create([
                 'documentable_type' => $morphClass,
                 'documentable_id' => $morphId,
                 'document_type' => $row['document_type'],
@@ -935,15 +935,15 @@ class DashboardController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
-        $documents = \App\Models\Document::with('documentable')->latest()->get();
+        $documents = \App\Domains\Fleet\Models\Document::with('documentable')->latest()->get();
         $vehicles = Vehicle::latest()->get();
-        $drivers = \App\Models\Driver::with('user')->get();
+        $drivers = \App\Domains\Driver\Models\Driver::with('user')->get();
 
         $documents = $documents->map(function ($doc) {
             $docName = 'Unknown';
-            if ($doc->documentable_type === \App\Models\Vehicle::class && $doc->documentable) {
+            if ($doc->documentable_type === \App\Domains\Fleet\Models\Vehicle::class && $doc->documentable) {
                 $docName = $doc->documentable->make . ' ' . $doc->documentable->model . ' (' . $doc->documentable->license_plate . ')';
-            } elseif ($doc->documentable_type === \App\Models\Driver::class && $doc->documentable && $doc->documentable->user) {
+            } elseif ($doc->documentable_type === \App\Domains\Driver\Models\Driver::class && $doc->documentable && $doc->documentable->user) {
                 $docName = $doc->documentable->user->name;
             }
             $doc->entity_name = $docName;
@@ -969,8 +969,8 @@ class DashboardController extends Controller
         ]);
 
         $typeMap = [
-            'vehicle' => \App\Models\Vehicle::class,
-            'driver' => \App\Models\Driver::class,
+            'vehicle' => \App\Domains\Fleet\Models\Vehicle::class,
+            'driver' => \App\Domains\Driver\Models\Driver::class,
         ];
 
         $url = $validated['url'] ?? null;
@@ -979,7 +979,7 @@ class DashboardController extends Controller
             $url = '/storage/' . $path;
         }
 
-        \App\Models\Document::create([
+        \App\Domains\Fleet\Models\Document::create([
             'documentable_type' => $typeMap[$validated['documentable_type']],
             'documentable_id' => $validated['documentable_id'],
             'document_type' => $validated['document_type'],
@@ -996,7 +996,7 @@ class DashboardController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
-        $users = \App\Models\User::all();
+        $users = \App\Domains\Identity\Models\User::all();
         return Inertia::render('Dashboard/Users', [
             'users' => $users
         ]);
@@ -1031,21 +1031,21 @@ class DashboardController extends Controller
         $end = request('end') ? \Carbon\Carbon::parse(request('end')) : now()->endOfMonth();
 
         $totalVehicles = Vehicle::count();
-        $activeDrivers = \App\Models\Driver::count();
+        $activeDrivers = \App\Domains\Driver\Models\Driver::count();
 
-        $totalMaintenanceCost = \App\Models\Maintenance::whereBetween('date', [$start, $end])
+        $totalMaintenanceCost = \App\Domains\Maintenance\Models\Maintenance::whereBetween('date', [$start, $end])
             ->where('status', 'Accepted')
             ->sum('cost');
 
-        $totalFuelCost = \App\Models\FuelLog::whereBetween('date', [$start, $end])
+        $totalFuelCost = \App\Domains\Telematics\Models\FuelLog::whereBetween('date', [$start, $end])
             ->where('status', 'Accepted')
             ->sum('cost');
 
-        $maintenanceRecords = \App\Models\Maintenance::with('vehicle')
+        $maintenanceRecords = \App\Domains\Maintenance\Models\Maintenance::with('vehicle')
             ->whereBetween('date', [$start, $end])
             ->latest()->get();
 
-        $fuelRecords = \App\Models\FuelLog::with('vehicle')
+        $fuelRecords = \App\Domains\Telematics\Models\FuelLog::with('vehicle')
             ->whereBetween('date', [$start, $end])
             ->latest()->get();
 
@@ -1073,11 +1073,11 @@ class DashboardController extends Controller
         $year = (int) request('year', now()->year);
         $month = (int) request('month', now()->month);
 
-        $maintenanceQuery = \App\Models\Maintenance::with('vehicle')
+        $maintenanceQuery = \App\Domains\Maintenance\Models\Maintenance::with('vehicle')
             ->where('status', 'Accepted')
             ->whereYear('date', $year);
 
-        $fuelQuery = \App\Models\FuelLog::with('vehicle')
+        $fuelQuery = \App\Domains\Telematics\Models\FuelLog::with('vehicle')
             ->where('status', 'Accepted')
             ->whereYear('date', $year);
 

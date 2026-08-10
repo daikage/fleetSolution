@@ -6,7 +6,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use App\Models\Location;
+use App\Domains\Telematics\Models\Location;
 use App\Events\VehicleLocationUpdated;
 
 class ProcessVehicleLocation implements ShouldQueue
@@ -58,7 +58,7 @@ class ProcessVehicleLocation implements ShouldQueue
         ]);
 
         // Check Geofences
-        $geofences = \App\Models\Geofence::where('type', 'restricted')->get();
+        $geofences = \App\Domains\Fleet\Models\Geofence::where('type', 'restricted')->get();
         foreach ($geofences as $geofence) {
             $earthRadius = 6371000; // in meters
             $latFrom = deg2rad((float) $geofence->latitude);
@@ -82,7 +82,7 @@ class ProcessVehicleLocation implements ShouldQueue
 
         // Look up the active driver for this vehicle
         $activeDriver = null;
-        $trip = \App\Models\Trip::where('vehicle_id', $this->vehicleId)
+        $trip = \App\Domains\Driver\Models\Trip::where('vehicle_id', $this->vehicleId)
             ->whereNull('end_time')
             ->with('driver.user')
             ->first();
