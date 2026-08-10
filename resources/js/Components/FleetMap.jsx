@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import MapLibreMap, { Marker as MapLibreMarker, NavigationControl as MapLibreNavigationControl } from 'react-map-gl/maplibre';
-import MapboxMap, { Marker as MapboxMarker, NavigationControl as MapboxNavigationControl } from 'react-map-gl';
+import MapboxMap, { Marker as MapboxMarker, NavigationControl as MapboxNavigationControl } from 'react-map-gl/mapbox';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Car, User, Filter } from 'lucide-react';
