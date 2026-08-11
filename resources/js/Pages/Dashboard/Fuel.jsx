@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import React, { useState, Fragment } from 'react';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import BulkImportModal from '@/Components/BulkImportModal';
-import { Plus, X, Fuel as FuelIcon, Calendar, Droplet, FileText, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, X, Fuel as FuelIcon, Calendar, Droplet, FileText, CheckCircle, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ExportButtons from '@/Components/ExportButtons';
 
@@ -15,6 +15,7 @@ export default function Fuel({ fuelLogs, vehicles, drivers, userRole }) {
     const [actionModalOpen, setActionModalOpen] = useState(false);
     const [selectedFuelLog, setSelectedFuelLog] = useState(null);
     const [actionType, setActionType] = useState('');
+    const [expandedRow, setExpandedRow] = useState(null);
 
     const { data, setData, post, processing, errors, reset } = useForm({
         vehicle_id: '',
@@ -133,11 +134,15 @@ export default function Fuel({ fuelLogs, vehicles, drivers, userRole }) {
                             </thead>
                             <tbody>
                                 {fuelLogs.map((log) => (
-                                    <tr key={log.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                                        <td className="p-4 text-gray-300 flex items-center gap-2">
-                                            <Calendar className="w-4 h-4 text-gray-500" />
-                                            {new Date(log.date).toLocaleDateString()}
-                                        </td>
+                                    <Fragment key={log.id}>
+                                        <tr className={`border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer ${expandedRow === log.id ? 'bg-white/5' : ''}`} onClick={() => setExpandedRow(expandedRow === log.id ? null : log.id)}>
+                                            <td className="p-4 text-gray-300 text-sm flex items-center gap-2">
+                                                <button className="text-gray-400 hover:text-white transition-colors mr-1 shrink-0 focus:outline-none">
+                                                    {expandedRow === log.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                                </button>
+                                                <Calendar className="w-4 h-4 text-gray-500 shrink-0" />
+                                                {new Date(log.date).toLocaleDateString()}
+                                            </td>
                                         <td className="p-4">
                                             <div className="font-medium text-white">{log.vehicle?.make} {log.vehicle?.model}</div>
                                             <div className="text-sm text-gray-400">Odo: {log.odometer_at_fill} km</div>
@@ -163,7 +168,7 @@ export default function Fuel({ fuelLogs, vehicles, drivers, userRole }) {
                                                 {log.status}
                                             </span>
                                         </td>
-                                        <td className="p-4 text-right">
+                                        <td className="p-4 text-right" onClick={(e) => e.stopPropagation()}>
                                                 {(() => {
                                                     const isAdmin = userRole === 'admin';
                                                     const isSuperAdmin = userRole === 'superadmin' || userRole === 'super_admin';
@@ -230,6 +235,45 @@ export default function Fuel({ fuelLogs, vehicles, drivers, userRole }) {
                                                 })()}
                                         </td>
                                     </tr>
+                                    {expandedRow === log.id && (
+                                        <tr className="bg-white/[0.02] border-b border-white/5">
+                                            <td colSpan="7" className="p-6">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                    <div className="space-y-4">
+                                                        <div>
+                                                            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Cost Details</h4>
+                                                            <div className="text-emerald-400 font-mono text-lg flex items-center gap-1">
+                                                                <span className="font-semibold text-sm">₦</span>
+                                                                {Number(log.cost).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Volume Filled</h4>
+                                                            <div className="text-blue-400 text-lg flex items-center gap-1">
+                                                                <Droplet className="w-4 h-4" />
+                                                                {log.liters} L
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="space-y-4">
+                                                        {log.reviewer_comment && (
+                                                            <div>
+                                                                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Reviewer Comment</h4>
+                                                                <p className="text-gray-300 text-sm whitespace-pre-wrap border-l-2 border-electric-blue pl-3 py-1 bg-white/5 rounded-r-md">{log.reviewer_comment}</p>
+                                                            </div>
+                                                        )}
+                                                        {!log.reviewer_comment && (
+                                                            <div>
+                                                                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Reviewer Comment</h4>
+                                                                <span className="italic text-gray-600 text-sm">No review comments yet.</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
+                                    </Fragment>
                                 ))}
                                 {fuelLogs.length === 0 && (
                                     <tr>
