@@ -91,7 +91,9 @@ export default function Notifications({ notifications }) {
                                     <div className="flex items-center gap-3 w-full md:w-auto">
                                         {notification.data.url && (
                                             <Link 
-                                                href={notification.data.url}
+                                                href={!notification.read_at ? route('dashboard.notifications.markAsRead', notification.id) : notification.data.url}
+                                                method={!notification.read_at ? "post" : "get"}
+                                                data={!notification.read_at ? { redirect_url: notification.data.url } : {}}
                                                 className="text-sm text-electric-blue hover:text-sky-300 transition-colors"
                                             >
                                                 View {notification.data.request_type} &rarr;

@@ -21,6 +21,10 @@ class NotificationController extends Controller
         $notification = auth()->user()->notifications()->findOrFail($id);
         $notification->markAsRead();
 
+        if ($request->has('redirect_url')) {
+            return redirect($request->input('redirect_url'));
+        }
+
         return back();
     }
 
