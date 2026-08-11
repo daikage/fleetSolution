@@ -75,18 +75,23 @@ FKG.Fleet is a comprehensive fleet management solution built with Laravel 13 + R
 fleetSolution/
 ├── app/
 │   ├── Events/                    # WebSocket events
+│   │   ├── MessageSent.php
+│   │   └── VehicleLocationUpdated.php
 │   ├── Http/
 │   │   ├── Controllers/
 │   │   │   ├── Api/
+│   │   │   │   ├── ChatController.php
 │   │   │   │   ├── DriverTrackingController.php
 │   │   │   │   ├── PushNotificationController.php
+│   │   │   │   ├── SettingsController.php
 │   │   │   │   └── TelematicsController.php
 │   │   │   ├── Auth/              # Laravel Breeze auth
 │   │   │   ├── DashboardController.php   # Main CRUD controller
 │   │   │   ├── NotificationController.php
 │   │   │   └── ProfileController.php
 │   │   ├── Middleware/
-│   │   │   └── HandleInertiaRequests.php
+│   │   │   ├── HandleInertiaRequests.php
+│   │   │   └── RoleMiddleware.php
 │   │   └── Requests/
 │   ├── Jobs/
 │   │   └── ProcessVehicleLocation.php
@@ -94,19 +99,25 @@ fleetSolution/
 │   │   ├── FuelRequestDecision.php
 │   │   └── MaintenanceRequestDecision.php
 │   ├── Models/
+│   │   ├── Conversation.php
 │   │   ├── Document.php
 │   │   ├── Driver.php
 │   │   ├── FuelLog.php
+│   │   ├── Geofence.php
+│   │   ├── Inspection.php
 │   │   ├── Location.php
 │   │   ├── Maintenance.php
 │   │   ├── MaintenanceSchedule.php
+│   │   ├── Message.php
+│   │   ├── Setting.php
 │   │   ├── Trip.php
 │   │   ├── User.php
 │   │   └── Vehicle.php
 │   ├── Notifications/
 │   │   ├── ForceStartTracking.php
 │   │   ├── RequestActioned.php
-│   │   └── RequestSubmitted.php
+│   │   ├── RequestSubmitted.php
+│   │   └── ReviewRequestForwarded.php
 │   └── Providers/
 ├── bootstrap/
 ├── config/
@@ -117,26 +128,37 @@ fleetSolution/
 ├── driver-app/                     # React Native mobile app
 │   ├── src/
 │   │   ├── api/
-│   │   │   └── config.js
+│   │   │   ├── config.js
+│   │   │   └── echo.js            # Laravel Echo (Reverb WebSocket client)
 │   │   ├── screens/
+│   │   │   ├── ChatListScreen.js   # Chat conversation list
+│   │   │   ├── ChatScreen.js       # 1-on-1 chat w/ image support
 │   │   │   ├── LoginScreen.js
 │   │   │   └── TrackingScreen.js
 │   │   └── tasks/
 │   │       └── LocationTask.js
 │   ├── App.js
-│   └── app.json
+│   ├── app.json
+│   ├── eas.json                   # EAS build config
+│   └── google-services.json       # FCM config
 ├── resources/
 │   └── js/
 │       ├── Components/
+│       │   ├── BulkImportModal.jsx
 │       │   ├── ExportButtons.jsx
-│       │   └── FleetMap.jsx
+│       │   ├── FleetMap.jsx
+│       │   └── VehicleSidebar.jsx
 │       ├── Layouts/
-│       │   └── DashboardLayout.jsx
+│       │   ├── AuthenticatedLayout.jsx
+│       │   ├── DashboardLayout.jsx
+│       │   └── GuestLayout.jsx
 │       ├── Pages/
 │       │   ├── Auth/               # Login, Register, etc.
 │       │   ├── Dashboard/
+│       │   │   ├── Chat.jsx        # Real-time chat w/ WebSocket + polling
 │       │   │   ├── Compliance.jsx
 │       │   │   ├── Drivers.jsx
+│       │   │   ├── FinancialReports.jsx
 │       │   │   ├── Fuel.jsx
 │       │   │   ├── Index.jsx       # Main dashboard with live map
 │       │   │   ├── Maintenance.jsx
@@ -145,10 +167,11 @@ fleetSolution/
 │       │   │   ├── Trips.jsx
 │       │   │   ├── Users.jsx
 │       │   │   └── Vehicles.jsx
-│       │   └── Profile/
-│       │       └── Partials/
-│       ├── Layouts/
-│       │   └── DashboardLayout.jsx
+│       │   ├── Profile/
+│       │   │   └── Partials/
+│       │   │       └── SystemSettingsForm.jsx
+│       │   └── Dashboard.jsx
+│       │   └── Welcome.jsx
 │       └── utils/
 │           └── exportUtils.js
 ├── routes/
@@ -190,16 +213,29 @@ fleetSolution/
 | Column | Type | Purpose |
 |--------|------|---------|
 | id | bigint | Primary key |
-| make | string | Vehicle make (e.g., Toyota) |
-| model | string | Vehicle model |
-| year | integer | Year of manufacture |
-| vin | string (unique) | VIN number |
+| vehicle_id | string (unique) | Auto-generated reference (e.g., `veh001`) |
+| name | string/null | Display name (make + model) |
+| make | string/null | Vehicle make (e.g., Toyota) |
+| model | string/null | Vehicle model |
+| year | integer/null | Year of manufacture |
+| vin / chassis_number | string/null | Chassis/VIN number |
 | license_plate | string (unique) | Plate number |
-| odometer | decimal | Mileage/odometer reading |
+| vehicle_license | string/null | Vehicle license doc info |
+| road_worthiness | string/null | Road-worthiness certificate ref |
+| insurance | string/null | Insurance policy ref |
+| stage_carriage | string/null | Stage carriage permit ref |
+| mot | string/null | MOT certificate ref |
+| hackney | string/null | Hackney permit ref |
+| lg_papers | string/null | LG local govt papers ref |
+| battery | string/null | Battery details |
+| odometer | integer/null | Mileage/odometer reading |
 | vendor | string/null | Vendor/assignee |
+| base_location | string/null | Home/depot location |
+| color | string/null | Vehicle color |
+| assigned_user | string/null | Currently assigned user |
 | status | string | `active`, `in_shop`, `inactive` |
-| latitude | decimal/null | Registered location lat |
-| longitude | decimal/null | Registered location lng |
+| latitude | decimal(7)/null | Registered location lat |
+| longitude | decimal(7)/null | Registered location lng |
 
 ### Trips Table
 | Column | Type | Purpose |
@@ -281,6 +317,23 @@ fleetSolution/
 - **Geofences**: Geographic boundary definitions
 - **Notifications**: Database notification system
 
+### Chat Tables
+**Conversations** — id, `is_group` (bool), `name` (nullable), timestamps
+**conversation_user** — pivot table: conversation_id, user_id, timestamps
+**Messages** — id, conversation_id, `sender_id` (FK users), `content` (text), `image_path` (nullable, stores to `public/chat-images`), `read_at` (nullable), timestamps. Appends computed `image_url` attribute.
+
+### Settings Table
+| Column | Type | Purpose |
+|--------|------|---------|
+| id | bigint | Primary key |
+| key | string (unique) | Setting key (`tracker_type`, `map_provider`) |
+| value | text/null | Setting value |
+| timestamps | - | created_at, updated_at |
+
+Settings the app manages:
+- `tracker_type`: `mobile_app`, `traccar`, `osmand`, `custom_iot`
+- `map_provider`: `map_libre`, `google_maps`
+
 ---
 
 ## 5. API Endpoints
@@ -312,6 +365,21 @@ fleetSolution/
 | POST | `/api/push/force-start` | Sanctum | Force-start tracking (manager+) |
 | POST | `/api/push/register-token` | Sanctum | Register Expo push token |
 
+### Chat System
+| Method | Endpoint | Auth | Purpose |
+|--------|----------|------|---------|
+| GET | `/api/chat/users` | Sanctum | List users available to chat with (role-filtered) |
+| GET | `/api/chat/conversations` | Sanctum | List current user's conversations (with latest message) |
+| POST | `/api/chat/users/{otherUser}` | Sanctum | Get or create a 1-on-1 conversation |
+| GET | `/api/chat/conversations/{conversation}/messages` | Sanctum | Get all messages (participant only) |
+| POST | `/api/chat/conversations/{conversation}/messages` | Sanctum | Send text and/or image (10MB max) |
+
+### Settings
+| Method | Endpoint | Auth | Purpose |
+|--------|----------|------|---------|
+| GET | `/api/settings` | — | Get all key/value settings |
+| POST | `/api/settings` | role-guarded | Update tracker_type & map_provider |
+
 ### Web Routes (Inertia)
 All web routes are under `auth` and `verified` middleware:
 - `/dashboard` — Live map with vehicle locations
@@ -322,9 +390,12 @@ All web routes are under `auth` and `verified` middleware:
 - `/dashboard/fuel` — Fuel logs with approval
 - `/dashboard/compliance` — Document compliance tracking
 - `/dashboard/reports` — Cost reports and summaries
+- `/dashboard/financial-reports` — Financial/cost reporting
+- `/dashboard/chat` — Real-time team messaging (text + images)
 - `/dashboard/users` — User role management (admin+)
 - `/dashboard/notifications` — Notification center
 - `/profile` — User profile settings
+- `/settings` — System settings (tracker type, map provider; role: superadmin/admin/manager)
 
 ---
 
@@ -409,16 +480,47 @@ All web routes are under `auth` and `verified` middleware:
 
 ## 9. Push Notifications
 
-Uses **Expo Push Notifications** to communicate with the driver app:
+Uses **Expo Push Notifications** to communicate with the app users. Push tokens live on the **users** table (`push_token`, `push_token_updated_at`) so both drivers and managers receive them:
 
-1. **Register Token**: Driver app calls `POST /api/push/register-token` with Expo push token on login
+1. **Register Token**: App calls `POST /api/push/register-token` with the Expo push token on login
 2. **Force Start**: Admin clicks "FORCE START" on Vehicles page → sends notification to driver
 3. **Request Submitted**: Notification sent to assigned reviewer when maintenance/fuel logged
 4. **Request Actioned**: Notification sent to creator when request approved/rejected
+5. **Chat Messages**: Offline recipients get a push (`channelId: 'chat-messages'`, `type: 'chat_message'`) when a new chat message arrives
 
 ---
 
-## 10. Exports
+## 10. Chat & Messaging
+
+The system includes a built-in 1-on-1 team chat between drivers and managers, available on **both** the web dashboard and the driver mobile app.
+
+### Backend Flow
+1. **Conversation lookup/creation** — `POST /api/chat/users/{otherUser}` finds an existing 1-on-1 conversation or creates one (pivot `conversation_user`).
+2. **Send** — `POST /api/chat/conversations/{id}/messages` accepts text and/or image (max 10MB, validated `image|mimes:jpeg,jpg,png,gif,webp`). Images store to `storage/app/public/chat-images`.
+3. **Broadcast** — sends `MessageSent` event (`ShouldBroadcastNow`) on private channel `conversation.{id}` with broadcast name `message.sent`.
+4. **Push fallback** — for offline/background recipients, sends an Expo push notification (`channelId: 'chat-messages'`, type `chat_message`) to the recipient's `push_token` on the **users** table.
+5. **Reliability** — the frontend combines WebSocket (`window.Echo.private('conversation.{id}')`) with a 5-second HTTP polling fallback.
+
+### Channel Authorization
+```
+Broadcast::channel('conversation.{id}', fn ($user, $id) =>
+    $user->conversations()->where('conversations.id', $id)->exists());
+```
+
+### Who Can Chat With Whom
+| Current User | Can Chat With |
+|--------------|---------------|
+| Driver | Other drivers + managers |
+| Manager | Drivers + other managers |
+| Admin/Superadmin | All users |
+
+### Clients
+- **Web**: `resources/js/Pages/Dashboard/Chat.jsx` — user list, conversation pane, image attach + lightbox.
+- **Mobile**: `driver-app/src/screens/ChatListScreen.js` + `ChatScreen.js`, using `laravel-echo` over **Reverb** (`driver-app/src/api/echo.js`), reusing the Sanctum bearer token for broadcast auth.
+
+---
+
+## 11. Exports
 
 ### Supported Formats
 - **PDF** — Using jsPDF + jspdf-autotable
@@ -435,7 +537,7 @@ Uses **Expo Push Notifications** to communicate with the driver app:
 
 ---
 
-## 11. Configuration
+## 12. Configuration
 
 ### Key Environment Variables
 | Variable | Purpose |
@@ -454,7 +556,7 @@ Uses **Expo Push Notifications** to communicate with the driver app:
 
 ---
 
-## 12. Security Measures Implemented
+## 13. Security Measures Implemented
 
 | Issue | Fix |
 |-------|-----|
@@ -468,7 +570,7 @@ Uses **Expo Push Notifications** to communicate with the driver app:
 
 ---
 
-## 13. Development Setup
+## 14. Development Setup
 
 ### Prerequisites
 - PHP 8.3+
@@ -503,7 +605,7 @@ npx expo start
 
 ---
 
-## 14. Deployment
+## 15. Deployment
 
 The project is configured for **Laravel Cloud** deployment:
 - `cloud.yml` — Deployment configuration
@@ -521,36 +623,47 @@ The project is configured for **Laravel Cloud** deployment:
 
 ---
 
-## 15. Key Code References
+## 16. Key Code References
 
 ### Backend Controllers
-- `DashboardController.php` — Main CRUD (vehicles, drivers, trips, maintenance, fuel, compliance, reports, users)
+- `DashboardController.php` — Main CRUD (vehicles, drivers, trips, maintenance, fuel, compliance, reports, financial-reports, users) + bulk imports
 - `TelematicsController.php` — GPS location ingestion (mobile app + OsmAnd)
 - `DriverTrackingController.php` — Auto-tracking enforcement endpoints
 - `PushNotificationController.php` — Expo push notifications
+- `ChatController.php` — 1-on-1 chat (users, conversations, messages, image upload)
+- `SettingsController.php` — tracker_type & map_provider settings
 - `NotificationController.php` — In-app notification management
 
 ### Frontend Pages
 - `Index.jsx` — Main dashboard with live Google Maps
 - `Vehicles.jsx` — Vehicle registry + trip management (start/end/force-start)
-- `Maintenance.jsx` — Service logs with approval workflow
-- `Fuel.jsx` — Fuel logs with approval workflow
+- `Maintenance.jsx` — Service logs with approval workflow (incl. "Under Review")
+- `Fuel.jsx` — Fuel logs with approval workflow (incl. "Under Review")
 - `Trips.jsx` — Trip history with filters
 - `Drivers.jsx` — Driver management with passport upload
 - `Compliance.jsx` — Document expiry tracking
+- `Chat.jsx` — Real-time team chat (WebSocket + polling, image attachments)
+- `FinancialReports.jsx` — Financial/cost reporting and summaries
 
 ### Models
-- `Vehicle.php` — Has many: trips, locations, maintenances, fuelLogs, documents
+- `Vehicle.php` — Has many: trips, locations, maintenances, fuelLogs, documents, inspections, maintenanceSchedules; auto-generates `vehicle_id` (veh###)
 - `Trip.php` — Belongs to: vehicle, driver
 - `Maintenance.php` — Belongs to: vehicle, creator, assigned reviewer
 - `FuelLog.php` — Belongs to: vehicle, driver, creator, assigned reviewer
 - `Driver.php` — Belongs to: user
 - `Location.php` — Belongs to: vehicle
 - `Document.php` — Morphable to: vehicle, driver
+- `Conversation.php` — Belongs to many: users; has many: messages
+- `Message.php` — Belongs to: conversation, sender; computes `image_url`
+- `Setting.php` — Key/value store
+- `User.php` — Has one driver, belongs to many conversations, has many messages; holds `push_token`
+
+### Role Middleware
+`RoleMiddleware` (`role:superadmin,admin,manager`) guards sensitive routes like the settings update (`/settings`).
 
 ---
 
-## 16. Future Considerations
+## 17. Future Considerations
 
 - **Automated Geofencing** — Alert when vehicle enters/leaves defined zones
 - **Fuel Efficiency Reports** — Track liters/km ratio over time
