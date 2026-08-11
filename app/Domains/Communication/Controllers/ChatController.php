@@ -7,6 +7,7 @@ use App\Domains\Communication\Models\Conversation;
 use App\Domains\Communication\Models\Message;
 use App\Domains\Identity\Models\User;
 use App\Events\MessageSent;
+use App\Notifications\NewChatMessageNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -135,6 +136,11 @@ class ChatController extends Controller
         
         $pushMessages = [];
         foreach ($otherUsers as $otherUser) {
+            // Create database notification for dashboard users (managers/admins)
+            if (in_array($otherUser->role, ['manager', 'admin', 'superadmin', 'super_admin'])) {
+                $otherUser->notify(new NewChatMessageNotification($message, $conversation));
+            }
+
             if ($otherUser->push_token) {
                 $pushMessages[] = [
                     'to' => $otherUser->push_token,
