@@ -126,14 +126,14 @@ export default function DashboardLayout({ children }) {
             </AnimatePresence>
 
             {/* Desktop Sidebar Navigation */}
-            <nav className="w-20 lg:w-64 z-40 glass-panel m-4 flex flex-col justify-between hidden md:flex">
-                <div className="p-4 flex flex-col items-center lg:items-start gap-8">
-                    <Link href={route('dashboard')} className="text-electric-blue font-bold text-xl lg:text-2xl mt-4 flex items-center gap-2">
+            <nav className="w-20 lg:w-64 z-40 glass-panel m-4 flex flex-col justify-between hidden md:flex overflow-hidden">
+                <div className="p-4 flex flex-col items-center lg:items-start gap-4 flex-1 overflow-hidden">
+                    <Link href={route('dashboard')} className="text-electric-blue font-bold text-xl lg:text-2xl mt-4 flex items-center gap-2 shrink-0">
                         <span className="hidden lg:inline">FKG.Fleet</span>
                         <MapIcon className="lg:hidden w-8 h-8" />
                     </Link>
 
-                    <ul className="flex flex-col gap-6 w-full mt-8">
+                    <ul className="flex flex-col gap-2 w-full mt-4 overflow-y-auto pb-4 hide-scrollbar">
                         {userRole !== 'driver' && <NavItem href={route('dashboard')} icon={<MapIcon />} label="Live Map" active={url === '/dashboard'} />}
                         {userRole !== 'driver' && <NavItem href={route('dashboard.vehicles')} icon={<Car />} label="Vehicles" active={url.startsWith('/dashboard/vehicles')} />}
                         {userRole !== 'driver' && <NavItem href={route('dashboard.drivers')} icon={<Users />} label="Drivers" active={url.startsWith('/dashboard/drivers')} />}
@@ -149,7 +149,7 @@ export default function DashboardLayout({ children }) {
                     </ul>
                 </div>
 
-                <div className="p-4 flex justify-center lg:justify-start">
+                <div className="p-4 flex justify-center lg:justify-start shrink-0 border-t border-white/5">
                     <Link href={route('logout')} method="post" as="button" className="flex items-center gap-4 text-gray-400 hover:text-white transition-colors w-full text-left p-2 lg:px-4 rounded-xl hover:bg-white/5">
                         <LogOut className="w-6 h-6" />
                         <span className="hidden lg:inline font-medium">Log out</span>
