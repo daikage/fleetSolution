@@ -18,9 +18,30 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
+        $user = $request->user();
+        
+        $twoFactorEnabled = $user->hasEnabledTwoFactorAuthentication();
+        $twoFactorPending = !is_null($user->two_factor_secret) && is_null($user->two_factor_confirmed_at);
+        $twoFactorSecret = null;
+        $twoFactorQrCode = null;
+        
+        if ($twoFactorPending && $user->two_factor_secret) {
+            $google2fa = app(\PragmaRX\Google2FA\Google2FA::class);
+            $twoFactorSecret = decrypt($user->two_factor_secret);
+            $twoFactorQrCode = $google2fa->getQRCodeInline(
+                config('app.name'),
+                $user->email,
+                $twoFactorSecret
+            );
+        }
+
         return Inertia::render('Profile/Edit', [
-            'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
+            'mustVerifyEmail' => $user instanceof MustVerifyEmail,
             'status' => session('status'),
+            'twoFactorEnabled' => $twoFactorEnabled,
+            'twoFactorPending' => $twoFactorPending,
+            'twoFactorSecret' => $twoFactorSecret,
+            'twoFactorQrCode' => $twoFactorQrCode,
         ]);
     }
 
@@ -68,15 +89,15 @@ class ProfileController extends Controller
     {
         $request->validate([
             'tracker_type' => 'required|string|in:mobile_app,traccar,osmand,custom_iot',
-            'map_provider' => 'required|string|in:map_libre,google_maps',
+            'map_provider' => 'required|string|in:map_libre,mapbox,google_maps',
         ]);
 
-        \App\Models\Setting::updateOrCreate(
+        \App\Domains\Identity\Models\Setting::updateOrCreate(
             ['key' => 'tracker_type'],
             ['value' => $request->tracker_type]
         );
 
-        \App\Models\Setting::updateOrCreate(
+        \App\Domains\Identity\Models\Setting::updateOrCreate(
             ['key' => 'map_provider'],
             ['value' => $request->map_provider]
         );

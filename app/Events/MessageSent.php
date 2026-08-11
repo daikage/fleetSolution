@@ -2,8 +2,8 @@
 
 namespace App\Events;
 
-use App\Models\Conversation;
-use App\Models\Message;
+use App\Domains\Communication\Models\Conversation;
+use App\Domains\Communication\Models\Message;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;

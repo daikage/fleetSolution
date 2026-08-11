@@ -52,9 +52,10 @@ export default function SystemSettingsForm({ className = '' }) {
                         required
                     >
                         <option value="map_libre">MapLibre (Default / Open Source)</option>
+                        <option value="mapbox">Mapbox</option>
                         <option value="google_maps">Google Maps</option>
                     </select>
-                    <p className="mt-2 text-xs text-gray-500">Note: Google Maps requires a valid VITE_GOOGLE_MAPS_API_KEY in the .env file.</p>
+                    <p className="mt-2 text-xs text-gray-500">Note: Google Maps requires VITE_GOOGLE_MAPS_API_KEY. Mapbox requires VITE_MAPBOX_TOKEN in the .env file.</p>
                     {errors.map_provider && <div className="text-rose-400 text-xs mt-1">{errors.map_provider}</div>}
                 </div>
 

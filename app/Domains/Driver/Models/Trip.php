@@ -1,6 +1,9 @@
 <?php
 
-namespace App\Models;
+namespace App\Domains\Driver\Models;
+
+use App\Domains\Fleet\Models\Vehicle;
+
 
 use Illuminate\Database\Eloquent\Model;
 

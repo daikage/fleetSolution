@@ -19,7 +19,7 @@ class MaintenanceRequestDecision extends Mailable
     /**
      * Create a new message instance.
      */
-    public function __construct(\App\Models\Maintenance $maintenance)
+    public function __construct(\App\Domains\Maintenance\Models\Maintenance $maintenance)
     {
         $this->maintenance = $maintenance;
     }

@@ -12,12 +12,12 @@ class SettingsSeeder extends Seeder
      */
     public function run(): void
     {
-        \App\Models\Setting::updateOrCreate(
+        \App\Domains\Identity\Models\Setting::updateOrCreate(
             ['key' => 'tracker_type'],
             ['value' => 'mobile_app']
         );
 
-        \App\Models\Setting::updateOrCreate(
+        \App\Domains\Identity\Models\Setting::updateOrCreate(
             ['key' => 'map_provider'],
             ['value' => 'map_libre']
         );

@@ -35,7 +35,7 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
                 'unreadNotificationsCount' => $request->user() ? $request->user()->unreadNotifications()->count() : 0,
             ],
-            'settings' => \App\Models\Setting::all()->pluck('value', 'key')->toArray(),
+            'settings' => \App\Domains\Identity\Models\Setting::all()->pluck('value', 'key')->toArray(),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

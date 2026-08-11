@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import MapLibreMap, { Marker as MapLibreMarker, NavigationControl } from 'react-map-gl/maplibre';
+import MapLibreMap, { Marker as MapLibreMarker, NavigationControl as MapLibreNavigationControl } from 'react-map-gl/maplibre';
+import MapboxMap, { Marker as MapboxMarker, NavigationControl as MapboxNavigationControl } from 'react-map-gl/mapbox';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import 'mapbox-gl/dist/mapbox-gl.css';
 import { Car, User, Filter } from 'lucide-react';
 import { usePage } from '@inertiajs/react';
 import { APIProvider, Map as GoogleMap, AdvancedMarker } from '@vis.gl/react-google-maps';
@@ -73,6 +75,23 @@ export default function FleetMap({ vehicles, onSelectVehicle }) {
             );
         }
 
+        if (mapProvider === 'mapbox') {
+            return (
+                <MapboxMarker
+                    key={vehicle.id}
+                    longitude={parseFloat(vehicle.longitude)}
+                    latitude={parseFloat(vehicle.latitude)}
+                    anchor="bottom"
+                    onClick={e => {
+                        e.originalEvent.stopPropagation();
+                        onSelectVehicle(vehicle);
+                    }}
+                >
+                    {markerContent}
+                </MapboxMarker>
+            );
+        }
+
         return (
             <MapLibreMarker
                 key={vehicle.id}
@@ -139,19 +158,35 @@ export default function FleetMap({ vehicles, onSelectVehicle }) {
                             zoom: ev.detail.zoom
                         })}
                         disableDefaultUI={true}
+                        style={{ width: '100%', height: '100%' }}
                     >
                         {filteredVehicles.map(vehicle =>
                             renderDriverMarker(vehicle, true)
                         )}
                     </GoogleMap>
                 </APIProvider>
+            ) : mapProvider === 'mapbox' ? (
+                <MapboxMap
+                    {...viewState}
+                    onMove={evt => setViewState(evt.viewState)}
+                    mapStyle="mapbox://styles/mapbox/dark-v11"
+                    mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
+                    style={{ width: '100%', height: '100%' }}
+                >
+                    <MapboxNavigationControl position="bottom-right" />
+
+                    {filteredVehicles.map(vehicle =>
+                        renderDriverMarker(vehicle, false)
+                    )}
+                </MapboxMap>
             ) : (
                 <MapLibreMap
                     {...viewState}
                     onMove={evt => setViewState(evt.viewState)}
                     mapStyle="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
+                    style={{ width: '100%', height: '100%' }}
                 >
-                    <NavigationControl position="bottom-right" />
+                    <MapLibreNavigationControl position="bottom-right" />
 
                     {filteredVehicles.map(vehicle =>
                         renderDriverMarker(vehicle, false)

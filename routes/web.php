@@ -113,7 +113,7 @@ Route::put('/dashboard/users/{user}', [\App\Http\Controllers\DashboardController
     ->middleware(['auth', 'verified'])
     ->name('dashboard.users.update');
 
-Route::get('/dashboard/fleet/locations', [\App\Http\Controllers\Api\TelematicsController::class, 'latestLocations'])
+Route::get('/dashboard/fleet/locations', [\App\Domains\Telematics\Controllers\TelematicsController::class, 'latestLocations'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.fleet.locations');
 
@@ -139,6 +139,20 @@ Route::middleware('auth')->group(function () {
     Route::post('/settings', [ProfileController::class, 'updateSettings'])
         ->middleware('role:superadmin,admin,manager')
         ->name('settings.update');
+
+    // 2FA Management Routes
+    Route::post('/user/two-factor-authentication', [\App\Domains\Identity\Controllers\TwoFactorController::class, 'enable'])
+        ->name('two-factor.enable');
+    Route::post('/user/confirmed-two-factor-authentication', [\App\Domains\Identity\Controllers\TwoFactorController::class, 'confirm'])
+        ->name('two-factor.confirm');
+    Route::delete('/user/two-factor-authentication', [\App\Domains\Identity\Controllers\TwoFactorController::class, 'disable'])
+        ->name('two-factor.disable');
 });
+
+// 2FA Challenge Routes (Guest or Partial Login)
+Route::get('/two-factor-challenge', [\App\Domains\Identity\Controllers\TwoFactorController::class, 'challenge'])
+    ->name('two-factor.challenge');
+Route::post('/two-factor-challenge', [\App\Domains\Identity\Controllers\TwoFactorController::class, 'verify'])
+    ->name('two-factor.verify');
 
 require __DIR__ . '/auth.php';
