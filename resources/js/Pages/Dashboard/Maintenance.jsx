@@ -26,9 +26,8 @@ export default function Maintenance({ maintenances, vehicles, userRole }) {
         vehicle_location: '',
         handled_by: '',
         supervised_by: '',
-        company: '',
         vehicle_user: '',
-        cost: '',
+        vendors: [{ vendor_name: '', vendor_price: '', additional_comments: '' }],
         date: new Date().toISOString().split('T')[0],
     });
 
@@ -98,7 +97,7 @@ export default function Maintenance({ maintenances, vehicles, userRole }) {
         vehicle_location: log.vehicle_location || '',
         handled_by: log.handled_by || '',
         supervised_by: log.supervised_by || '',
-        company: log.company || '',
+        company: log.vendors && log.vendors.length > 0 ? log.vendors.map(v => v.vendor_name).join(', ') : '',
         vehicle_user: log.vehicle_user || '',
         cost: log.cost,
         date: new Date(log.date).toLocaleDateString(),
@@ -187,10 +186,10 @@ export default function Maintenance({ maintenances, vehicles, userRole }) {
                                                 {!log.vehicle_location && !log.vehicle_user && <span className="text-gray-600">-</span>}
                                             </td>
                                             <td className="p-4 text-gray-300 text-sm max-w-[150px]">
-                                                {log.company && <div className="font-medium text-white truncate mb-1">{log.company}</div>}
+                                                {log.vendors && log.vendors.length > 0 && <div className="font-medium text-white truncate mb-1">{log.vendors[0].vendor_name} {log.vendors.length > 1 && <span className="text-gray-500 text-xs">(+{log.vendors.length - 1})</span>}</div>}
                                                 {log.handled_by && <div className="truncate"><span className="text-gray-500 text-xs uppercase tracking-wider">By:</span> {log.handled_by}</div>}
                                                 {log.supervised_by && <div className="truncate"><span className="text-gray-500 text-xs uppercase tracking-wider">Sup:</span> {log.supervised_by}</div>}
-                                                {!log.company && !log.handled_by && !log.supervised_by && <span className="text-gray-600">-</span>}
+                                                {(!log.vendors || log.vendors.length === 0) && !log.handled_by && !log.supervised_by && <span className="text-gray-600">-</span>}
                                             </td>
                                             <td className="p-4 text-emerald-400 font-mono flex items-center gap-1">
                                                 <span className="font-semibold text-sm">₦</span>
@@ -305,9 +304,23 @@ export default function Maintenance({ maintenances, vehicles, userRole }) {
                                                         </div>
                                                         <div className="space-y-4">
                                                             <div>
-                                                                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Personnel Details</h4>
+                                                                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Personnel & Vendors</h4>
                                                                 <div className="text-gray-300 text-sm">
-                                                                    <div className="mb-1"><span className="text-gray-500">Company/Vendor:</span> {log.company || '-'}</div>
+                                                                    {log.vendors && log.vendors.length > 0 ? (
+                                                                        <div className="mb-2 space-y-2">
+                                                                            {log.vendors.map((vendor, idx) => (
+                                                                                <div key={idx} className="bg-black/20 p-2 rounded border border-white/5">
+                                                                                    <div className="flex justify-between items-start">
+                                                                                        <span className="font-medium text-white">{vendor.vendor_name}</span>
+                                                                                        <span className="text-emerald-400 font-mono text-xs">₦{Number(vendor.vendor_price).toLocaleString()}</span>
+                                                                                    </div>
+                                                                                    {vendor.additional_comments && <div className="text-xs text-gray-400 mt-1 italic">{vendor.additional_comments}</div>}
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="mb-1"><span className="text-gray-500">Vendors:</span> -</div>
+                                                                    )}
                                                                     <div className="mb-1"><span className="text-gray-500">Handled By:</span> {log.handled_by || '-'}</div>
                                                                     <div><span className="text-gray-500">Supervised By:</span> {log.supervised_by || '-'}</div>
                                                                 </div>
@@ -458,30 +471,90 @@ export default function Maintenance({ maintenances, vehicles, userRole }) {
                                     </div>
                                 </div>
                                 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-300 mb-1">Company / Vendor</label>
-                                    <input
-                                        type="text"
-                                        value={data.company}
-                                        onChange={e => setData('company', e.target.value)}
-                                        className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue outline-none"
-                                        placeholder="Mechanic shop or vendor name"
-                                    />
+                                <div className="border-t border-white/10 pt-4 mt-2">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h3 className="text-sm font-semibold text-white">Vendors</h3>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => setData('vendors', [...data.vendors, { vendor_name: '', vendor_price: '', additional_comments: '' }])}
+                                            className="text-electric-blue hover:text-sky-400 text-xs flex items-center gap-1 font-medium transition-colors"
+                                        >
+                                            <Plus className="w-3 h-3" /> Add Vendor
+                                        </button>
+                                    </div>
+                                    <div className="space-y-4">
+                                        {data.vendors.map((vendor, index) => (
+                                            <div key={index} className="bg-black/20 p-4 rounded-lg border border-white/5 relative">
+                                                {data.vendors.length > 1 && (
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={() => setData('vendors', data.vendors.filter((_, i) => i !== index))}
+                                                        className="absolute top-2 right-2 text-gray-500 hover:text-rose-400 transition-colors"
+                                                    >
+                                                        <X className="w-4 h-4" />
+                                                    </button>
+                                                )}
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-gray-400 mb-1">Vendor Name *</label>
+                                                        <input
+                                                            type="text"
+                                                            value={vendor.vendor_name}
+                                                            onChange={e => {
+                                                                const newVendors = [...data.vendors];
+                                                                newVendors[index].vendor_name = e.target.value;
+                                                                setData('vendors', newVendors);
+                                                            }}
+                                                            className="w-full bg-black/30 border border-white/10 rounded-md p-2 text-sm text-white focus:border-electric-blue outline-none"
+                                                            placeholder="Mechanic shop or vendor name"
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-gray-400 mb-1">Cost (₦) *</label>
+                                                        <input
+                                                            type="number"
+                                                            step="0.01"
+                                                            value={vendor.vendor_price}
+                                                            onChange={e => {
+                                                                const newVendors = [...data.vendors];
+                                                                newVendors[index].vendor_price = e.target.value;
+                                                                setData('vendors', newVendors);
+                                                            }}
+                                                            className="w-full bg-black/30 border border-white/10 rounded-md p-2 text-sm text-white focus:border-electric-blue outline-none"
+                                                            placeholder="150.00"
+                                                            required
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-medium text-gray-400 mb-1">Additional Comments</label>
+                                                    <input
+                                                        type="text"
+                                                        value={vendor.additional_comments}
+                                                        onChange={e => {
+                                                            const newVendors = [...data.vendors];
+                                                            newVendors[index].additional_comments = e.target.value;
+                                                            setData('vendors', newVendors);
+                                                        }}
+                                                        className="w-full bg-black/30 border border-white/10 rounded-md p-2 text-sm text-white focus:border-electric-blue outline-none"
+                                                        placeholder="Any specific notes for this vendor..."
+                                                    />
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {errors.vendors && <div className="text-rose-400 text-xs">{errors.vendors}</div>}
+                                    </div>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-300 mb-1">Cost (₦)</label>
-                                        <input
-                                            type="number"
-                                            step="0.01"
-                                            value={data.cost}
-                                            onChange={e => setData('cost', e.target.value)}
-                                            className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none"
-                                            placeholder="150.00"
-                                            required
-                                        />
-                                        {errors.cost && <div className="text-rose-400 text-xs mt-1">{errors.cost}</div>}
+                                        <div className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-lg">
+                                            <div className="text-xs text-emerald-400/80 uppercase font-semibold tracking-wider mb-1">Total Cost (Auto-calculated)</div>
+                                            <div className="text-emerald-400 font-mono font-bold text-lg">
+                                                ₦ {data.vendors.reduce((sum, v) => sum + (Number(v.vendor_price) || 0), 0).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </div>
+                                        </div>
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-300 mb-1">Date</label>

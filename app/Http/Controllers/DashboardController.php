@@ -304,7 +304,7 @@ class DashboardController extends Controller
     public function maintenances()
     {
         $user = auth()->user();
-        $query = \App\Domains\Maintenance\Models\Maintenance::with(['vehicle', 'assignedTo'])->latest();
+        $query = \App\Domains\Maintenance\Models\Maintenance::with(['vehicle', 'assignedTo', 'vendors'])->latest();
 
         // Both admin and superadmin see ALL records (no cost-based filtering)
 
@@ -336,17 +336,33 @@ class DashboardController extends Controller
             'vehicle_location' => 'nullable|string|max:255',
             'handled_by' => 'nullable|string|max:255',
             'supervised_by' => 'nullable|string|max:255',
-            'company' => 'nullable|string|max:255',
             'vehicle_user' => 'nullable|string|max:255',
-            'cost' => 'required|numeric|min:0',
             'date' => 'required|date',
+            'vendors' => 'required|array|min:1',
+            'vendors.*.vendor_name' => 'required|string|max:255',
+            'vendors.*.vendor_price' => 'required|numeric|min:0',
+            'vendors.*.additional_comments' => 'nullable|string',
         ]);
 
-        $validated['status'] = 'Pending';
-        $validated['assigned_to'] = $this->getAssigneeForCost($validated['cost']);
-        $validated['created_by'] = auth()->id();
+        $totalCost = collect($validated['vendors'])->sum('vendor_price');
 
-        $maintenance = \App\Domains\Maintenance\Models\Maintenance::create($validated);
+        $maintenanceData = $validated;
+        unset($maintenanceData['vendors']);
+        $maintenanceData['cost'] = $totalCost;
+        $maintenanceData['status'] = 'Pending';
+        $maintenanceData['assigned_to'] = $this->getAssigneeForCost($totalCost);
+        $maintenanceData['created_by'] = auth()->id();
+        $maintenanceData['company'] = null; // We can set this to null or just let it be if it's nullable
+
+        $maintenance = \App\Domains\Maintenance\Models\Maintenance::create($maintenanceData);
+
+        foreach ($validated['vendors'] as $vendorData) {
+            $maintenance->vendors()->create([
+                'vendor_name' => $vendorData['vendor_name'],
+                'vendor_price' => $vendorData['vendor_price'],
+                'additional_comments' => $vendorData['additional_comments'],
+            ]);
+        }
 
         if ($maintenance->assignedTo) {
             $maintenance->assignedTo->notify(new \App\Notifications\RequestSubmitted($maintenance, 'Maintenance'));
@@ -824,7 +840,9 @@ class DashboardController extends Controller
 
             $cost = $findField(['amount', 'amount_n', 'cost']) ?? 0;
 
-            \App\Domains\Maintenance\Models\Maintenance::create([
+            $parsedCost = is_numeric($cost) ? $cost : (float) preg_replace('/[^0-9.]/', '', $cost);
+
+            $maintenance = \App\Domains\Maintenance\Models\Maintenance::create([
                 'vehicle_id' => $vehicle->id,
                 'type' => $findField(['type']) ?? 'Regular Servicing',
                 'service_type' => $findField(['service_type']) ?? 'General Service',
@@ -833,13 +851,21 @@ class DashboardController extends Controller
                 'vehicle_location' => $findField(['vehicle_location', 'location']),
                 'handled_by' => $findField(['handled_by']),
                 'supervised_by' => $findField(['supervised_by']),
-                'company' => $findField(['company']),
                 'vehicle_user' => $findField(['vehicle_user']),
-                'cost' => is_numeric($cost) ? $cost : (float) preg_replace('/[^0-9.]/', '', $cost),
+                'cost' => $parsedCost,
                 'date' => $findField(['date']) ?? now()->format('Y-m-d'),
                 'status' => 'Pending',
-                'assigned_to' => $this->getAssigneeForCost($cost),
+                'assigned_to' => $this->getAssigneeForCost($parsedCost),
             ]);
+
+            $companyName = $findField(['company']);
+            if ($companyName) {
+                $maintenance->vendors()->create([
+                    'vendor_name' => $companyName,
+                    'vendor_price' => $parsedCost,
+                    'additional_comments' => null,
+                ]);
+            }
         }
 
         return back();
