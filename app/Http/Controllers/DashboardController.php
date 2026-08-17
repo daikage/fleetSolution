@@ -8,6 +8,7 @@ use App\Domains\Identity\Models\User;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\MaintenanceRequestDecision;
 use App\Mail\FuelRequestDecision;
+use App\Mail\InvoiceForwarded;
 use App\Notifications\ReviewRequestForwarded;
 
 class DashboardController extends Controller
@@ -16,6 +17,10 @@ class DashboardController extends Controller
     {
         if (auth()->user()->role === 'driver') {
             return redirect()->route('dashboard.maintenance');
+        }
+
+        if (auth()->user()->role === 'accountant') {
+            return redirect()->route('dashboard.approval-desk');
         }
 
         // Get all vehicles with their latest location and active trip driver
@@ -1049,7 +1054,7 @@ class DashboardController extends Controller
         }
 
         $request->validate([
-            'role' => 'required|in:admin,superadmin,manager,driver',
+            'role' => 'required|in:admin,superadmin,manager,driver,accountant',
         ]);
 
         $user->update([
@@ -1105,7 +1110,7 @@ class DashboardController extends Controller
 
     public function financialReports()
     {
-        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin'])) {
+        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin', 'accountant'])) {
             abort(403, 'Unauthorized access.');
         }
 
@@ -1133,5 +1138,81 @@ class DashboardController extends Controller
             'month' => $month,
             'view_mode' => $viewMode,
         ]);
+    }
+
+    public function approvalDesk()
+    {
+        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin', 'accountant'])) {
+            abort(403, 'Unauthorized access.');
+        }
+
+        $maintenances = \App\Domains\Maintenance\Models\Maintenance::with(['vehicle', 'assignedTo', 'createdBy', 'vendors'])
+            ->latest()
+            ->get();
+
+        $fuelLogs = \App\Domains\Telematics\Models\FuelLog::with(['vehicle', 'driver.user', 'assignedTo'])
+            ->latest()
+            ->get();
+
+        // Summary counts
+        $summary = [
+            'total_maintenance' => $maintenances->count(),
+            'total_fuel' => $fuelLogs->count(),
+            'pending' => $maintenances->where('status', 'Pending')->count() + $fuelLogs->where('status', 'Pending')->count(),
+            'accepted' => $maintenances->where('status', 'Accepted')->count() + $fuelLogs->where('status', 'Accepted')->count(),
+            'rejected' => $maintenances->where('status', 'Rejected')->count() + $fuelLogs->where('status', 'Rejected')->count(),
+            'under_review' => $maintenances->where('status', 'Under Review')->count() + $fuelLogs->where('status', 'Under Review')->count(),
+            'total_maintenance_cost' => $maintenances->where('status', 'Accepted')->sum('cost'),
+            'total_fuel_cost' => $fuelLogs->where('status', 'Accepted')->sum('cost'),
+        ];
+
+        return Inertia::render('Dashboard/ApprovalDesk', [
+            'maintenances' => $maintenances,
+            'fuelLogs' => $fuelLogs,
+            'summary' => $summary,
+            'userRole' => auth()->user()->role,
+        ]);
+    }
+
+    public function sendInvoiceEmail(\Illuminate\Http\Request $request, string $type, int $id)
+    {
+        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin', 'accountant'])) {
+            abort(403, 'Unauthorized access.');
+        }
+
+        if ($type === 'maintenance') {
+            $record = \App\Domains\Maintenance\Models\Maintenance::with(['vehicle', 'vendors'])->findOrFail($id);
+            $recordType = 'Maintenance';
+        } elseif ($type === 'fuel') {
+            $record = \App\Domains\Telematics\Models\FuelLog::with(['vehicle', 'driver.user'])->findOrFail($id);
+            $recordType = 'Fuel';
+        } else {
+            abort(400, 'Invalid request type.');
+        }
+
+        $senderName = auth()->user()->name;
+
+        // Gather all recipients: managers, admins, superadmins
+        $recipients = User::whereIn('role', ['manager', 'admin', 'superadmin', 'super_admin'])->get();
+
+        if ($recipients->isEmpty()) {
+            return back()->with('error', 'No managers or administrators found to send to.');
+        }
+
+        // Send to the first recipient, CC the rest
+        $primaryRecipient = $recipients->first();
+        $ccRecipients = $recipients->skip(1)->pluck('email')->toArray();
+
+        // Also CC the accountant who is sending
+        $ccRecipients[] = auth()->user()->email;
+
+        $mail = Mail::to($primaryRecipient->email);
+        if (!empty($ccRecipients)) {
+            $mail->cc($ccRecipients);
+        }
+
+        $mail->send(new InvoiceForwarded($record, $recordType, $senderName));
+
+        return back()->with('success', "Invoice for {$recordType} Request #{$id} has been sent successfully.");
     }
 }

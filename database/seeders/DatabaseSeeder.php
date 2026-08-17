@@ -26,6 +26,17 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
+        // Create an Accountant User
+        User::updateOrCreate(
+            ['email' => 'accountant@fleet.com'],
+            [
+                'name' => 'Finance Accountant',
+                'password' => bcrypt('password'),
+                'role' => 'accountant',
+                'email_verified_at' => now(),
+            ]
+        );
+
         // Create a test Vehicle
         \App\Domains\Fleet\Models\Vehicle::updateOrCreate(
             ['vin' => '1FTBR1ZC1PKA12345'],

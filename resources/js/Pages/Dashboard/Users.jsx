@@ -16,6 +16,8 @@ export default function Users({ users }) {
                 return 'bg-amber-500/20 text-amber-400 border border-amber-500/30';
             case 'driver':
                 return 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+            case 'accountant':
+                return 'bg-teal-500/20 text-teal-400 border border-teal-500/30';
             default:
                 return 'bg-gray-500/20 text-gray-400 border border-gray-500/30';
         }
@@ -108,6 +110,7 @@ export default function Users({ users }) {
                                                                         <option value="superadmin">Super Admin</option>
                                                                         <option value="manager">Manager</option>
                                                                         <option value="driver">Driver</option>
+                                                                        <option value="accountant">Accountant</option>
                                                                     </select>
                                                                 </div>
 

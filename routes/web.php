@@ -106,6 +106,13 @@ Route::get('/dashboard/financial-reports', [\App\Http\Controllers\DashboardContr
     ->middleware(['auth', 'verified'])
     ->name('dashboard.financial-reports');
 
+Route::get('/dashboard/approval-desk', [\App\Http\Controllers\DashboardController::class, 'approvalDesk'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.approval-desk');
+Route::post('/dashboard/approval-desk/{type}/{id}/send-invoice', [\App\Http\Controllers\DashboardController::class, 'sendInvoiceEmail'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.approval-desk.send-invoice');
+
 Route::get('/dashboard/users', [\App\Http\Controllers\DashboardController::class, 'users'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.users');
