@@ -81,6 +81,9 @@ Route::post('/dashboard/compliance', [\App\Http\Controllers\DashboardController:
 Route::post('/dashboard/compliance/import', [\App\Http\Controllers\DashboardController::class, 'importCompliance'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.compliance.import');
+Route::post('/dashboard/compliance/{document}/action', [\App\Http\Controllers\DashboardController::class, 'actionCompliance'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.compliance.action');
 
 Route::get('/dashboard/drivers', [\App\Http\Controllers\DashboardController::class, 'drivers'])
     ->middleware(['auth', 'verified'])
