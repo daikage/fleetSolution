@@ -127,14 +127,14 @@ export default function DashboardLayout({ children }) {
             </AnimatePresence>
 
             {/* Desktop Sidebar Navigation */}
-            <nav className="w-20 lg:w-64 z-40 glass-panel m-4 flex flex-col justify-between hidden md:flex">
-                <div className="p-4 flex flex-col items-center lg:items-start gap-8">
-                    <Link href={route('dashboard')} className="text-electric-blue font-bold text-xl lg:text-2xl mt-4 flex items-center gap-2">
+            <nav className="w-20 lg:w-64 z-40 glass-panel m-4 flex flex-col justify-between hidden md:flex overflow-hidden">
+                <div className="p-4 flex flex-col items-center lg:items-start overflow-y-auto flex-1">
+                    <Link href={route('dashboard')} className="text-electric-blue font-bold text-xl lg:text-2xl mt-2 mb-6 shrink-0 flex items-center gap-2">
                         <span className="hidden lg:inline">FKG.Fleet</span>
                         <MapIcon className="lg:hidden w-8 h-8" />
                     </Link>
 
-                    <ul className="flex flex-col gap-6 w-full mt-8">
+                    <ul className="flex flex-col gap-2 w-full">
                         {!['driver', 'accountant'].includes(userRole) && <NavItem href={route('dashboard')} icon={<MapIcon />} label="Live Map" active={url === '/dashboard'} />}
                         {!['driver', 'accountant'].includes(userRole) && <NavItem href={route('dashboard.vehicles')} icon={<Car />} label="Vehicles" active={url.startsWith('/dashboard/vehicles')} />}
                         {!['driver', 'accountant'].includes(userRole) && <NavItem href={route('dashboard.drivers')} icon={<Users />} label="Drivers" active={url.startsWith('/dashboard/drivers')} />}
