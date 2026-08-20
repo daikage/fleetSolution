@@ -4,8 +4,6 @@ namespace App\Domains\Maintenance\Models;
 
 use App\Domains\Fleet\Models\Vehicle;
 use App\Domains\Identity\Models\User;
-
-
 use Illuminate\Database\Eloquent\Model;
 
 class Maintenance extends Model
@@ -32,5 +30,10 @@ class Maintenance extends Model
     public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function vendors()
+    {
+        return $this->hasMany(MaintenanceVendor::class);
     }
 }

@@ -81,6 +81,9 @@ Route::post('/dashboard/compliance', [\App\Http\Controllers\DashboardController:
 Route::post('/dashboard/compliance/import', [\App\Http\Controllers\DashboardController::class, 'importCompliance'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.compliance.import');
+Route::post('/dashboard/compliance/{document}/action', [\App\Http\Controllers\DashboardController::class, 'actionCompliance'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.compliance.action');
 
 Route::get('/dashboard/drivers', [\App\Http\Controllers\DashboardController::class, 'drivers'])
     ->middleware(['auth', 'verified'])
@@ -105,6 +108,13 @@ Route::get('/dashboard/reports', [\App\Http\Controllers\DashboardController::cla
 Route::get('/dashboard/financial-reports', [\App\Http\Controllers\DashboardController::class, 'financialReports'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.financial-reports');
+
+Route::get('/dashboard/approval-desk', [\App\Http\Controllers\DashboardController::class, 'approvalDesk'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.approval-desk');
+Route::post('/dashboard/approval-desk/{type}/{id}/send-invoice', [\App\Http\Controllers\DashboardController::class, 'sendInvoiceEmail'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.approval-desk.send-invoice');
 
 Route::get('/dashboard/users', [\App\Http\Controllers\DashboardController::class, 'users'])
     ->middleware(['auth', 'verified'])

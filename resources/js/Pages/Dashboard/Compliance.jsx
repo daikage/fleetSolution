@@ -1,18 +1,23 @@
 import { useState } from 'react';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, usePage, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import BulkImportModal from '@/Components/BulkImportModal';
-import { Plus, X, FileText, Calendar, AlertTriangle } from 'lucide-react';
+import { Plus, X, FileText, Calendar, AlertTriangle, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ExportButtons from '@/Components/ExportButtons';
 
-export default function Compliance({ documents, vehicles, drivers }) {
+export default function Compliance({ documents, vehicles, drivers, missingDocuments = [] }) {
+    const { props } = usePage();
+    const userRole = props.auth?.user?.role || '';
+    
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const { data, setData, post, processing, errors, reset } = useForm({
         documentable_type: 'vehicle',
         documentable_id: '',
         document_type: '',
+        reference_number: '',
+        issuing_authority: '',
         expiry_date: '',
         url: '',
         document_file: null,
@@ -32,6 +37,8 @@ export default function Compliance({ documents, vehicles, drivers }) {
         { header: 'Entity', key: 'entity_name' },
         { header: 'Type', key: 'entity_type' },
         { header: 'Document Type', key: 'document_type' },
+        { header: 'Ref Number', key: 'reference_number' },
+        { header: 'Issuer', key: 'issuing_authority' },
         { header: 'Expiry Date', key: 'expiry_date' },
         { header: 'Status', key: 'status' }
     ];
@@ -42,10 +49,32 @@ export default function Compliance({ documents, vehicles, drivers }) {
             entity_name: doc.entity_name,
             entity_type: doc.documentable_type.includes('Vehicle') ? 'Vehicle' : 'Driver',
             document_type: doc.document_type,
+            reference_number: doc.reference_number || 'N/A',
+            issuing_authority: doc.issuing_authority || 'N/A',
             expiry_date: doc.expiry_date ? new Date(doc.expiry_date).toLocaleDateString() : 'N/A',
-            status: isExpired ? 'Expired' : 'Valid'
+            status: doc.status === 'Verified' ? (isExpired ? 'Expired' : 'Valid') : doc.status
         };
     });
+
+    const handleAction = (documentId, action) => {
+        router.post(route('dashboard.compliance.action', documentId), { action }, {
+            preserveScroll: true
+        });
+    };
+
+    const openRenewModal = (doc) => {
+        setData({
+            documentable_type: doc.documentable_type.includes('Vehicle') ? 'vehicle' : 'driver',
+            documentable_id: doc.documentable_id,
+            document_type: doc.document_type,
+            reference_number: '',
+            issuing_authority: '',
+            expiry_date: '',
+            url: '',
+            document_file: null,
+        });
+        setIsModalOpen(true);
+    };
 
     return (
         <DashboardLayout>
@@ -76,6 +105,24 @@ export default function Compliance({ documents, vehicles, drivers }) {
                     </div>
                 </div>
 
+                {missingDocuments.length > 0 && (
+                    <div className="mb-8">
+                        <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 md:p-6 shadow-lg shadow-rose-500/5">
+                            <h2 className="text-lg font-bold text-rose-400 flex items-center gap-2 mb-4">
+                                <AlertTriangle className="w-5 h-5" /> Missing Mandatory Documents
+                            </h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {missingDocuments.map((missing, idx) => (
+                                    <div key={idx} className="bg-black/20 rounded-lg p-3 border border-rose-500/10">
+                                        <div className="font-semibold text-white mb-1">{missing.entity_name} <span className="text-xs text-gray-500 font-normal">({missing.entity_type})</span></div>
+                                        <div className="text-sm text-gray-400">Missing: <span className="text-rose-300 font-medium">{missing.missing.join(', ')}</span></div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <div className="glass-panel overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
@@ -83,8 +130,10 @@ export default function Compliance({ documents, vehicles, drivers }) {
                                 <tr className="border-b border-white/10 bg-black/20">
                                     <th className="p-4 text-sm font-semibold text-gray-300">Entity</th>
                                     <th className="p-4 text-sm font-semibold text-gray-300">Document Type</th>
+                                    <th className="p-4 text-sm font-semibold text-gray-300">Details</th>
                                     <th className="p-4 text-sm font-semibold text-gray-300">Expiry Date</th>
                                     <th className="p-4 text-sm font-semibold text-gray-300">Status</th>
+                                    <th className="p-4 text-sm font-semibold text-gray-300">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -106,20 +155,50 @@ export default function Compliance({ documents, vehicles, drivers }) {
                                                     doc.document_type
                                                 )}
                                             </td>
+                                            <td className="p-4">
+                                                {doc.reference_number && <div className="text-sm text-gray-300">Ref: {doc.reference_number}</div>}
+                                                {doc.issuing_authority && <div className="text-xs text-gray-500">Issuer: {doc.issuing_authority}</div>}
+                                                {!doc.reference_number && !doc.issuing_authority && <span className="text-gray-600">-</span>}
+                                            </td>
                                             <td className="p-4 text-gray-300 flex items-center gap-2">
                                                 <Calendar className="w-4 h-4 text-gray-500" />
                                                 {doc.expiry_date ? new Date(doc.expiry_date).toLocaleDateString() : 'N/A'}
                                             </td>
                                             <td className="p-4">
-                                                {isExpired ? (
+                                                {doc.status === 'Pending Verification' ? (
+                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                                        Pending
+                                                    </span>
+                                                ) : doc.status === 'Rejected' ? (
+                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">
+                                                        <XCircle className="w-3.5 h-3.5" /> Rejected
+                                                    </span>
+                                                ) : isExpired ? (
                                                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">
                                                         <AlertTriangle className="w-3.5 h-3.5" /> Expired
                                                     </span>
                                                 ) : (
-                                                    <span className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                                        Valid
+                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                                        <CheckCircle className="w-3.5 h-3.5" /> Valid
                                                     </span>
                                                 )}
+                                            </td>
+                                            <td className="p-4">
+                                                <div className="flex gap-2">
+                                                    {doc.status === 'Pending Verification' && ['admin', 'superadmin', 'super_admin'].includes(userRole) && (
+                                                        <>
+                                                            <button onClick={() => handleAction(doc.id, 'verify')} className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors" title="Verify">
+                                                                <CheckCircle className="w-4 h-4" />
+                                                            </button>
+                                                            <button onClick={() => handleAction(doc.id, 'reject')} className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-colors" title="Reject">
+                                                                <XCircle className="w-4 h-4" />
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                    <button onClick={() => openRenewModal(doc)} className="p-1.5 rounded-lg bg-electric-blue/10 text-electric-blue hover:bg-electric-blue/20 transition-colors" title="Renew Document">
+                                                        <RefreshCw className="w-4 h-4" />
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     );
@@ -206,6 +285,29 @@ export default function Compliance({ documents, vehicles, drivers }) {
                                         accept=".pdf,.jpg,.jpeg,.png"
                                     />
                                     {errors.document_file && <div className="text-rose-400 text-xs mt-1">{errors.document_file}</div>}
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Reference Number (Optional)</label>
+                                        <input
+                                            type="text"
+                                            value={data.reference_number}
+                                            onChange={e => setData('reference_number', e.target.value)}
+                                            className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue outline-none"
+                                            placeholder="e.g. License ID"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Issuing Authority (Optional)</label>
+                                        <input
+                                            type="text"
+                                            value={data.issuing_authority}
+                                            onChange={e => setData('issuing_authority', e.target.value)}
+                                            className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue outline-none"
+                                            placeholder="e.g. FRSC, NYDMV"
+                                        />
+                                    </div>
                                 </div>
 
                                 <div>

@@ -8,6 +8,7 @@ use App\Domains\Identity\Models\User;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\MaintenanceRequestDecision;
 use App\Mail\FuelRequestDecision;
+use App\Mail\InvoiceForwarded;
 use App\Notifications\ReviewRequestForwarded;
 
 class DashboardController extends Controller
@@ -16,6 +17,10 @@ class DashboardController extends Controller
     {
         if (auth()->user()->role === 'driver') {
             return redirect()->route('dashboard.maintenance');
+        }
+
+        if (auth()->user()->role === 'accountant') {
+            return redirect()->route('dashboard.approval-desk');
         }
 
         // Get all vehicles with their latest location and active trip driver
@@ -231,6 +236,37 @@ class DashboardController extends Controller
             'start_location' => 'nullable|string|max:255',
         ]);
 
+        // Compliance checks
+        $vehicle = \App\Domains\Fleet\Models\Vehicle::find($validated['vehicle_id']);
+        $driver = \App\Domains\Driver\Models\Driver::find($validated['driver_id']);
+
+        $mandatoryVehicles = config('compliance.vehicle', []);
+        $mandatoryDrivers = config('compliance.driver', []);
+
+        foreach ($mandatoryVehicles as $docType) {
+            $hasValid = $vehicle->documents()->where('document_type', $docType)->where('is_archived', false)->where('status', 'Verified')->where(function($q) {
+                $q->whereNull('expiry_date')->orWhere('expiry_date', '>', now());
+            })->exists();
+
+            if (!$hasValid) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'vehicle_id' => "Vehicle is missing a valid/verified {$docType}."
+                ]);
+            }
+        }
+
+        foreach ($mandatoryDrivers as $docType) {
+            $hasValid = $driver->documents()->where('document_type', $docType)->where('is_archived', false)->where('status', 'Verified')->where(function($q) {
+                $q->whereNull('expiry_date')->orWhere('expiry_date', '>', now());
+            })->exists();
+
+            if (!$hasValid) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'driver_id' => "Driver is missing a valid/verified {$docType}."
+                ]);
+            }
+        }
+
         \App\Domains\Driver\Models\Trip::create([
             'vehicle_id' => $validated['vehicle_id'],
             'driver_id' => $validated['driver_id'],
@@ -304,7 +340,7 @@ class DashboardController extends Controller
     public function maintenances()
     {
         $user = auth()->user();
-        $query = \App\Domains\Maintenance\Models\Maintenance::with(['vehicle', 'assignedTo'])->latest();
+        $query = \App\Domains\Maintenance\Models\Maintenance::with(['vehicle', 'assignedTo', 'vendors'])->latest();
 
         // Both admin and superadmin see ALL records (no cost-based filtering)
 
@@ -336,17 +372,33 @@ class DashboardController extends Controller
             'vehicle_location' => 'nullable|string|max:255',
             'handled_by' => 'nullable|string|max:255',
             'supervised_by' => 'nullable|string|max:255',
-            'company' => 'nullable|string|max:255',
             'vehicle_user' => 'nullable|string|max:255',
-            'cost' => 'required|numeric|min:0',
             'date' => 'required|date',
+            'vendors' => 'required|array|min:1',
+            'vendors.*.vendor_name' => 'required|string|max:255',
+            'vendors.*.vendor_price' => 'required|numeric|min:0',
+            'vendors.*.additional_comments' => 'nullable|string',
         ]);
 
-        $validated['status'] = 'Pending';
-        $validated['assigned_to'] = $this->getAssigneeForCost($validated['cost']);
-        $validated['created_by'] = auth()->id();
+        $totalCost = collect($validated['vendors'])->sum('vendor_price');
 
-        $maintenance = \App\Domains\Maintenance\Models\Maintenance::create($validated);
+        $maintenanceData = $validated;
+        unset($maintenanceData['vendors']);
+        $maintenanceData['cost'] = $totalCost;
+        $maintenanceData['status'] = 'Pending';
+        $maintenanceData['assigned_to'] = $this->getAssigneeForCost($totalCost);
+        $maintenanceData['created_by'] = auth()->id();
+        $maintenanceData['company'] = null; // We can set this to null or just let it be if it's nullable
+
+        $maintenance = \App\Domains\Maintenance\Models\Maintenance::create($maintenanceData);
+
+        foreach ($validated['vendors'] as $vendorData) {
+            $maintenance->vendors()->create([
+                'vendor_name' => $vendorData['vendor_name'],
+                'vendor_price' => $vendorData['vendor_price'],
+                'additional_comments' => $vendorData['additional_comments'],
+            ]);
+        }
 
         if ($maintenance->assignedTo) {
             $maintenance->assignedTo->notify(new \App\Notifications\RequestSubmitted($maintenance, 'Maintenance'));
@@ -399,14 +451,28 @@ class DashboardController extends Controller
             return back();
         }
 
-        // Admin forwarding high-cost request (>₦20,000) to superadmin
+        // Admin forwarding high-cost request (>₦20,000) to superadmin or declining directly
         if ($isAdmin && $needsSuperAdmin && $maintenance->status === 'Pending') {
-            \Log::info('Entering maintenance forwarding block for superadmin review');
+            \Log::info('Entering maintenance high-cost block (forward or decline)');
 
             $validated = $request->validate([
+                'status' => 'nullable|in:Rejected', // 'status' will be empty if submitting for review
                 'reviewer_comment' => 'required|string',
             ]);
 
+            // If the admin is declining it, reject directly and do not forward
+            if (isset($validated['status']) && $validated['status'] === 'Rejected') {
+                $maintenance->update([
+                    'status' => 'Rejected',
+                    'reviewer_comment' => $validated['reviewer_comment'],
+                    'assigned_to' => auth()->id(),
+                ]);
+
+                $this->notifyMaintenanceDecision($maintenance);
+                return back()->with('success', 'Request has been declined.');
+            }
+
+            // Otherwise, forward to superadmin for review
             try {
                 // Find the superadmin to assign to
                 $superadmin = \App\Domains\Identity\Models\User::whereIn('role', ['superadmin', 'super_admin'])->first();
@@ -824,7 +890,9 @@ class DashboardController extends Controller
 
             $cost = $findField(['amount', 'amount_n', 'cost']) ?? 0;
 
-            \App\Domains\Maintenance\Models\Maintenance::create([
+            $parsedCost = is_numeric($cost) ? $cost : (float) preg_replace('/[^0-9.]/', '', $cost);
+
+            $maintenance = \App\Domains\Maintenance\Models\Maintenance::create([
                 'vehicle_id' => $vehicle->id,
                 'type' => $findField(['type']) ?? 'Regular Servicing',
                 'service_type' => $findField(['service_type']) ?? 'General Service',
@@ -833,13 +901,21 @@ class DashboardController extends Controller
                 'vehicle_location' => $findField(['vehicle_location', 'location']),
                 'handled_by' => $findField(['handled_by']),
                 'supervised_by' => $findField(['supervised_by']),
-                'company' => $findField(['company']),
                 'vehicle_user' => $findField(['vehicle_user']),
-                'cost' => is_numeric($cost) ? $cost : (float) preg_replace('/[^0-9.]/', '', $cost),
+                'cost' => $parsedCost,
                 'date' => $findField(['date']) ?? now()->format('Y-m-d'),
                 'status' => 'Pending',
-                'assigned_to' => $this->getAssigneeForCost($cost),
+                'assigned_to' => $this->getAssigneeForCost($parsedCost),
             ]);
+
+            $companyName = $findField(['company']);
+            if ($companyName) {
+                $maintenance->vendors()->create([
+                    'vendor_name' => $companyName,
+                    'vendor_price' => $parsedCost,
+                    'additional_comments' => null,
+                ]);
+            }
         }
 
         return back();
@@ -935,7 +1011,7 @@ class DashboardController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
-        $documents = \App\Domains\Fleet\Models\Document::with('documentable')->latest()->get();
+        $documents = \App\Domains\Fleet\Models\Document::with('documentable')->where('is_archived', false)->latest()->get();
         $vehicles = Vehicle::latest()->get();
         $drivers = \App\Domains\Driver\Models\Driver::with('user')->get();
 
@@ -950,10 +1026,55 @@ class DashboardController extends Controller
             return $doc;
         });
 
+        $mandatoryVehicles = config('compliance.vehicle', []);
+        $mandatoryDrivers = config('compliance.driver', []);
+        $missingDocuments = [];
+
+        foreach ($vehicles as $vehicle) {
+            $vehicleDocs = $documents->where('documentable_type', \App\Domains\Fleet\Models\Vehicle::class)->where('documentable_id', $vehicle->id);
+            $missing = [];
+            foreach ($mandatoryVehicles as $docType) {
+                $hasValid = $vehicleDocs->where('document_type', $docType)->where('status', 'Verified')->filter(function($d) {
+                    return !$d->expiry_date || \Carbon\Carbon::parse($d->expiry_date)->isFuture();
+                })->isNotEmpty();
+                if (!$hasValid) {
+                    $missing[] = $docType;
+                }
+            }
+            if (!empty($missing)) {
+                $missingDocuments[] = [
+                    'entity_type' => 'Vehicle',
+                    'entity_name' => $vehicle->make . ' ' . $vehicle->model . ' (' . $vehicle->license_plate . ')',
+                    'missing' => $missing,
+                ];
+            }
+        }
+
+        foreach ($drivers as $driver) {
+            $driverDocs = $documents->where('documentable_type', \App\Domains\Driver\Models\Driver::class)->where('documentable_id', $driver->id);
+            $missing = [];
+            foreach ($mandatoryDrivers as $docType) {
+                $hasValid = $driverDocs->where('document_type', $docType)->where('status', 'Verified')->filter(function($d) {
+                    return !$d->expiry_date || \Carbon\Carbon::parse($d->expiry_date)->isFuture();
+                })->isNotEmpty();
+                if (!$hasValid) {
+                    $missing[] = $docType;
+                }
+            }
+            if (!empty($missing)) {
+                $missingDocuments[] = [
+                    'entity_type' => 'Driver',
+                    'entity_name' => $driver->user ? $driver->user->name : 'Unknown Driver',
+                    'missing' => $missing,
+                ];
+            }
+        }
+
         return Inertia::render('Dashboard/Compliance', [
             'documents' => $documents,
             'vehicles' => $vehicles,
-            'drivers' => $drivers
+            'drivers' => $drivers,
+            'missingDocuments' => $missingDocuments,
         ]);
     }
 
@@ -963,6 +1084,8 @@ class DashboardController extends Controller
             'documentable_type' => 'required|in:vehicle,driver',
             'documentable_id' => 'required|integer',
             'document_type' => 'required|string|max:255',
+            'reference_number' => 'nullable|string|max:255',
+            'issuing_authority' => 'nullable|string|max:255',
             'expiry_date' => 'nullable|date',
             'url' => 'nullable|string',
             'document_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
@@ -973,21 +1096,55 @@ class DashboardController extends Controller
             'driver' => \App\Domains\Driver\Models\Driver::class,
         ];
 
+        $morphClass = $typeMap[$validated['documentable_type']];
+
+        // Archive previous documents of the same type for this entity
+        \App\Domains\Fleet\Models\Document::where('documentable_type', $morphClass)
+            ->where('documentable_id', $validated['documentable_id'])
+            ->where('document_type', $validated['document_type'])
+            ->update(['is_archived' => true]);
+
         $url = $validated['url'] ?? null;
         if ($request->hasFile('document_file')) {
             $path = $request->file('document_file')->store('documents', 'public');
             $url = '/storage/' . $path;
         }
 
+        $userRole = auth()->user()->role;
+        $isAdmin = in_array($userRole, ['admin', 'superadmin', 'super_admin']);
+
         \App\Domains\Fleet\Models\Document::create([
-            'documentable_type' => $typeMap[$validated['documentable_type']],
+            'documentable_type' => $morphClass,
             'documentable_id' => $validated['documentable_id'],
             'document_type' => $validated['document_type'],
+            'reference_number' => $validated['reference_number'] ?? null,
+            'issuing_authority' => $validated['issuing_authority'] ?? null,
             'expiry_date' => $validated['expiry_date'] ?? null,
             'url' => $url,
+            'status' => $isAdmin ? 'Verified' : 'Pending Verification',
         ]);
 
         return back();
+    }
+
+    public function actionCompliance(\Illuminate\Http\Request $request, \App\Domains\Fleet\Models\Document $document)
+    {
+        $userRole = auth()->user()->role;
+        if (!in_array($userRole, ['admin', 'superadmin', 'super_admin'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $validated = $request->validate([
+            'action' => 'required|in:verify,reject',
+        ]);
+
+        if ($validated['action'] === 'verify') {
+            $document->update(['status' => 'Verified']);
+        } else {
+            $document->update(['status' => 'Rejected']);
+        }
+
+        return back()->with('success', 'Document status updated.');
     }
 
     public function users()
@@ -1009,7 +1166,7 @@ class DashboardController extends Controller
         }
 
         $request->validate([
-            'role' => 'required|in:admin,superadmin,manager,driver',
+            'role' => 'required|in:admin,superadmin,manager,driver,accountant',
         ]);
 
         $user->update([
@@ -1065,7 +1222,7 @@ class DashboardController extends Controller
 
     public function financialReports()
     {
-        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin'])) {
+        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin', 'accountant'])) {
             abort(403, 'Unauthorized access.');
         }
 
@@ -1093,5 +1250,81 @@ class DashboardController extends Controller
             'month' => $month,
             'view_mode' => $viewMode,
         ]);
+    }
+
+    public function approvalDesk()
+    {
+        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin', 'accountant'])) {
+            abort(403, 'Unauthorized access.');
+        }
+
+        $maintenances = \App\Domains\Maintenance\Models\Maintenance::with(['vehicle', 'assignedTo', 'createdBy', 'vendors'])
+            ->latest()
+            ->get();
+
+        $fuelLogs = \App\Domains\Telematics\Models\FuelLog::with(['vehicle', 'driver.user', 'assignedTo'])
+            ->latest()
+            ->get();
+
+        // Summary counts
+        $summary = [
+            'total_maintenance' => $maintenances->count(),
+            'total_fuel' => $fuelLogs->count(),
+            'pending' => $maintenances->where('status', 'Pending')->count() + $fuelLogs->where('status', 'Pending')->count(),
+            'accepted' => $maintenances->where('status', 'Accepted')->count() + $fuelLogs->where('status', 'Accepted')->count(),
+            'rejected' => $maintenances->where('status', 'Rejected')->count() + $fuelLogs->where('status', 'Rejected')->count(),
+            'under_review' => $maintenances->where('status', 'Under Review')->count() + $fuelLogs->where('status', 'Under Review')->count(),
+            'total_maintenance_cost' => $maintenances->where('status', 'Accepted')->sum('cost'),
+            'total_fuel_cost' => $fuelLogs->where('status', 'Accepted')->sum('cost'),
+        ];
+
+        return Inertia::render('Dashboard/ApprovalDesk', [
+            'maintenances' => $maintenances,
+            'fuelLogs' => $fuelLogs,
+            'summary' => $summary,
+            'userRole' => auth()->user()->role,
+        ]);
+    }
+
+    public function sendInvoiceEmail(\Illuminate\Http\Request $request, string $type, int $id)
+    {
+        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin', 'accountant'])) {
+            abort(403, 'Unauthorized access.');
+        }
+
+        if ($type === 'maintenance') {
+            $record = \App\Domains\Maintenance\Models\Maintenance::with(['vehicle', 'vendors'])->findOrFail($id);
+            $recordType = 'Maintenance';
+        } elseif ($type === 'fuel') {
+            $record = \App\Domains\Telematics\Models\FuelLog::with(['vehicle', 'driver.user'])->findOrFail($id);
+            $recordType = 'Fuel';
+        } else {
+            abort(400, 'Invalid request type.');
+        }
+
+        $senderName = auth()->user()->name;
+
+        // Gather all recipients: managers, admins, superadmins
+        $recipients = User::whereIn('role', ['manager', 'admin', 'superadmin', 'super_admin'])->get();
+
+        if ($recipients->isEmpty()) {
+            return back()->with('error', 'No managers or administrators found to send to.');
+        }
+
+        // Send to the first recipient, CC the rest
+        $primaryRecipient = $recipients->first();
+        $ccRecipients = $recipients->skip(1)->pluck('email')->toArray();
+
+        // Also CC the accountant who is sending
+        $ccRecipients[] = auth()->user()->email;
+
+        $mail = Mail::to($primaryRecipient->email);
+        if (!empty($ccRecipients)) {
+            $mail->cc($ccRecipients);
+        }
+
+        $mail->send(new InvoiceForwarded($record, $recordType, $senderName));
+
+        return back()->with('success', "Invoice for {$recordType} Request #{$id} has been sent successfully.");
     }
 }

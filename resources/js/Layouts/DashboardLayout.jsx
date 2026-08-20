@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, usePage } from '@inertiajs/react';
-import { Car, Map as MapIcon, Settings, Users, LogOut, Wrench, Fuel, FileText, Menu, X, Bell, Shield, Route, BarChart3, CheckCircle, AlertTriangle, MessageSquare } from 'lucide-react';
+import { Car, Map as MapIcon, Settings, Users, LogOut, Wrench, Fuel, FileText, Menu, X, Bell, Shield, Route, BarChart3, CheckCircle, AlertTriangle, MessageSquare, ClipboardCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function DashboardLayout({ children }) {
@@ -99,15 +99,16 @@ export default function DashboardLayout({ children }) {
                                 </div>
 
                                 <ul className="flex flex-col gap-2 w-full mt-4">
-                                    {userRole !== 'driver' && <NavItem href={route('dashboard')} icon={<MapIcon />} label="Live Map" active={url === '/dashboard'} onClick={closeMenu} isMobile />}
-                                    {userRole !== 'driver' && <NavItem href={route('dashboard.vehicles')} icon={<Car />} label="Vehicles" active={url.startsWith('/dashboard/vehicles')} onClick={closeMenu} isMobile />}
-                                    {userRole !== 'driver' && <NavItem href={route('dashboard.drivers')} icon={<Users />} label="Drivers" active={url.startsWith('/dashboard/drivers')} onClick={closeMenu} isMobile />}
-                                    <NavItem href={route('dashboard.maintenance')} icon={<Wrench />} label="Maintenance" active={url.startsWith('/dashboard/maintenance')} onClick={closeMenu} isMobile />
-                                    <NavItem href={route('dashboard.fuel')} icon={<Fuel />} label="Fuel" active={url.startsWith('/dashboard/fuel')} onClick={closeMenu} isMobile />
-                                    {userRole !== 'driver' && <NavItem href={route('dashboard.trips')} icon={<Route />} label="Trip History" active={url.startsWith('/dashboard/trips')} onClick={closeMenu} isMobile />}
+                                    {!['driver', 'accountant'].includes(userRole) && <NavItem href={route('dashboard')} icon={<MapIcon />} label="Live Map" active={url === '/dashboard'} onClick={closeMenu} isMobile />}
+                                    {!['driver', 'accountant'].includes(userRole) && <NavItem href={route('dashboard.vehicles')} icon={<Car />} label="Vehicles" active={url.startsWith('/dashboard/vehicles')} onClick={closeMenu} isMobile />}
+                                    {!['driver', 'accountant'].includes(userRole) && <NavItem href={route('dashboard.drivers')} icon={<Users />} label="Drivers" active={url.startsWith('/dashboard/drivers')} onClick={closeMenu} isMobile />}
+                                    {userRole !== 'accountant' && <NavItem href={route('dashboard.maintenance')} icon={<Wrench />} label="Maintenance" active={url.startsWith('/dashboard/maintenance')} onClick={closeMenu} isMobile />}
+                                    {userRole !== 'accountant' && <NavItem href={route('dashboard.fuel')} icon={<Fuel />} label="Fuel" active={url.startsWith('/dashboard/fuel')} onClick={closeMenu} isMobile />}
+                                    {!['driver', 'accountant'].includes(userRole) && <NavItem href={route('dashboard.trips')} icon={<Route />} label="Trip History" active={url.startsWith('/dashboard/trips')} onClick={closeMenu} isMobile />}
                                     {userRole !== 'driver' && <NavItem href={route('dashboard.chat')} icon={<MessageSquare />} label="Chat" active={url.startsWith('/dashboard/chat')} onClick={closeMenu} isMobile />}
-                                    {userRole !== 'driver' && <NavItem href={route('dashboard.compliance')} icon={<FileText />} label="Compliance" active={url.startsWith('/dashboard/compliance')} onClick={closeMenu} isMobile />}
-                                    {['super_admin', 'superadmin', 'admin'].includes(userRole) && <NavItem href={route('dashboard.financial-reports')} icon={<BarChart3 />} label="Financial Reports" active={url.startsWith('/dashboard/financial-reports')} onClick={closeMenu} isMobile />}
+                                    {!['driver', 'accountant'].includes(userRole) && <NavItem href={route('dashboard.compliance')} icon={<FileText />} label="Compliance" active={url.startsWith('/dashboard/compliance')} onClick={closeMenu} isMobile />}
+                                    {['super_admin', 'superadmin', 'admin', 'accountant'].includes(userRole) && <NavItem href={route('dashboard.approval-desk')} icon={<ClipboardCheck />} label="Approval Desk" active={url.startsWith('/dashboard/approval-desk')} onClick={closeMenu} isMobile />}
+                                    {['super_admin', 'superadmin', 'admin', 'accountant'].includes(userRole) && <NavItem href={route('dashboard.financial-reports')} icon={<BarChart3 />} label="Financial Reports" active={url.startsWith('/dashboard/financial-reports')} onClick={closeMenu} isMobile />}
                                     {['super_admin', 'superadmin', 'admin'].includes(userRole) && <NavItem href={route('dashboard.users')} icon={<Shield />} label="Users" active={url.startsWith('/dashboard/users')} onClick={closeMenu} isMobile />}
                                     <NavItem href={route('dashboard.notifications')} icon={<Bell />} label="Notifications" active={url.startsWith('/dashboard/notifications')} onClick={closeMenu} isMobile badge={unreadCount} />
                                     <NavItem href={route('profile.edit')} icon={<Settings />} label="Settings" active={url.startsWith('/profile')} onClick={closeMenu} isMobile />
@@ -127,22 +128,23 @@ export default function DashboardLayout({ children }) {
 
             {/* Desktop Sidebar Navigation */}
             <nav className="w-20 lg:w-64 z-40 glass-panel m-4 flex flex-col justify-between hidden md:flex overflow-hidden">
-                <div className="p-4 flex flex-col items-center lg:items-start gap-4 flex-1 overflow-hidden">
-                    <Link href={route('dashboard')} className="text-electric-blue font-bold text-xl lg:text-2xl mt-4 flex items-center gap-2 shrink-0">
+                <div className="p-4 flex flex-col items-center lg:items-start overflow-y-auto flex-1">
+                    <Link href={route('dashboard')} className="text-electric-blue font-bold text-xl lg:text-2xl mt-2 mb-6 shrink-0 flex items-center gap-2">
                         <span className="hidden lg:inline">FKG.Fleet</span>
                         <MapIcon className="lg:hidden w-8 h-8" />
                     </Link>
 
-                    <ul className="flex flex-col gap-2 w-full mt-4 overflow-y-auto pb-4 hide-scrollbar">
-                        {userRole !== 'driver' && <NavItem href={route('dashboard')} icon={<MapIcon />} label="Live Map" active={url === '/dashboard'} />}
-                        {userRole !== 'driver' && <NavItem href={route('dashboard.vehicles')} icon={<Car />} label="Vehicles" active={url.startsWith('/dashboard/vehicles')} />}
-                        {userRole !== 'driver' && <NavItem href={route('dashboard.drivers')} icon={<Users />} label="Drivers" active={url.startsWith('/dashboard/drivers')} />}
-                        <NavItem href={route('dashboard.maintenance')} icon={<Wrench />} label="Maintenance" active={url.startsWith('/dashboard/maintenance')} />
-                        <NavItem href={route('dashboard.fuel')} icon={<Fuel />} label="Fuel" active={url.startsWith('/dashboard/fuel')} />
-                        {userRole !== 'driver' && <NavItem href={route('dashboard.trips')} icon={<Route />} label="Trip History" active={url.startsWith('/dashboard/trips')} />}
+                    <ul className="flex flex-col gap-2 w-full">
+                        {!['driver', 'accountant'].includes(userRole) && <NavItem href={route('dashboard')} icon={<MapIcon />} label="Live Map" active={url === '/dashboard'} />}
+                        {!['driver', 'accountant'].includes(userRole) && <NavItem href={route('dashboard.vehicles')} icon={<Car />} label="Vehicles" active={url.startsWith('/dashboard/vehicles')} />}
+                        {!['driver', 'accountant'].includes(userRole) && <NavItem href={route('dashboard.drivers')} icon={<Users />} label="Drivers" active={url.startsWith('/dashboard/drivers')} />}
+                        {userRole !== 'accountant' && <NavItem href={route('dashboard.maintenance')} icon={<Wrench />} label="Maintenance" active={url.startsWith('/dashboard/maintenance')} />}
+                        {userRole !== 'accountant' && <NavItem href={route('dashboard.fuel')} icon={<Fuel />} label="Fuel" active={url.startsWith('/dashboard/fuel')} />}
+                        {!['driver', 'accountant'].includes(userRole) && <NavItem href={route('dashboard.trips')} icon={<Route />} label="Trip History" active={url.startsWith('/dashboard/trips')} />}
                         {userRole !== 'driver' && <NavItem href={route('dashboard.chat')} icon={<MessageSquare />} label="Chat" active={url.startsWith('/dashboard/chat')} />}
-                        {userRole !== 'driver' && <NavItem href={route('dashboard.compliance')} icon={<FileText />} label="Compliance" active={url.startsWith('/dashboard/compliance')} />}
-                        {['super_admin', 'superadmin', 'admin'].includes(userRole) && <NavItem href={route('dashboard.financial-reports')} icon={<BarChart3 />} label="Financial Reports" active={url.startsWith('/dashboard/financial-reports')} />}
+                        {!['driver', 'accountant'].includes(userRole) && <NavItem href={route('dashboard.compliance')} icon={<FileText />} label="Compliance" active={url.startsWith('/dashboard/compliance')} />}
+                        {['super_admin', 'superadmin', 'admin', 'accountant'].includes(userRole) && <NavItem href={route('dashboard.approval-desk')} icon={<ClipboardCheck />} label="Approval Desk" active={url.startsWith('/dashboard/approval-desk')} />}
+                        {['super_admin', 'superadmin', 'admin', 'accountant'].includes(userRole) && <NavItem href={route('dashboard.financial-reports')} icon={<BarChart3 />} label="Financial Reports" active={url.startsWith('/dashboard/financial-reports')} />}
                         {['super_admin', 'superadmin', 'admin'].includes(userRole) && <NavItem href={route('dashboard.users')} icon={<Shield />} label="Users" active={url.startsWith('/dashboard/users')} />}
                         <NavItem href={route('dashboard.notifications')} icon={<Bell />} label="Notifications" active={url.startsWith('/dashboard/notifications')} badge={unreadCount} />
                         <NavItem href={route('profile.edit')} icon={<Settings />} label="Settings" active={url.startsWith('/profile')} />
