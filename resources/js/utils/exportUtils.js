@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 /**
  * Export a dataset to an Excel file (.xlsx)
@@ -33,12 +33,12 @@ export const exportToPDF = (data, columns, filename, title = "Data Export") => {
     const doc = new jsPDF();
     
     const head = [columns.map(col => col.header)];
-    const body = data.map(row => columns.map(col => String(row[col.key] || '')));
+    const body = data.map(row => columns.map(col => String(row[col.key] ?? '')));
 
     doc.setFontSize(18);
     doc.text(title, 14, 22);
 
-    doc.autoTable({
+    autoTable(doc, {
         head: head,
         body: body,
         startY: 30,
@@ -49,3 +49,4 @@ export const exportToPDF = (data, columns, filename, title = "Data Export") => {
 
     doc.save(`${filename}.pdf`);
 };
+
