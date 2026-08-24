@@ -188,12 +188,17 @@ export default function Fuel({ fuelLogs, vehicles, drivers, userRole }) {
                                                         );
                                                     }
 
-                                                    // Pending + high cost: admin can only submit for review
+                                                    // Pending + high cost: admin can submit for review or decline
                                                     if (log.status === 'Pending' && isHighCost && isAdmin) {
                                                         return (
-                                                            <button onClick={() => openActionModal(log, 'SubmitReview')} className="px-3 py-1.5 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 rounded-md transition-colors text-xs font-medium" title="Submit for Super Admin Review">
-                                                                Submit for Review
-                                                            </button>
+                                                            <div className="flex items-center justify-end gap-2">
+                                                                <button onClick={() => openActionModal(log, 'SubmitReview')} className="px-3 py-1.5 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 rounded-md transition-colors text-xs font-medium" title="Submit for Super Admin Review">
+                                                                    Submit for Review
+                                                                </button>
+                                                                <button onClick={() => openActionModal(log, 'Rejected')} className="px-3 py-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-md transition-colors text-xs font-medium" title="Decline Request">
+                                                                    Decline
+                                                                </button>
+                                                            </div>
                                                         );
                                                     }
 

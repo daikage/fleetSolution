@@ -739,14 +739,28 @@ class DashboardController extends Controller
             return back();
         }
 
-        // Admin forwarding high-cost request (>₦20,000) to superadmin
+        // Admin forwarding high-cost request (>₦20,000) to superadmin or declining directly
         if ($isAdmin && $needsSuperAdmin && $fuelLog->status === 'Pending') {
-            \Log::info('Entering fuel forwarding block for superadmin review');
+            \Log::info('Entering fuel high-cost block (forward or decline)');
 
             $validated = $request->validate([
+                'status' => 'nullable|in:Rejected', // 'status' will be empty if submitting for review
                 'reviewer_comment' => 'required|string',
             ]);
 
+            // If the admin is declining it, reject directly and do not forward
+            if (isset($validated['status']) && $validated['status'] === 'Rejected') {
+                $fuelLog->update([
+                    'status' => 'Rejected',
+                    'reviewer_comment' => $validated['reviewer_comment'],
+                    'assigned_to' => auth()->id(),
+                ]);
+
+                $this->notifyFuelDecision($fuelLog);
+                return back()->with('success', 'Request has been declined.');
+            }
+
+            // Otherwise, forward to superadmin for review
             try {
                 // Find the superadmin to assign to
                 $superadmin = \App\Domains\Identity\Models\User::whereIn('role', ['superadmin', 'super_admin'])->first();
