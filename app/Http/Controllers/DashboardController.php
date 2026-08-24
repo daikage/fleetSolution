@@ -92,13 +92,15 @@ class DashboardController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
-        $vehicles = Vehicle::with(['currentTrip.driver.user', 'documents'])->latest()->get();
+        $vehicles = Vehicle::with(['currentTrip.driver.user', 'documents', 'department'])->latest()->get();
 
         $drivers = \App\Domains\Driver\Models\Driver::with('user')->get();
+        $departments = \App\Domains\Identity\Models\Department::orderBy('name')->get();
 
         return Inertia::render('Dashboard/Vehicles', [
             'vehicles' => $vehicles,
-            'drivers' => $drivers
+            'drivers' => $drivers,
+            'departments' => $departments
         ]);
     }
 
@@ -113,7 +115,7 @@ class DashboardController extends Controller
             'year' => 'nullable|integer|min:1900|max:2100',
             'base_location' => 'nullable|string|max:255',
             'color' => 'nullable|string|max:255',
-            'assigned_user' => 'nullable|string|max:255',
+            'department_id' => 'nullable|exists:departments,id',
             'vehicle_license' => 'nullable|string|max:255',
             'road_worthiness' => 'nullable|string|max:255',
             'insurance' => 'nullable|string|max:255',
@@ -138,7 +140,7 @@ class DashboardController extends Controller
             'year' => $validated['year'] ?? null,
             'base_location' => $validated['base_location'] ?? null,
             'color' => $validated['color'] ?? null,
-            'assigned_user' => $validated['assigned_user'] ?? null,
+            'department_id' => $validated['department_id'] ?? null,
             'vehicle_license' => $validated['vehicle_license'] ?? null,
             'road_worthiness' => $validated['road_worthiness'] ?? null,
             'insurance' => $validated['insurance'] ?? null,
@@ -213,6 +215,77 @@ class DashboardController extends Controller
     public function destroyVehicle(Vehicle $vehicle)
     {
         $vehicle->delete();
+        return back();
+    }
+
+    public function destroyDocument(\App\Domains\Fleet\Models\Document $document)
+    {
+        // Delete physical file
+        if ($document->file_path) {
+            $path = str_replace('/storage/', '', $document->file_path);
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($path);
+        }
+
+        $document->delete();
+
+        return back();
+    }
+
+    public function departments()
+    {
+        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin'])) {
+            abort(403, 'Unauthorized access.');
+        }
+
+        $departments = \App\Domains\Identity\Models\Department::withCount('vehicles')->orderBy('name')->get();
+
+        return Inertia::render('Dashboard/Departments', [
+            'departments' => $departments,
+        ]);
+    }
+
+    public function storeDepartment(\Illuminate\Http\Request $request)
+    {
+        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin'])) {
+            abort(403, 'Unauthorized access.');
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:departments,name',
+        ]);
+
+        \App\Domains\Identity\Models\Department::create($validated);
+
+        return back();
+    }
+
+    public function updateDepartment(\Illuminate\Http\Request $request, \App\Domains\Identity\Models\Department $department)
+    {
+        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin'])) {
+            abort(403, 'Unauthorized access.');
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:departments,name,' . $department->id,
+        ]);
+
+        $department->update($validated);
+
+        return back();
+    }
+
+    public function destroyDepartment(\App\Domains\Identity\Models\Department $department)
+    {
+        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin'])) {
+            abort(403, 'Unauthorized access.');
+        }
+
+        if ($department->vehicles()->exists()) {
+            return back()->withErrors(['error' => 'Cannot delete department with assigned vehicles.']);
+        }
+
+        $department->delete();
+
         return back();
     }
 

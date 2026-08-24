@@ -123,6 +123,18 @@ Route::put('/dashboard/users/{user}', [\App\Http\Controllers\DashboardController
     ->middleware(['auth', 'verified'])
     ->name('dashboard.users.update');
 
+Route::get('/dashboard/departments', [\App\Http\Controllers\DashboardController::class, 'departments'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.departments');
+Route::post('/dashboard/departments', [\App\Http\Controllers\DashboardController::class, 'storeDepartment'])
+    ->middleware(['auth', 'verified']);
+Route::put('/dashboard/departments/{department}', [\App\Http\Controllers\DashboardController::class, 'updateDepartment'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.departments.update');
+Route::delete('/dashboard/departments/{department}', [\App\Http\Controllers\DashboardController::class, 'destroyDepartment'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.departments.destroy');
+
 Route::get('/dashboard/fleet/locations', [\App\Domains\Telematics\Controllers\TelematicsController::class, 'latestLocations'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.fleet.locations');

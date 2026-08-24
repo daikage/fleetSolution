@@ -127,7 +127,7 @@ function PlacesAutocomplete({ onPlaceSelected, searchQuery, setSearchQuery }) {
     );
 }
 
-export default function Vehicles({ vehicles, drivers }) {
+export default function Vehicles({ vehicles, drivers, departments }) {
     const { props } = usePage();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -156,7 +156,7 @@ export default function Vehicles({ vehicles, drivers }) {
         license_plate: '',
         base_location: '',
         color: '',
-        assigned_user: '',
+        department_id: '',
         vehicle_license: '',
         road_worthiness: '',
         insurance: '',
@@ -324,7 +324,7 @@ export default function Vehicles({ vehicles, drivers }) {
                                     <th className="p-4 text-sm font-semibold text-gray-300">Vehicle Name</th>
                                     <th className="p-4 text-sm font-semibold text-gray-300">License Plate</th>
                                     <th className="p-4 text-sm font-semibold text-gray-300">Status</th>
-                                    <th className="p-4 text-sm font-semibold text-gray-300">User</th>
+                                    <th className="p-4 text-sm font-semibold text-gray-300">Department</th>
                                     <th className="p-4 text-sm font-semibold text-gray-300 text-right">Actions</th>
                                 </tr>
                             </thead>
@@ -362,7 +362,7 @@ export default function Vehicles({ vehicles, drivers }) {
                                                         {vehicle.status.replace('_', ' ')}
                                                     </span>
                                                 </td>
-                                                <td className="p-4 text-gray-300">{vehicle.assigned_user || 'N/A'}</td>
+                                                <td className="p-4 text-gray-300">{vehicle.department?.name || 'N/A'}</td>
                                                 <td className="p-4 text-right">
                                                     <div className="flex items-center justify-end gap-2">
                                                         {!vehicle.currentTrip ? (
@@ -581,8 +581,13 @@ export default function Vehicles({ vehicles, drivers }) {
                                         <input type="text" value={data.color} onChange={e => setData('color', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="White" />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-300 mb-1">Assigned User</label>
-                                        <input type="text" value={data.assigned_user} onChange={e => setData('assigned_user', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="John Doe" />
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Assigned Department</label>
+                                        <select value={data.department_id} onChange={e => setData('department_id', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none">
+                                            <option value="">No department assigned</option>
+                                            {departments?.map(d => (
+                                                <option key={d.id} value={d.id}>{d.name}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                 </div>
 

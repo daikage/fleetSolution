@@ -8,8 +8,8 @@ use App\Domains\Maintenance\Models\Maintenance;
 use App\Domains\Telematics\Models\FuelLog;
 use App\Domains\Maintenance\Models\Inspection;
 use App\Domains\Maintenance\Models\MaintenanceSchedule;
-
-
+use App\Domains\Maintenance\Models\MaintenanceSchedule;
+use App\Domains\Identity\Models\Department;
 use Illuminate\Database\Eloquent\Model;
 
 class Vehicle extends Model
@@ -80,5 +80,10 @@ class Vehicle extends Model
     public function maintenanceSchedules()
     {
         return $this->hasMany(MaintenanceSchedule::class);
+    }
+
+    public function department()
+    {
+        return $this->belongsTo(Department::class);
     }
 }
