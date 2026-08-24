@@ -5,10 +5,11 @@ import { DollarSign, TrendingUp, TrendingDown, Wrench, Fuel, Calendar, ChevronDo
 import { motion, AnimatePresence } from 'framer-motion';
 import { exportToExcel } from '@/utils/exportUtils';
 
-export default function FinancialReports({ maintenance_records, fuel_records, year, month, view_mode }) {
+export default function FinancialReports({ maintenance_records, fuel_records, year, month, view_mode, vehicle_id, vehicles }) {
     const [viewMode, setViewMode] = useState(view_mode || 'monthly');
     const [selectedYear, setSelectedYear] = useState(year || new Date().getFullYear());
     const [selectedMonth, setSelectedMonth] = useState(month || new Date().getMonth() + 1);
+    const [selectedVehicle, setSelectedVehicle] = useState(vehicle_id || '');
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
     const months = [
@@ -21,26 +22,32 @@ export default function FinancialReports({ maintenance_records, fuel_records, ye
     const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
     // Navigate when filters change
-    const applyFilters = (mode, yr, mo) => {
+    const applyFilters = (mode, yr, mo, vehicleId) => {
         const params = { view_mode: mode, year: yr };
         if (mode === 'monthly') params.month = mo;
+        if (vehicleId) params.vehicle_id = vehicleId;
         router.get(route('dashboard.financial-reports'), params, { preserveState: true });
     };
 
     const handleViewModeChange = (mode) => {
         setViewMode(mode);
         setIsDropdownOpen(false);
-        applyFilters(mode, selectedYear, selectedMonth);
+        applyFilters(mode, selectedYear, selectedMonth, selectedVehicle);
     };
 
     const handleYearChange = (yr) => {
         setSelectedYear(yr);
-        applyFilters(viewMode, yr, selectedMonth);
+        applyFilters(viewMode, yr, selectedMonth, selectedVehicle);
     };
 
     const handleMonthChange = (mo) => {
         setSelectedMonth(mo);
-        applyFilters(viewMode, selectedYear, mo);
+        applyFilters(viewMode, selectedYear, mo, selectedVehicle);
+    };
+
+    const handleVehicleChange = (vId) => {
+        setSelectedVehicle(vId);
+        applyFilters(viewMode, selectedYear, selectedMonth, vId);
     };
 
     // Compute totals
@@ -214,6 +221,19 @@ export default function FinancialReports({ maintenance_records, fuel_records, ye
                                 ))}
                             </select>
                         )}
+
+                        {/* Vehicle Selector */}
+                        <select
+                            id="financial-reports-vehicle-selector"
+                            value={selectedVehicle}
+                            onChange={e => handleVehicleChange(e.target.value)}
+                            className="bg-black/30 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm focus:border-electric-blue outline-none [color-scheme:dark] max-w-[200px]"
+                        >
+                            <option value="">All Vehicles</option>
+                            {vehicles?.map(v => (
+                                <option key={v.id} value={v.id}>{v.make} {v.model} ({v.license_plate})</option>
+                            ))}
+                        </select>
 
                         {/* Export Excel Button */}
                         <button

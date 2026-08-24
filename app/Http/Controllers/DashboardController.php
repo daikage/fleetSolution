@@ -1229,6 +1229,7 @@ class DashboardController extends Controller
         $viewMode = request('view_mode', 'monthly');
         $year = (int) request('year', now()->year);
         $month = (int) request('month', now()->month);
+        $vehicleId = request('vehicle_id');
 
         $maintenanceQuery = \App\Domains\Maintenance\Models\Maintenance::with('vehicle')
             ->where('status', 'Accepted')
@@ -1243,12 +1244,21 @@ class DashboardController extends Controller
             $fuelQuery->whereMonth('date', $month);
         }
 
+        if ($vehicleId) {
+            $maintenanceQuery->where('vehicle_id', $vehicleId);
+            $fuelQuery->where('vehicle_id', $vehicleId);
+        }
+
+        $vehicles = \App\Domains\Fleet\Models\Vehicle::select('id', 'make', 'model', 'license_plate')->get();
+
         return Inertia::render('Dashboard/FinancialReports', [
             'maintenance_records' => $maintenanceQuery->latest('date')->get(),
             'fuel_records' => $fuelQuery->latest('date')->get(),
             'year' => $year,
             'month' => $month,
             'view_mode' => $viewMode,
+            'vehicle_id' => $vehicleId,
+            'vehicles' => $vehicles,
         ]);
     }
 
