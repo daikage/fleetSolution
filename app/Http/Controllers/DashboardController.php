@@ -357,9 +357,24 @@ class DashboardController extends Controller
         try {
             \Log::info('endTrip called', ['tripId' => $tripId, 'user' => auth()->id()]);
 
+            $validated = $request->validate([
+                'end_odometer' => 'nullable|numeric|min:0',
+                'end_location' => 'nullable|string|max:255',
+                'distance_km' => 'nullable|numeric|min:0',
+                'notes' => 'nullable|string',
+            ]);
+
             $trip = \App\Domains\Driver\Models\Trip::findOrFail($tripId);
-            $trip->end_time = now();
+            $endTime = now();
+            $durationMinutes = $trip->start_time ? $trip->start_time->diffInMinutes($endTime) : 0;
+
+            $trip->end_time = $endTime;
             $trip->status = 'completed';
+            $trip->end_odometer = $validated['end_odometer'] ?? null;
+            $trip->end_location = $validated['end_location'] ?? null;
+            $trip->distance_km = $validated['distance_km'] ?? null;
+            $trip->duration_minutes = $durationMinutes;
+            $trip->notes = $validated['notes'] ?? null;
             $trip->save();
 
             \Log::info('endTrip success', ['trip_id' => $trip->id]);

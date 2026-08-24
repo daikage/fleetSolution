@@ -207,6 +207,12 @@ export default function Trips({ trips, drivers, vehicles, filters }) {
                                                     <div>
                                                         <div>{new Date(trip.start_time).toLocaleDateString()}</div>
                                                         <div className="text-xs text-gray-500">{new Date(trip.start_time).toLocaleTimeString()}</div>
+                                                        {trip.start_location && (
+                                                            <div className="text-xs text-sky-400 mt-1 flex items-center gap-1 truncate max-w-[150px]" title={trip.start_location}>
+                                                                <MapPin className="w-3 h-3 flex-shrink-0" />
+                                                                <span className="truncate">{trip.start_location}</span>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 ) : '-'}
                                             </td>
@@ -215,9 +221,15 @@ export default function Trips({ trips, drivers, vehicles, filters }) {
                                                     <div>
                                                         <div>{new Date(trip.end_time).toLocaleDateString()}</div>
                                                         <div className="text-xs text-gray-500">{new Date(trip.end_time).toLocaleTimeString()}</div>
+                                                        {trip.end_location && (
+                                                            <div className="text-xs text-emerald-400 mt-1 flex items-center gap-1 truncate max-w-[150px]" title={trip.end_location}>
+                                                                <MapPin className="w-3 h-3 flex-shrink-0" />
+                                                                <span className="truncate">{trip.end_location}</span>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 ) : (
-                                                    <span className="text-emerald-400 text-xs font-medium">In Progress</span>
+                                                    <span className="text-emerald-400 text-xs font-medium flex items-center gap-1"><MapPin className="w-3 h-3 animate-pulse" /> In Progress</span>
                                                 )}
                                             </td>
                                             <td className="p-3 text-gray-300 text-sm">{formatDuration(trip.duration_minutes)}</td>
