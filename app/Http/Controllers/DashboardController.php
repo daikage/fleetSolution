@@ -488,8 +488,11 @@ class DashboardController extends Controller
             ]);
         }
 
-        if ($maintenance->assignedTo) {
-            $maintenance->assignedTo->notify(new \App\Notifications\RequestSubmitted($maintenance, 'Maintenance'));
+        // Notify all relevant roles about the new request
+        $rolesToNotify = ['admin', 'manager', 'superadmin', 'super_admin', 'accountant'];
+        $usersToNotify = \App\Domains\Identity\Models\User::whereIn('role', $rolesToNotify)->get();
+        foreach ($usersToNotify as $user) {
+            $user->notify(new \App\Notifications\RequestSubmitted($maintenance, 'Maintenance'));
         }
 
         return back();
@@ -703,8 +706,11 @@ class DashboardController extends Controller
 
         $fuelLog = \App\Domains\Telematics\Models\FuelLog::create($validated);
 
-        if ($fuelLog->assignedTo) {
-            $fuelLog->assignedTo->notify(new \App\Notifications\RequestSubmitted($fuelLog, 'Fuel'));
+        // Notify all relevant roles about the new request
+        $rolesToNotify = ['admin', 'manager', 'superadmin', 'super_admin', 'accountant'];
+        $usersToNotify = \App\Domains\Identity\Models\User::whereIn('role', $rolesToNotify)->get();
+        foreach ($usersToNotify as $user) {
+            $user->notify(new \App\Notifications\RequestSubmitted($fuelLog, 'Fuel'));
         }
 
         return back();
