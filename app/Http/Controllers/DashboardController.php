@@ -131,6 +131,14 @@ class DashboardController extends Controller
 
         $validated['status'] = 'active';
 
+        // Default to Lagos with slight jitter if no location provided
+        $lat = $validated['latitude'] ?? null;
+        $lng = $validated['longitude'] ?? null;
+        if (empty($lat) || empty($lng)) {
+            $lat = 6.5244 + (rand(-100, 100) / 10000);
+            $lng = 3.3792 + (rand(-100, 100) / 10000);
+        }
+
         $vehicle = Vehicle::create([
             'name' => $validated['name'],
             'chassis_number' => $validated['chassis_number'],
@@ -149,8 +157,8 @@ class DashboardController extends Controller
             'hackney' => $validated['hackney'] ?? null,
             'lg_papers' => $validated['lg_papers'] ?? null,
             'battery' => $validated['battery'] ?? null,
-            'latitude' => $validated['latitude'] ?? null,
-            'longitude' => $validated['longitude'] ?? null,
+            'latitude' => $lat,
+            'longitude' => $lng,
             'status' => $validated['status'],
         ]);
 
@@ -162,10 +170,9 @@ class DashboardController extends Controller
             ]);
         }
 
-        if ($vehicle->latitude !== null && $vehicle->longitude !== null) {
-            $job = new \App\Jobs\ProcessVehicleLocation($vehicle->id, $vehicle->latitude, $vehicle->longitude, 0);
-            $job->handle();
-        }
+        // Always register the location so the map picks it up
+        $job = new \App\Jobs\ProcessVehicleLocation($vehicle->id, $vehicle->latitude, $vehicle->longitude, 0);
+        $job->handle();
 
         return back();
     }
@@ -194,6 +201,14 @@ class DashboardController extends Controller
             'longitude' => 'nullable|numeric|between:-180,180',
         ]);
 
+        // Default to Lagos with slight jitter if location is cleared
+        $lat = $validated['latitude'] ?? null;
+        $lng = $validated['longitude'] ?? null;
+        if (empty($lat) || empty($lng)) {
+            $lat = 6.5244 + (rand(-100, 100) / 10000);
+            $lng = 3.3792 + (rand(-100, 100) / 10000);
+        }
+
         $vehicle->update([
             'name' => $validated['name'],
             'chassis_number' => $validated['chassis_number'],
@@ -212,11 +227,11 @@ class DashboardController extends Controller
             'hackney' => $validated['hackney'] ?? null,
             'lg_papers' => $validated['lg_papers'] ?? null,
             'battery' => $validated['battery'] ?? null,
-            'latitude' => $validated['latitude'] ?? null,
-            'longitude' => $validated['longitude'] ?? null,
+            'latitude' => $lat,
+            'longitude' => $lng,
         ]);
 
-        if (($vehicle->wasChanged('latitude') || $vehicle->wasChanged('longitude')) && $vehicle->latitude !== null && $vehicle->longitude !== null) {
+        if ($vehicle->wasChanged('latitude') || $vehicle->wasChanged('longitude')) {
             $job = new \App\Jobs\ProcessVehicleLocation($vehicle->id, $vehicle->latitude, $vehicle->longitude, 0);
             $job->handle();
         }
@@ -1081,14 +1096,14 @@ class DashboardController extends Controller
                     $lat = 7.3775 + (rand(-100, 100) / 10000);
                     $lng = 3.9470 + (rand(-100, 100) / 10000);
                 } else {
-                    // Default to center of Nigeria with jitter
-                    $lat = 9.0820 + (rand(-500, 500) / 10000);
-                    $lng = 8.6753 + (rand(-500, 500) / 10000);
+                    // Default to Lagos with jitter
+                    $lat = 6.5244 + (rand(-100, 100) / 10000);
+                    $lng = 3.3792 + (rand(-100, 100) / 10000);
                 }
             } else {
-                // Default if no location provided
-                $lat = 9.0820 + (rand(-500, 500) / 10000);
-                $lng = 8.6753 + (rand(-500, 500) / 10000);
+                // Default to Lagos if no location provided
+                $lat = 6.5244 + (rand(-100, 100) / 10000);
+                $lng = 3.3792 + (rand(-100, 100) / 10000);
             }
 
             $attributes = [
