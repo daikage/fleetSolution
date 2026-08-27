@@ -410,12 +410,23 @@ export default function Vehicles({ vehicles, drivers, departments }) {
                                                 </td>
                                                 <td className="p-4 text-gray-300">{vehicle.license_plate}</td>
                                                 <td className="p-4">
-                                                    <span className={`px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wide ${vehicle.status === 'active' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                                                        vehicle.status === 'in_shop' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                                                            'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                                                        }`}>
-                                                        {vehicle.status.replace('_', ' ')}
-                                                    </span>
+                                                    {(() => {
+                                                        let displayStatus = vehicle.status;
+                                                        // Override active status if no documents exist
+                                                        if (displayStatus === 'active' && (!vehicle.documents || vehicle.documents.length === 0)) {
+                                                            displayStatus = 'inactive';
+                                                        }
+                                                        
+                                                        return (
+                                                            <span className={`px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wide ${
+                                                                displayStatus === 'active' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                                                                displayStatus === 'in_shop' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                                                                'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                                                            }`}>
+                                                                {displayStatus.replace('_', ' ')}
+                                                            </span>
+                                                        );
+                                                    })()}
                                                 </td>
                                                 <td className="p-4 text-gray-300">{vehicle.department?.name || 'N/A'}</td>
                                                 <td className="p-4">
