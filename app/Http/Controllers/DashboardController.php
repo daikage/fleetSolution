@@ -67,7 +67,7 @@ class DashboardController extends Controller
             ->get()->map(function ($doc) {
                 $docName = 'Unknown';
                 if ($doc->documentable_type === \App\Domains\Fleet\Models\Vehicle::class && $doc->documentable) {
-                    $docName = $doc->documentable->make . ' ' . $doc->documentable->model . ' (' . $doc->documentable->license_plate . ')';
+                    $docName = $doc->documentable->name . ' (' . $doc->documentable->license_plate . ')';
                 } elseif ($doc->documentable_type === \App\Domains\Driver\Models\Driver::class && $doc->documentable && $doc->documentable->user) {
                     $docName = $doc->documentable->user->name;
                 }
@@ -1356,7 +1356,7 @@ class DashboardController extends Controller
         $documents = $documents->map(function ($doc) {
             $docName = 'Unknown';
             if ($doc->documentable_type === \App\Domains\Fleet\Models\Vehicle::class && $doc->documentable) {
-                $docName = $doc->documentable->make . ' ' . $doc->documentable->model . ' (' . $doc->documentable->license_plate . ')';
+                $docName = $doc->documentable->name . ' (' . $doc->documentable->license_plate . ')';
             } elseif ($doc->documentable_type === \App\Domains\Driver\Models\Driver::class && $doc->documentable && $doc->documentable->user) {
                 $docName = $doc->documentable->user->name;
             }
@@ -1382,7 +1382,7 @@ class DashboardController extends Controller
             if (!empty($missing)) {
                 $missingDocuments[] = [
                     'entity_type' => 'Vehicle',
-                    'entity_name' => $vehicle->make . ' ' . $vehicle->model . ' (' . $vehicle->license_plate . ')',
+                    'entity_name' => $vehicle->name . ' (' . $vehicle->license_plate . ')',
                     'missing' => $missing,
                 ];
             }
