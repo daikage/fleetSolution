@@ -179,14 +179,7 @@ export default function Vehicles({ vehicles, drivers, departments }) {
         base_location: '',
         color: '',
         department_id: '',
-        vehicle_license: '',
-        road_worthiness: '',
-        insurance: '',
-        stage_carriage: '',
-        mot: '',
-        hackney: '',
-        lg_papers: '',
-        battery: '',
+
         driver_id: '',
         latitude: '',
         longitude: '',
@@ -226,14 +219,7 @@ export default function Vehicles({ vehicles, drivers, departments }) {
             base_location: vehicle.base_location || '',
             color: vehicle.color || '',
             department_id: vehicle.department_id || '',
-            vehicle_license: vehicle.vehicle_license || '',
-            road_worthiness: vehicle.road_worthiness || '',
-            insurance: vehicle.insurance || '',
-            stage_carriage: vehicle.stage_carriage || '',
-            mot: vehicle.mot || '',
-            hackney: vehicle.hackney || '',
-            lg_papers: vehicle.lg_papers || '',
-            battery: vehicle.battery || '',
+
             latitude: vehicle.latitude || '',
             longitude: vehicle.longitude || '',
         });
@@ -742,49 +728,7 @@ export default function Vehicles({ vehicles, drivers, departments }) {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-300 mb-1">Vehicle License</label>
-                                        <input type="text" value={data.vehicle_license} onChange={e => setData('vehicle_license', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="Valid till 2027" />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-300 mb-1">Road Worthiness</label>
-                                        <input type="text" value={data.road_worthiness} onChange={e => setData('road_worthiness', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="Valid till 2027" />
-                                    </div>
-                                </div>
-                                
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-300 mb-1">Insurance</label>
-                                        <input type="text" value={data.insurance} onChange={e => setData('insurance', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="Comprehensive" />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-300 mb-1">Stage Carriage</label>
-                                        <input type="text" value={data.stage_carriage} onChange={e => setData('stage_carriage', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="Valid" />
-                                    </div>
-                                </div>
-                                
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-300 mb-1">MOT</label>
-                                        <input type="text" value={data.mot} onChange={e => setData('mot', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="Valid" />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-300 mb-1">Hackney</label>
-                                        <input type="text" value={data.hackney} onChange={e => setData('hackney', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="Valid" />
-                                    </div>
-                                </div>
-                                
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-300 mb-1">LG Papers</label>
-                                        <input type="text" value={data.lg_papers} onChange={e => setData('lg_papers', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="Valid" />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-300 mb-1">Battery</label>
-                                        <input type="text" value={data.battery} onChange={e => setData('battery', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none" placeholder="New" />
-                                    </div>
-                                </div>
+
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-1">Assign Driver (Optional)</label>
