@@ -55,6 +55,9 @@ Route::post('/dashboard/maintenance', [\App\Http\Controllers\DashboardController
 Route::post('/dashboard/maintenance/{maintenance}/action', [\App\Http\Controllers\DashboardController::class, 'actionMaintenance'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.maintenance.action');
+Route::post('/dashboard/maintenance/{maintenance}/resubmit', [\App\Http\Controllers\DashboardController::class, 'resubmitMaintenance'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.maintenance.resubmit');
 Route::post('/dashboard/maintenance/import', [\App\Http\Controllers\DashboardController::class, 'importMaintenance'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.maintenance.import');
@@ -68,6 +71,9 @@ Route::post('/dashboard/fuel', [\App\Http\Controllers\DashboardController::class
 Route::post('/dashboard/fuel/{fuelLog}/action', [\App\Http\Controllers\DashboardController::class, 'actionFuel'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.fuel.action');
+Route::post('/dashboard/fuel/{fuelLog}/resubmit', [\App\Http\Controllers\DashboardController::class, 'resubmitFuel'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.fuel.resubmit');
 Route::post('/dashboard/fuel/import', [\App\Http\Controllers\DashboardController::class, 'importFuel'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.fuel.import');

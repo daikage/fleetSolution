@@ -498,6 +498,50 @@ class DashboardController extends Controller
         return back();
     }
 
+    public function resubmitMaintenance(\Illuminate\Http\Request $request, \App\Domains\Maintenance\Models\Maintenance $maintenance)
+    {
+        if ($maintenance->status !== 'Rejected') {
+            abort(403, 'Only rejected requests can be resubmitted.');
+        }
+
+        $validated = $request->validate([
+            'vendors' => 'required|array|min:1',
+            'vendors.*.vendor_name' => 'required|string|max:255',
+            'vendors.*.vendor_price' => 'required|numeric|min:0',
+            'vendors.*.additional_comments' => 'nullable|string',
+            'resubmit_comment' => 'required|string',
+        ]);
+
+        $totalCost = collect($validated['vendors'])->sum('vendor_price');
+
+        // Reset the maintenance record
+        $maintenance->update([
+            'cost' => $totalCost,
+            'status' => 'Pending',
+            'reviewer_comment' => '[Resubmitted] ' . $validated['resubmit_comment'],
+            'assigned_to' => $this->getAssigneeForCost($totalCost),
+        ]);
+
+        // Replace vendors
+        $maintenance->vendors()->delete();
+        foreach ($validated['vendors'] as $vendorData) {
+            $maintenance->vendors()->create([
+                'vendor_name' => $vendorData['vendor_name'],
+                'vendor_price' => $vendorData['vendor_price'],
+                'additional_comments' => $vendorData['additional_comments'],
+            ]);
+        }
+
+        // Notify all relevant roles about the resubmitted request
+        $rolesToNotify = ['admin', 'manager', 'superadmin', 'super_admin', 'accountant'];
+        $usersToNotify = \App\Domains\Identity\Models\User::whereIn('role', $rolesToNotify)->get();
+        foreach ($usersToNotify as $user) {
+            $user->notify(new \App\Notifications\RequestSubmitted($maintenance, 'Maintenance'));
+        }
+
+        return back()->with('success', 'Maintenance request has been resubmitted for approval.');
+    }
+
     public function actionMaintenance(\Illuminate\Http\Request $request, \App\Domains\Maintenance\Models\Maintenance $maintenance)
     {
         if (auth()->user()->role === 'manager') {
@@ -714,6 +758,34 @@ class DashboardController extends Controller
         }
 
         return back();
+    }
+
+    public function resubmitFuel(\Illuminate\Http\Request $request, \App\Domains\Telematics\Models\FuelLog $fuelLog)
+    {
+        if ($fuelLog->status !== 'Rejected') {
+            abort(403, 'Only rejected requests can be resubmitted.');
+        }
+
+        $validated = $request->validate([
+            'cost' => 'required|numeric|min:0',
+            'resubmit_comment' => 'required|string',
+        ]);
+
+        $fuelLog->update([
+            'cost' => $validated['cost'],
+            'status' => 'Pending',
+            'reviewer_comment' => '[Resubmitted] ' . $validated['resubmit_comment'],
+            'assigned_to' => $this->getAssigneeForCost($validated['cost']),
+        ]);
+
+        // Notify all relevant roles about the resubmitted request
+        $rolesToNotify = ['admin', 'manager', 'superadmin', 'super_admin', 'accountant'];
+        $usersToNotify = \App\Domains\Identity\Models\User::whereIn('role', $rolesToNotify)->get();
+        foreach ($usersToNotify as $user) {
+            $user->notify(new \App\Notifications\RequestSubmitted($fuelLog, 'Fuel'));
+        }
+
+        return back()->with('success', 'Fuel request has been resubmitted for approval.');
     }
 
     public function actionFuel(\Illuminate\Http\Request $request, \App\Domains\Telematics\Models\FuelLog $fuelLog)

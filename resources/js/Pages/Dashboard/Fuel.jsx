@@ -2,7 +2,7 @@ import React, { useState, Fragment } from 'react';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import BulkImportModal from '@/Components/BulkImportModal';
-import { Plus, X, Fuel as FuelIcon, Calendar, Droplet, FileText, CheckCircle, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, X, Fuel as FuelIcon, Calendar, Droplet, FileText, CheckCircle, XCircle, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ExportButtons from '@/Components/ExportButtons';
 
@@ -17,6 +17,10 @@ export default function Fuel({ fuelLogs, vehicles, drivers, userRole }) {
     const [actionType, setActionType] = useState('');
     const [expandedRow, setExpandedRow] = useState(null);
 
+    // Resubmit modal state
+    const [resubmitModalOpen, setResubmitModalOpen] = useState(false);
+    const [resubmitTarget, setResubmitTarget] = useState(null);
+
     const { data, setData, post, processing, errors, reset } = useForm({
         vehicle_id: '',
         driver_id: '',
@@ -29,6 +33,11 @@ export default function Fuel({ fuelLogs, vehicles, drivers, userRole }) {
     const actionForm = useForm({
         status: '',
         reviewer_comment: '',
+    });
+
+    const resubmitForm = useForm({
+        cost: '',
+        resubmit_comment: '',
     });
 
     const submit = (e) => {
@@ -67,6 +76,26 @@ export default function Fuel({ fuelLogs, vehicles, drivers, userRole }) {
             });
         }
         setActionModalOpen(true);
+    };
+
+    const openResubmitModal = (log) => {
+        setResubmitTarget(log);
+        resubmitForm.setData({
+            cost: log.cost || '',
+            resubmit_comment: '',
+        });
+        setResubmitModalOpen(true);
+    };
+
+    const submitResubmit = (e) => {
+        e.preventDefault();
+        resubmitForm.post(route('dashboard.fuel.resubmit', resubmitTarget.id), {
+            onSuccess: () => {
+                setResubmitModalOpen(false);
+                resubmitForm.reset();
+                setResubmitTarget(null);
+            },
+        });
     };
 
     const exportColumns = [
@@ -232,8 +261,18 @@ export default function Fuel({ fuelLogs, vehicles, drivers, userRole }) {
                                                     }
 
                                                     // Already actioned
-                                                    if (log.status === 'Accepted' || log.status === 'Rejected') {
+                                                    if (log.status === 'Accepted') {
                                                         return <span className="text-xs text-gray-500 italic">Actioned</span>;
+                                                    }
+
+                                                    // Rejected: show resubmit button
+                                                    if (log.status === 'Rejected') {
+                                                        return (
+                                                            <button onClick={() => openResubmitModal(log)} className="px-3 py-1.5 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 rounded-md transition-colors text-xs font-medium flex items-center gap-1.5" title="Resubmit with updated pricing">
+                                                                <RefreshCw className="w-3.5 h-3.5" />
+                                                                Resubmit
+                                                            </button>
+                                                        );
                                                     }
 
                                                     return null;
@@ -453,6 +492,81 @@ export default function Fuel({ fuelLogs, vehicles, drivers, userRole }) {
                                         'bg-amber-500 hover:bg-amber-400'
                                     } text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50`}>
                                         {actionForm.processing ? 'Saving...' : actionType === 'SubmitReview' ? 'Forward to Super Admin' : 'Confirm Action'}
+                                    </button>
+                                </div>
+                            </form>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Resubmit Modal */}
+            <AnimatePresence>
+                {resubmitModalOpen && resubmitTarget && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="glass-panel w-full max-w-md overflow-hidden flex flex-col"
+                        >
+                            <div className="p-6 border-b border-white/10 flex justify-between items-center bg-amber-500/20">
+                                <div>
+                                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                        <RefreshCw className="w-5 h-5 text-amber-400" />
+                                        Resubmit Fuel Request
+                                    </h2>
+                                    <p className="text-xs text-gray-400 mt-1">{resubmitTarget.vehicle?.make} {resubmitTarget.vehicle?.model} — {resubmitTarget.vehicle?.license_plate}</p>
+                                </div>
+                                <button onClick={() => setResubmitModalOpen(false)} className="p-2 rounded-full hover:bg-white/10 text-gray-400 transition-colors">
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <form onSubmit={submitResubmit} className="p-6 flex flex-col gap-4">
+                                {/* Show rejection reason */}
+                                {resubmitTarget.reviewer_comment && (
+                                    <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg p-3">
+                                        <h4 className="text-xs font-semibold text-rose-400 uppercase tracking-wider mb-1">Rejection Reason</h4>
+                                        <p className="text-gray-300 text-sm whitespace-pre-wrap">{resubmitTarget.reviewer_comment}</p>
+                                    </div>
+                                )}
+
+                                <div className="bg-white/5 border border-white/10 rounded-lg p-3">
+                                    <div className="text-xs text-gray-400 mb-1">Previous Cost</div>
+                                    <div className="text-gray-300 font-mono">₦{Number(resubmitTarget.cost).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Updated Cost (₦) *</label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        value={resubmitForm.data.cost}
+                                        onChange={e => resubmitForm.setData('cost', e.target.value)}
+                                        className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none"
+                                        required
+                                    />
+                                    {resubmitForm.errors.cost && <div className="text-rose-400 text-xs mt-1">{resubmitForm.errors.cost}</div>}
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Resubmission Comment *</label>
+                                    <textarea
+                                        value={resubmitForm.data.resubmit_comment}
+                                        onChange={e => resubmitForm.setData('resubmit_comment', e.target.value)}
+                                        className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue outline-none min-h-[80px]"
+                                        placeholder="Explain the updated pricing or changes made..."
+                                        required
+                                    />
+                                    {resubmitForm.errors.resubmit_comment && <div className="text-rose-400 text-xs mt-1">{resubmitForm.errors.resubmit_comment}</div>}
+                                </div>
+
+                                <div className="mt-2 flex justify-end gap-3">
+                                    <button type="button" onClick={() => setResubmitModalOpen(false)} className="px-4 py-2 text-gray-400 hover:text-white transition-colors">Cancel</button>
+                                    <button type="submit" disabled={resubmitForm.processing} className="bg-amber-500 hover:bg-amber-400 text-white px-6 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-amber-500/20 disabled:opacity-50 flex items-center gap-2">
+                                        <RefreshCw className={`w-4 h-4 ${resubmitForm.processing ? 'animate-spin' : ''}`} />
+                                        {resubmitForm.processing ? 'Resubmitting...' : 'Resubmit Request'}
                                     </button>
                                 </div>
                             </form>
