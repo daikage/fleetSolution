@@ -23,7 +23,8 @@ Route::get('/dashboard/vehicles', [\App\Http\Controllers\DashboardController::cl
     ->name('dashboard.vehicles');
 
 Route::get('/fix-map', function () {
-    $vehicles = \App\Domains\Fleet\Models\Vehicle::whereNull('latitude')->orWhereNull('longitude')->get();
+    $vehicles = \App\Domains\Fleet\Models\Vehicle::all();
+    $updated = 0;
     foreach($vehicles as $vehicle) {
         $baseLoc = strtolower(trim($vehicle->base_location ?? ''));
         if (str_contains($baseLoc, 'lagos')) {
@@ -36,12 +37,18 @@ Route::get('/fix-map', function () {
             $lat = 7.3775;
             $lng = 3.9470;
         } else {
+            // Default to Lagos
             $lat = 6.574368986524661;
             $lng = 3.3891698249000393;
         }
         $vehicle->update(['latitude' => $lat, 'longitude' => $lng]);
+        
+        // Register location so the map picks it up
+        $job = new \App\Jobs\ProcessVehicleLocation($vehicle->id, $lat, $lng, 0);
+        $job->handle();
+        $updated++;
     }
-    return 'Updated ' . $vehicles->count() . ' vehicles. You can now go back to the dashboard.';
+    return 'Fixed and stacked ' . $updated . ' vehicles onto the exact office coordinates. You can now go back to the dashboard.';
 });
 Route::post('/dashboard/vehicles', [\App\Http\Controllers\DashboardController::class, 'storeVehicle'])
     ->middleware(['auth', 'verified']);
