@@ -489,7 +489,7 @@ class DashboardController extends Controller
         }
 
         // Notify all relevant roles about the new request
-        $rolesToNotify = ['admin', 'manager', 'superadmin', 'super_admin', 'accountant'];
+        $rolesToNotify = ['admin', 'manager', 'superadmin', 'super_admin'];
         $usersToNotify = \App\Domains\Identity\Models\User::whereIn('role', $rolesToNotify)->get();
         foreach ($usersToNotify as $user) {
             $user->notify(new \App\Notifications\RequestSubmitted($maintenance, 'Maintenance'));
@@ -533,7 +533,7 @@ class DashboardController extends Controller
         }
 
         // Notify all relevant roles about the resubmitted request
-        $rolesToNotify = ['admin', 'manager', 'superadmin', 'super_admin', 'accountant'];
+        $rolesToNotify = ['admin', 'manager', 'superadmin', 'super_admin'];
         $usersToNotify = \App\Domains\Identity\Models\User::whereIn('role', $rolesToNotify)->get();
         foreach ($usersToNotify as $user) {
             $user->notify(new \App\Notifications\RequestSubmitted($maintenance, 'Maintenance'));
@@ -700,6 +700,14 @@ class DashboardController extends Controller
                 $admin->notify(new \App\Notifications\RequestActioned($maintenance, 'Maintenance'));
             }
         }
+
+        // Notify accountants if accepted
+        if ($maintenance->status === 'Accepted') {
+            $accountants = \App\Domains\Identity\Models\User::where('role', 'accountant')->get();
+            foreach ($accountants as $accountant) {
+                $accountant->notify(new \App\Notifications\RequestActioned($maintenance, 'Maintenance'));
+            }
+        }
     }
 
     private function notifySuperAdminForReview($request, $type)
@@ -751,7 +759,7 @@ class DashboardController extends Controller
         $fuelLog = \App\Domains\Telematics\Models\FuelLog::create($validated);
 
         // Notify all relevant roles about the new request
-        $rolesToNotify = ['admin', 'manager', 'superadmin', 'super_admin', 'accountant'];
+        $rolesToNotify = ['admin', 'manager', 'superadmin', 'super_admin'];
         $usersToNotify = \App\Domains\Identity\Models\User::whereIn('role', $rolesToNotify)->get();
         foreach ($usersToNotify as $user) {
             $user->notify(new \App\Notifications\RequestSubmitted($fuelLog, 'Fuel'));
@@ -779,7 +787,7 @@ class DashboardController extends Controller
         ]);
 
         // Notify all relevant roles about the resubmitted request
-        $rolesToNotify = ['admin', 'manager', 'superadmin', 'super_admin', 'accountant'];
+        $rolesToNotify = ['admin', 'manager', 'superadmin', 'super_admin'];
         $usersToNotify = \App\Domains\Identity\Models\User::whereIn('role', $rolesToNotify)->get();
         foreach ($usersToNotify as $user) {
             $user->notify(new \App\Notifications\RequestSubmitted($fuelLog, 'Fuel'));
@@ -943,6 +951,14 @@ class DashboardController extends Controller
             $admin = $fuelLog->assignedTo;
             if ($admin && $admin->id !== auth()->id()) {
                 $admin->notify(new \App\Notifications\RequestActioned($fuelLog, 'Fuel'));
+            }
+        }
+
+        // Notify accountants if accepted
+        if ($fuelLog->status === 'Accepted') {
+            $accountants = \App\Domains\Identity\Models\User::where('role', 'accountant')->get();
+            foreach ($accountants as $accountant) {
+                $accountant->notify(new \App\Notifications\RequestActioned($fuelLog, 'Fuel'));
             }
         }
     }
