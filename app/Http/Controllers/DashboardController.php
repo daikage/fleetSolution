@@ -992,28 +992,33 @@ class DashboardController extends Controller
                 continue;
             }
 
+            $attributes = [
+                'name' => $row['vehicle_name'] ?? 'Unknown',
+                'license_plate' => $row['plate_number'],
+                'vin' => $row['vin'] ?? null,
+                'vendor' => $row['vendor'] ?? null,
+                'year' => $row['year'] ?? null,
+                'base_location' => $row['location'] ?? null,
+                'color' => $row['colour'] ?? null,
+                'assigned_user' => $row['user'] ?? null,
+                'vehicle_license' => $row['vehicle_license'] ?? null,
+                'road_worthiness' => $row['road_worthiness'] ?? null,
+                'insurance' => $row['insurance'] ?? null,
+                'stage_carriage' => $row['stage_cariage'] ?? null,
+                'mot' => $row['mot'] ?? null,
+                'hackney' => $row['hackney'] ?? null,
+                'lg_papers' => $row['lg_papers'] ?? null,
+                'battery' => $row['battery'] ?? null,
+                'status' => 'active'
+            ];
+
+            if (!empty($row['id'])) {
+                $attributes['vehicle_id'] = $row['id'];
+            }
+
             Vehicle::updateOrCreate(
                 ['chassis_number' => $row['chasis']],
-                [
-                    'vehicle_id' => !empty($row['id']) ? $row['id'] : null,
-                    'name' => $row['vehicle_name'] ?? 'Unknown',
-                    'license_plate' => $row['plate_number'],
-                    'vin' => $row['vin'] ?? null,
-                    'vendor' => $row['vendor'] ?? null,
-                    'year' => $row['year'] ?? null,
-                    'base_location' => $row['location'] ?? null,
-                    'color' => $row['colour'] ?? null,
-                    'assigned_user' => $row['user'] ?? null,
-                    'vehicle_license' => $row['vehicle_license'] ?? null,
-                    'road_worthiness' => $row['road_worthiness'] ?? null,
-                    'insurance' => $row['insurance'] ?? null,
-                    'stage_carriage' => $row['stage_cariage'] ?? null,
-                    'mot' => $row['mot'] ?? null,
-                    'hackney' => $row['hackney'] ?? null,
-                    'lg_papers' => $row['lg_papers'] ?? null,
-                    'battery' => $row['battery'] ?? null,
-                    'status' => 'active'
-                ]
+                $attributes
             );
         }
 
