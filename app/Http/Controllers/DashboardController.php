@@ -992,6 +992,12 @@ class DashboardController extends Controller
                 continue;
             }
 
+            $departmentId = null;
+            if (!empty($row['user'])) {
+                $dept = \App\Domains\Identity\Models\Department::where('name', 'like', trim($row['user']))->first();
+                $departmentId = $dept ? $dept->id : (is_numeric($row['user']) ? $row['user'] : null);
+            }
+
             $attributes = [
                 'name' => $row['vehicle_name'] ?? 'Unknown',
                 'license_plate' => $row['plate_number'],
@@ -1000,7 +1006,7 @@ class DashboardController extends Controller
                 'year' => $row['year'] ?? null,
                 'base_location' => $row['location'] ?? null,
                 'color' => $row['colour'] ?? null,
-                'assigned_user' => $row['user'] ?? null,
+                'department_id' => $departmentId,
                 'vehicle_license' => $row['vehicle_license'] ?? null,
                 'road_worthiness' => $row['road_worthiness'] ?? null,
                 'insurance' => $row['insurance'] ?? null,
