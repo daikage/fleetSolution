@@ -988,7 +988,7 @@ class DashboardController extends Controller
         $rows = $this->parseCsv($request->file('file'));
 
         foreach ($rows as $row) {
-            if (!isset($row['chasis']) || !isset($row['plate_number'])) {
+            if (empty(trim($row['plate_number']))) {
                 continue;
             }
 
@@ -1000,10 +1000,10 @@ class DashboardController extends Controller
 
             $attributes = [
                 'name' => $row['vehicle_name'] ?? 'Unknown',
-                'license_plate' => $row['plate_number'],
-                'vin' => $row['vin'] ?? null,
-                'vendor' => $row['vendor'] ?? null,
-                'year' => $row['year'] ?? null,
+                'chassis_number' => !empty(trim($row['chasis'] ?? '')) ? trim($row['chasis']) : null,
+                'vin' => !empty(trim($row['vin'] ?? '')) ? trim($row['vin']) : null,
+                'vendor' => !empty(trim($row['vendor'] ?? '')) ? trim($row['vendor']) : null,
+                'year' => !empty(trim($row['year'] ?? '')) ? trim($row['year']) : null,
                 'base_location' => $row['location'] ?? null,
                 'color' => $row['colour'] ?? null,
                 'department_id' => $departmentId,
@@ -1023,7 +1023,7 @@ class DashboardController extends Controller
             }
 
             Vehicle::updateOrCreate(
-                ['chassis_number' => $row['chasis']],
+                ['license_plate' => trim($row['plate_number'])],
                 $attributes
             );
         }
