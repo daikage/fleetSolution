@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, usePage } from '@inertiajs/react';
-import { Car, Map as MapIcon, Settings, Users, LogOut, Wrench, Fuel, FileText, Menu, X, Bell, Shield, Route, BarChart3, CheckCircle, AlertTriangle, MessageSquare, ClipboardCheck, Building2 } from 'lucide-react';
+import { Car, Map as MapIcon, Settings, Users, LogOut, Wrench, Fuel, FileText, Menu, X, Bell, Shield, Route, BarChart3, CheckCircle, AlertTriangle, MessageSquare, ClipboardCheck, Building2, Store } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function DashboardLayout({ children }) {
@@ -110,7 +110,8 @@ export default function DashboardLayout({ children }) {
                                     {['super_admin', 'superadmin', 'admin', 'accountant'].includes(userRole) && <NavItem href={route('dashboard.approval-desk')} icon={<ClipboardCheck />} label="Approval Desk" active={url.startsWith('/dashboard/approval-desk')} onClick={closeMenu} isMobile />}
                                     {['super_admin', 'superadmin', 'admin', 'accountant'].includes(userRole) && <NavItem href={route('dashboard.financial-reports')} icon={<BarChart3 />} label="Financial Reports" active={url.startsWith('/dashboard/financial-reports')} onClick={closeMenu} isMobile />}
                                     {['super_admin', 'superadmin', 'admin'].includes(userRole) && <NavItem href={route('dashboard.users')} icon={<Shield />} label="Users" active={url.startsWith('/dashboard/users')} onClick={closeMenu} isMobile />}
-                                    {['super_admin', 'superadmin', 'admin'].includes(userRole) && <NavItem href={route('dashboard.departments')} icon={<Building2 />} label="Departments" active={url.startsWith('/dashboard/departments')} onClick={closeMenu} isMobile />}
+                                    {['super_admin', 'superadmin', 'admin', 'manager'].includes(userRole) && <NavItem href={route('dashboard.departments')} icon={<Building2 />} label="Departments" active={url.startsWith('/dashboard/departments')} onClick={closeMenu} isMobile />}
+                                    {['super_admin', 'superadmin', 'admin', 'manager'].includes(userRole) && <NavItem href={route('dashboard.vendors')} icon={<Store />} label="Vendors" active={url.startsWith('/dashboard/vendors')} onClick={closeMenu} isMobile />}
                                     <NavItem href={route('dashboard.notifications')} icon={<Bell />} label="Notifications" active={url.startsWith('/dashboard/notifications')} onClick={closeMenu} isMobile badge={unreadCount} />
                                     <NavItem href={route('profile.edit')} icon={<Settings />} label="Settings" active={url.startsWith('/profile')} onClick={closeMenu} isMobile />
                                 </ul>
@@ -147,7 +148,8 @@ export default function DashboardLayout({ children }) {
                         {['super_admin', 'superadmin', 'admin', 'accountant'].includes(userRole) && <NavItem href={route('dashboard.approval-desk')} icon={<ClipboardCheck />} label="Approval Desk" active={url.startsWith('/dashboard/approval-desk')} />}
                         {['super_admin', 'superadmin', 'admin', 'accountant'].includes(userRole) && <NavItem href={route('dashboard.financial-reports')} icon={<BarChart3 />} label="Financial Reports" active={url.startsWith('/dashboard/financial-reports')} />}
                         {['super_admin', 'superadmin', 'admin'].includes(userRole) && <NavItem href={route('dashboard.users')} icon={<Shield />} label="Users" active={url.startsWith('/dashboard/users')} />}
-                        {['super_admin', 'superadmin', 'admin'].includes(userRole) && <NavItem href={route('dashboard.departments')} icon={<Building2 />} label="Departments" active={url.startsWith('/dashboard/departments')} />}
+                        {['super_admin', 'superadmin', 'admin', 'manager'].includes(userRole) && <NavItem href={route('dashboard.departments')} icon={<Building2 />} label="Departments" active={url.startsWith('/dashboard/departments')} />}
+                        {['super_admin', 'superadmin', 'admin', 'manager'].includes(userRole) && <NavItem href={route('dashboard.vendors')} icon={<Store />} label="Vendors" active={url.startsWith('/dashboard/vendors')} />}
                         <NavItem href={route('dashboard.notifications')} icon={<Bell />} label="Notifications" active={url.startsWith('/dashboard/notifications')} badge={unreadCount} />
                         <NavItem href={route('profile.edit')} icon={<Settings />} label="Settings" active={url.startsWith('/profile')} />
                     </ul>

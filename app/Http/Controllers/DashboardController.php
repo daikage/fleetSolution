@@ -1327,6 +1327,67 @@ class DashboardController extends Controller
         return back()->with('success', 'Document status updated.');
     }
 
+    public function vendors()
+    {
+        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin', 'manager'])) {
+            abort(403, 'Unauthorized access.');
+        }
+
+        $vendors = \App\Domains\Fleet\Models\Vendor::all();
+        return Inertia::render('Dashboard/Vendors', [
+            'vendors' => $vendors
+        ]);
+    }
+
+    public function storeVendor(\Illuminate\Http\Request $request)
+    {
+        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin', 'manager'])) {
+            abort(403, 'Unauthorized access.');
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'address' => 'required|string',
+            'phone' => 'required|string|max:255',
+            'email' => 'nullable|email|max:255',
+            'tax_id' => 'nullable|string|max:255',
+        ]);
+
+        \App\Domains\Fleet\Models\Vendor::create($validated);
+
+        return back()->with('success', 'Vendor added successfully.');
+    }
+
+    public function updateVendor(\Illuminate\Http\Request $request, \App\Domains\Fleet\Models\Vendor $vendor)
+    {
+        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin', 'manager'])) {
+            abort(403, 'Unauthorized access.');
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'address' => 'required|string',
+            'phone' => 'required|string|max:255',
+            'email' => 'nullable|email|max:255',
+            'tax_id' => 'nullable|string|max:255',
+        ]);
+
+        $vendor->update($validated);
+
+        return back()->with('success', 'Vendor updated successfully.');
+    }
+
+    public function destroyVendor(\App\Domains\Fleet\Models\Vendor $vendor)
+    {
+        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin', 'manager'])) {
+            abort(403, 'Unauthorized access.');
+        }
+
+        $vendor->delete();
+
+        return back()->with('success', 'Vendor deleted successfully.');
+    }
+
     public function users()
     {
         if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin'])) {

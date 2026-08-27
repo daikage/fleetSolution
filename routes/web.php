@@ -129,6 +129,18 @@ Route::put('/dashboard/users/{user}', [\App\Http\Controllers\DashboardController
     ->middleware(['auth', 'verified'])
     ->name('dashboard.users.update');
 
+Route::get('/dashboard/vendors', [\App\Http\Controllers\DashboardController::class, 'vendors'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.vendors');
+Route::post('/dashboard/vendors', [\App\Http\Controllers\DashboardController::class, 'storeVendor'])
+    ->middleware(['auth', 'verified']);
+Route::put('/dashboard/vendors/{vendor}', [\App\Http\Controllers\DashboardController::class, 'updateVendor'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.vendors.update');
+Route::delete('/dashboard/vendors/{vendor}', [\App\Http\Controllers\DashboardController::class, 'destroyVendor'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.vendors.destroy');
+
 Route::get('/dashboard/departments', [\App\Http\Controllers\DashboardController::class, 'departments'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard.departments');
