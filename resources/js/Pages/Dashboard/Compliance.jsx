@@ -276,7 +276,7 @@ export default function Compliance({ documents, vehicles, drivers, missingDocume
                                         {data.documentable_type === 'vehicle' ? (
                                             <>
                                                 <option value="Vehicle License">Vehicle License</option>
-                                                <option value="Road Worthiness">Road Worthiness</option>
+                                                <option value="Roadworthiness">Roadworthiness</option>
                                                 <option value="Insurance">Insurance</option>
                                                 <option value="Stage Carriage">Stage Carriage</option>
                                                 <option value="MOT">MOT</option>
@@ -286,7 +286,7 @@ export default function Compliance({ documents, vehicles, drivers, missingDocume
                                             </>
                                         ) : (
                                             <>
-                                                <option value="Driver's License">Driver's License</option>
+                                                <option value="Driver License">Driver License</option>
                                                 <option value="Medical Certificate">Medical Certificate</option>
                                                 <option value="Background Check">Background Check</option>
                                                 <option value="LASDRI">LASDRI</option>
