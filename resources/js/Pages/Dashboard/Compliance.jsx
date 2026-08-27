@@ -257,7 +257,7 @@ export default function Compliance({ documents, vehicles, drivers, missingDocume
                                         >
                                             <option value="">-- Choose --</option>
                                             {data.documentable_type === 'vehicle'
-                                                ? vehicles.map(v => <option key={v.id} value={v.id}>{v.license_plate}</option>)
+                                                ? vehicles.map(v => <option key={v.id} value={v.id}>{v.name} - {v.license_plate}</option>)
                                                 : drivers.map(d => <option key={d.id} value={d.id}>{d.user?.name}</option>)
                                             }
                                         </select>
