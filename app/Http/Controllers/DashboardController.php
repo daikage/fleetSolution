@@ -162,6 +162,11 @@ class DashboardController extends Controller
             ]);
         }
 
+        if ($vehicle->latitude !== null && $vehicle->longitude !== null) {
+            $job = new \App\Jobs\ProcessVehicleLocation($vehicle->id, $vehicle->latitude, $vehicle->longitude, 0);
+            $job->handle();
+        }
+
         return back();
     }
 
@@ -210,6 +215,11 @@ class DashboardController extends Controller
             'latitude' => $validated['latitude'] ?? null,
             'longitude' => $validated['longitude'] ?? null,
         ]);
+
+        if (($vehicle->wasChanged('latitude') || $vehicle->wasChanged('longitude')) && $vehicle->latitude !== null && $vehicle->longitude !== null) {
+            $job = new \App\Jobs\ProcessVehicleLocation($vehicle->id, $vehicle->latitude, $vehicle->longitude, 0);
+            $job->handle();
+        }
 
         return back();
     }
@@ -1107,10 +1117,15 @@ class DashboardController extends Controller
                 $attributes['vehicle_id'] = $row['id'];
             }
 
-            Vehicle::updateOrCreate(
+            $vehicle = Vehicle::updateOrCreate(
                 ['license_plate' => trim($row['plate_number'])],
                 $attributes
             );
+
+            if (($vehicle->wasRecentlyCreated || $vehicle->wasChanged('latitude') || $vehicle->wasChanged('longitude')) && $vehicle->latitude !== null && $vehicle->longitude !== null) {
+                $job = new \App\Jobs\ProcessVehicleLocation($vehicle->id, $vehicle->latitude, $vehicle->longitude, 0);
+                $job->handle();
+            }
         }
 
         return back();
