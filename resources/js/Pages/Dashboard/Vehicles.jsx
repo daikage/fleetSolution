@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Head, useForm, Link, usePage } from '@inertiajs/react';
+import { Head, useForm, Link, usePage, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import BulkImportModal from '@/Components/BulkImportModal';
 import { Plus, Settings, Trash2, X, Navigation, FileText, File as FileIcon, ChevronDown, ChevronUp, StopCircle, XCircle, MapPin, Search, Loader, Play } from 'lucide-react';
@@ -138,6 +138,27 @@ export default function Vehicles({ vehicles, drivers, departments }) {
     const [expandedVehicleId, setExpandedVehicleId] = useState(null);
     const [isGeocoding, setIsGeocoding] = useState(false);
     const [editingVehicleId, setEditingVehicleId] = useState(null);
+    const [locationDropdownId, setLocationDropdownId] = useState(null);
+
+    const PREDEFINED_LOCATIONS = [
+        { key: 'lagos', label: 'Lagos' },
+        { key: 'abuja', label: 'Abuja' },
+        { key: 'ibadan', label: 'Ibadan' },
+        { key: 'port_harcourt', label: 'Port Harcourt' },
+        { key: 'kano', label: 'Kano' },
+    ];
+
+    // Close location dropdown when clicking outside
+    useEffect(() => {
+        if (!locationDropdownId) return;
+        const handleClickOutside = (e) => {
+            if (!e.target.closest('[data-location-dropdown]')) {
+                setLocationDropdownId(null);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [locationDropdownId]);
 
     // Map location picker state
     const [mapLocation, setMapLocation] = useState({
@@ -358,6 +379,7 @@ export default function Vehicles({ vehicles, drivers, departments }) {
                                     <th className="p-4 text-sm font-semibold text-gray-300">License Plate</th>
                                     <th className="p-4 text-sm font-semibold text-gray-300">Status</th>
                                     <th className="p-4 text-sm font-semibold text-gray-300">Department</th>
+                                    <th className="p-4 text-sm font-semibold text-gray-300">Location</th>
                                     <th className="p-4 text-sm font-semibold text-gray-300 text-right">Actions</th>
                                 </tr>
                             </thead>
@@ -370,7 +392,7 @@ export default function Vehicles({ vehicles, drivers, departments }) {
                                         <React.Fragment key={vehicle.id}>
                                             {showVendorGroupHeader && (
                                                 <tr className="bg-white/5 border-b border-white/10">
-                                                    <td colSpan="7" className="p-2 px-4 text-xs font-semibold text-electric-blue uppercase tracking-wider">
+                                                    <td colSpan="8" className="p-2 px-4 text-xs font-semibold text-electric-blue uppercase tracking-wider">
                                                         {vehicle.vendor || 'No Vendor'}
                                                     </td>
                                                 </tr>
@@ -396,6 +418,16 @@ export default function Vehicles({ vehicles, drivers, departments }) {
                                                     </span>
                                                 </td>
                                                 <td className="p-4 text-gray-300">{vehicle.department?.name || 'N/A'}</td>
+                                                <td className="p-4">
+                                                    {vehicle.base_location ? (
+                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                                                            <MapPin className="w-3 h-3" />
+                                                            {vehicle.base_location}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-gray-500 text-xs italic">Not Set</span>
+                                                    )}
+                                                </td>
                                                 <td className="p-4 text-right">
                                                     <div className="flex items-center justify-end gap-2">
                                                         {!vehicle.currentTrip ? (
@@ -474,6 +506,58 @@ export default function Vehicles({ vehicles, drivers, departments }) {
                                                         >
                                                             <Settings className="w-4 h-4" />
                                                         </button>
+                                                        <div className="relative" data-location-dropdown>
+                                                            <button
+                                                                onClick={() => setLocationDropdownId(locationDropdownId === vehicle.id ? null : vehicle.id)}
+                                                                className={`p-2 bg-white/5 rounded-lg transition-colors ${
+                                                                    vehicle.base_location
+                                                                        ? 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10'
+                                                                        : 'text-gray-400 hover:text-amber-400 hover:bg-amber-500/10'
+                                                                }`}
+                                                                title={vehicle.base_location ? `Location: ${vehicle.base_location}` : 'Set Location'}
+                                                            >
+                                                                <MapPin className="w-4 h-4" />
+                                                            </button>
+                                                            <AnimatePresence>
+                                                                {locationDropdownId === vehicle.id && (
+                                                                    <motion.div
+                                                                        initial={{ opacity: 0, y: -5, scale: 0.95 }}
+                                                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                                        exit={{ opacity: 0, y: -5, scale: 0.95 }}
+                                                                        transition={{ duration: 0.15 }}
+                                                                        className="absolute right-0 top-full mt-1 z-50 w-44 bg-gray-900 border border-white/10 rounded-xl shadow-2xl shadow-black/50 overflow-hidden"
+                                                                    >
+                                                                        <div className="p-1.5">
+                                                                            <p className="px-3 py-1.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Set Location</p>
+                                                                            {PREDEFINED_LOCATIONS.map(loc => (
+                                                                                <button
+                                                                                    key={loc.key}
+                                                                                    onClick={() => {
+                                                                                        router.post(route('dashboard.vehicles.location', vehicle.id), {
+                                                                                            location: loc.key,
+                                                                                        }, {
+                                                                                            preserveScroll: true,
+                                                                                            onSuccess: () => setLocationDropdownId(null),
+                                                                                        });
+                                                                                    }}
+                                                                                    className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors flex items-center gap-2 ${
+                                                                                        vehicle.base_location?.toLowerCase() === loc.label.toLowerCase()
+                                                                                            ? 'bg-emerald-500/20 text-emerald-400 font-medium'
+                                                                                            : 'text-gray-300 hover:bg-white/10 hover:text-white'
+                                                                                    }`}
+                                                                                >
+                                                                                    <MapPin className="w-3 h-3 flex-shrink-0" />
+                                                                                    {loc.label}
+                                                                                    {vehicle.base_location?.toLowerCase() === loc.label.toLowerCase() && (
+                                                                                        <span className="ml-auto text-[10px] text-emerald-500">●</span>
+                                                                                    )}
+                                                                                </button>
+                                                                            ))}
+                                                                        </div>
+                                                                    </motion.div>
+                                                                )}
+                                                            </AnimatePresence>
+                                                        </div>
                                                         <Link
                                                             href={route('dashboard.vehicles.destroy', vehicle.id)}
                                                             method="delete"
@@ -487,7 +571,7 @@ export default function Vehicles({ vehicles, drivers, departments }) {
                                             </tr>
                                             {isExpanded && (
                                                 <tr className="bg-black/20 border-b border-white/5">
-                                                    <td colSpan="7" className="p-6">
+                                                    <td colSpan="8" className="p-6">
                                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                                             <div>
                                                                 <h4 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">

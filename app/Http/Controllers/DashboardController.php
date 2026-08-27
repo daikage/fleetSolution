@@ -131,14 +131,6 @@ class DashboardController extends Controller
 
         $validated['status'] = 'active';
 
-        // Default to Lagos with jitter if no location provided
-        $lat = $validated['latitude'] ?? null;
-        $lng = $validated['longitude'] ?? null;
-        if (empty($lat) || empty($lng)) {
-            $lat = 6.5244 + (rand(-500, 500) / 10000);
-            $lng = 3.3792 + (rand(-500, 500) / 10000);
-        }
-
         $vehicle = Vehicle::create([
             'name' => $validated['name'],
             'chassis_number' => $validated['chassis_number'],
@@ -157,8 +149,8 @@ class DashboardController extends Controller
             'hackney' => $validated['hackney'] ?? null,
             'lg_papers' => $validated['lg_papers'] ?? null,
             'battery' => $validated['battery'] ?? null,
-            'latitude' => $lat,
-            'longitude' => $lng,
+            'latitude' => $validated['latitude'] ?? null,
+            'longitude' => $validated['longitude'] ?? null,
             'status' => $validated['status'],
         ]);
 
@@ -170,9 +162,10 @@ class DashboardController extends Controller
             ]);
         }
 
-        // Always register the location so the map picks it up
-        $job = new \App\Jobs\ProcessVehicleLocation($vehicle->id, $vehicle->latitude, $vehicle->longitude, 0);
-        $job->handle();
+        if ($vehicle->latitude !== null && $vehicle->longitude !== null) {
+            $job = new \App\Jobs\ProcessVehicleLocation($vehicle->id, $vehicle->latitude, $vehicle->longitude, 0);
+            $job->handle();
+        }
 
         return back();
     }
@@ -201,14 +194,6 @@ class DashboardController extends Controller
             'longitude' => 'nullable|numeric|between:-180,180',
         ]);
 
-        // Default to Lagos with jitter if location is cleared
-        $lat = $validated['latitude'] ?? null;
-        $lng = $validated['longitude'] ?? null;
-        if (empty($lat) || empty($lng)) {
-            $lat = 6.5244 + (rand(-500, 500) / 10000);
-            $lng = 3.3792 + (rand(-500, 500) / 10000);
-        }
-
         $vehicle->update([
             'name' => $validated['name'],
             'chassis_number' => $validated['chassis_number'],
@@ -227,14 +212,45 @@ class DashboardController extends Controller
             'hackney' => $validated['hackney'] ?? null,
             'lg_papers' => $validated['lg_papers'] ?? null,
             'battery' => $validated['battery'] ?? null,
-            'latitude' => $lat,
-            'longitude' => $lng,
+            'latitude' => $validated['latitude'] ?? null,
+            'longitude' => $validated['longitude'] ?? null,
         ]);
 
-        if ($vehicle->wasChanged('latitude') || $vehicle->wasChanged('longitude')) {
+        if (($vehicle->wasChanged('latitude') || $vehicle->wasChanged('longitude')) && $vehicle->latitude !== null && $vehicle->longitude !== null) {
             $job = new \App\Jobs\ProcessVehicleLocation($vehicle->id, $vehicle->latitude, $vehicle->longitude, 0);
             $job->handle();
         }
+
+        return back();
+    }
+
+    public function updateVehicleLocation(\Illuminate\Http\Request $request, Vehicle $vehicle)
+    {
+        $validated = $request->validate([
+            'location' => 'required|string|in:lagos,abuja,ibadan,port_harcourt,kano',
+        ]);
+
+        $locations = [
+            'lagos'          => ['lat' => 6.5244, 'lng' => 3.3792, 'label' => 'Lagos'],
+            'abuja'          => ['lat' => 9.0765, 'lng' => 7.3986, 'label' => 'Abuja'],
+            'ibadan'         => ['lat' => 7.3775, 'lng' => 3.9470, 'label' => 'Ibadan'],
+            'port_harcourt'  => ['lat' => 4.8156, 'lng' => 7.0498, 'label' => 'Port Harcourt'],
+            'kano'           => ['lat' => 12.0022, 'lng' => 8.5920, 'label' => 'Kano'],
+        ];
+
+        $loc = $locations[$validated['location']];
+        $lat = $loc['lat'] + (rand(-100, 100) / 10000);
+        $lng = $loc['lng'] + (rand(-100, 100) / 10000);
+
+        $vehicle->update([
+            'latitude' => $lat,
+            'longitude' => $lng,
+            'base_location' => $loc['label'],
+        ]);
+
+        // Register location so the map picks it up immediately
+        $job = new \App\Jobs\ProcessVehicleLocation($vehicle->id, $lat, $lng, 0);
+        $job->handle();
 
         return back();
     }
@@ -1087,23 +1103,23 @@ class DashboardController extends Controller
             
             if ($baseLoc) {
                 if (str_contains($baseLoc, 'lagos')) {
-                    $lat = 6.5244 + (rand(-500, 500) / 10000);
-                    $lng = 3.3792 + (rand(-500, 500) / 10000);
+                    $lat = 6.5244 + (rand(-100, 100) / 10000);
+                    $lng = 3.3792 + (rand(-100, 100) / 10000);
                 } elseif (str_contains($baseLoc, 'abuja')) {
-                    $lat = 9.0765 + (rand(-500, 500) / 10000);
-                    $lng = 7.3986 + (rand(-500, 500) / 10000);
+                    $lat = 9.0765 + (rand(-100, 100) / 10000);
+                    $lng = 7.3986 + (rand(-100, 100) / 10000);
                 } elseif (str_contains($baseLoc, 'ibadan')) {
-                    $lat = 7.3775 + (rand(-500, 500) / 10000);
-                    $lng = 3.9470 + (rand(-500, 500) / 10000);
+                    $lat = 7.3775 + (rand(-100, 100) / 10000);
+                    $lng = 3.9470 + (rand(-100, 100) / 10000);
                 } else {
-                    // Default to Lagos with jitter
-                    $lat = 6.5244 + (rand(-500, 500) / 10000);
-                    $lng = 3.3792 + (rand(-500, 500) / 10000);
+                    // Default to Lagos with jitter for unrecognised locations
+                    $lat = 6.5244 + (rand(-100, 100) / 10000);
+                    $lng = 3.3792 + (rand(-100, 100) / 10000);
                 }
             } else {
                 // Default to Lagos if no location provided
-                $lat = 6.5244 + (rand(-500, 500) / 10000);
-                $lng = 3.3792 + (rand(-500, 500) / 10000);
+                $lat = 6.5244 + (rand(-100, 100) / 10000);
+                $lng = 3.3792 + (rand(-100, 100) / 10000);
             }
 
             $attributes = [
