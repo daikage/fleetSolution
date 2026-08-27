@@ -137,6 +137,7 @@ export default function Vehicles({ vehicles, drivers, departments }) {
     const [endTripVehicle, setEndTripVehicle] = useState(null);
     const [expandedVehicleId, setExpandedVehicleId] = useState(null);
     const [isGeocoding, setIsGeocoding] = useState(false);
+    const [editingVehicleId, setEditingVehicleId] = useState(null);
 
     // Map location picker state
     const [mapLocation, setMapLocation] = useState({
@@ -147,7 +148,7 @@ export default function Vehicles({ vehicles, drivers, departments }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResultAddress, setSearchResultAddress] = useState('');
 
-    const { data, setData, post, processing, errors, reset } = useForm({
+    const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
         name: '',
         chassis_number: '',
         vin: '',
@@ -170,26 +171,53 @@ export default function Vehicles({ vehicles, drivers, departments }) {
         longitude: '',
     });
 
-    const dispatchForm = useForm({
-        vehicle_id: '',
-        driver_id: '',
-    });
-
-    const endTripForm = useForm({
-        end_odometer: '',
-        end_location: '',
-        distance_km: '',
-        notes: '',
-    });
-
     const submit = (e) => {
         e.preventDefault();
-        post(route('dashboard.vehicles'), {
-            onSuccess: () => {
-                setIsModalOpen(false);
-                reset();
-            },
+        if (editingVehicleId) {
+            put(route('dashboard.vehicles.update', editingVehicleId), {
+                onSuccess: () => {
+                    setIsModalOpen(false);
+                    reset();
+                    setEditingVehicleId(null);
+                    clearErrors();
+                },
+            });
+        } else {
+            post(route('dashboard.vehicles'), {
+                onSuccess: () => {
+                    setIsModalOpen(false);
+                    reset();
+                    clearErrors();
+                },
+            });
+        }
+    };
+
+    const openEditModal = (vehicle) => {
+        clearErrors();
+        setData({
+            name: vehicle.name || '',
+            chassis_number: vehicle.chassis_number || '',
+            vin: vehicle.vin || '',
+            vendor: vehicle.vendor || '',
+            year: vehicle.year || '',
+            license_plate: vehicle.license_plate || '',
+            base_location: vehicle.base_location || '',
+            color: vehicle.color || '',
+            department_id: vehicle.department_id || '',
+            vehicle_license: vehicle.vehicle_license || '',
+            road_worthiness: vehicle.road_worthiness || '',
+            insurance: vehicle.insurance || '',
+            stage_carriage: vehicle.stage_carriage || '',
+            mot: vehicle.mot || '',
+            hackney: vehicle.hackney || '',
+            lg_papers: vehicle.lg_papers || '',
+            battery: vehicle.battery || '',
+            latitude: vehicle.latitude || '',
+            longitude: vehicle.longitude || '',
         });
+        setEditingVehicleId(vehicle.id);
+        setIsModalOpen(true);
     };
 
     const submitDispatch = (e) => {
@@ -305,7 +333,12 @@ export default function Vehicles({ vehicles, drivers, departments }) {
                         </button>
                         <ExportButtons data={exportData} columns={exportColumns} filename="Fleet_Vehicles" title="Fleet Vehicles Registry" />
                         <button
-                            onClick={() => setIsModalOpen(true)}
+                            onClick={() => {
+                                reset();
+                                clearErrors();
+                                setEditingVehicleId(null);
+                                setIsModalOpen(true);
+                            }}
                             className="bg-electric-blue hover:bg-sky-400 text-white px-4 md:px-6 py-2 md:py-2.5 rounded-full font-medium transition-colors shadow-lg shadow-electric-blue/20 flex items-center gap-2 whitespace-nowrap"
                         >
                             <Plus className="w-4 h-4 md:w-5 md:h-5" />
@@ -434,6 +467,13 @@ export default function Vehicles({ vehicles, drivers, departments }) {
                                                                 </Link>
                                                             </div>
                                                         )}
+                                                        <button
+                                                            onClick={() => openEditModal(vehicle)}
+                                                            className="p-2 text-gray-400 hover:text-sky-400 bg-white/5 rounded-lg hover:bg-sky-500/10 transition-colors"
+                                                            title="Edit Vehicle"
+                                                        >
+                                                            <Settings className="w-4 h-4" />
+                                                        </button>
                                                         <Link
                                                             href={route('dashboard.vehicles.destroy', vehicle.id)}
                                                             method="delete"
@@ -522,8 +562,10 @@ export default function Vehicles({ vehicles, drivers, departments }) {
                             className="glass-panel w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]"
                         >
                             <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/20">
-                                <h2 className="text-xl font-bold text-white">Add New Vehicle</h2>
-                                <button onClick={() => { setIsModalOpen(false); reset(); }} className="p-2 rounded-full hover:bg-white/10 text-gray-400 transition-colors">
+                                <h2 className="text-xl font-bold text-white">
+                                    {editingVehicleId ? 'Edit Vehicle' : 'Add New Vehicle'}
+                                </h2>
+                                <button onClick={() => { setIsModalOpen(false); reset(); clearErrors(); setEditingVehicleId(null); }} className="p-2 rounded-full hover:bg-white/10 text-gray-400 transition-colors">
                                     <X className="w-5 h-5" />
                                 </button>
                             </div>
@@ -826,9 +868,9 @@ export default function Vehicles({ vehicles, drivers, departments }) {
                                 </div>
 
                                 <div className="mt-4 flex justify-end gap-3">
-                                    <button type="button" onClick={() => { setIsModalOpen(false); reset(); }} className="px-4 py-2 text-gray-400 hover:text-white transition-colors">Cancel</button>
+                                    <button type="button" onClick={() => { setIsModalOpen(false); reset(); clearErrors(); setEditingVehicleId(null); }} className="px-4 py-2 text-gray-400 hover:text-white transition-colors">Cancel</button>
                                     <button type="submit" disabled={processing} className="bg-electric-blue hover:bg-sky-400 text-white px-6 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-electric-blue/20 disabled:opacity-50">
-                                        {processing ? 'Saving...' : 'Save Vehicle'}
+                                        {processing ? 'Saving...' : (editingVehicleId ? 'Update Vehicle' : 'Save Vehicle')}
                                     </button>
                                 </div>
                             </form>

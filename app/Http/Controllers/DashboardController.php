@@ -165,6 +165,55 @@ class DashboardController extends Controller
         return back();
     }
 
+    public function updateVehicle(\Illuminate\Http\Request $request, Vehicle $vehicle)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'chassis_number' => 'required|string|max:255|unique:vehicles,chassis_number,' . $vehicle->id,
+            'license_plate' => 'required|string|max:255|unique:vehicles,license_plate,' . $vehicle->id,
+            'vin' => 'nullable|string|max:255|unique:vehicles,vin,' . $vehicle->id,
+            'vendor' => 'nullable|string|max:255',
+            'year' => 'nullable|integer|min:1900|max:2100',
+            'base_location' => 'nullable|string|max:255',
+            'color' => 'nullable|string|max:255',
+            'department_id' => 'nullable|exists:departments,id',
+            'vehicle_license' => 'nullable|string|max:255',
+            'road_worthiness' => 'nullable|string|max:255',
+            'insurance' => 'nullable|string|max:255',
+            'stage_carriage' => 'nullable|string|max:255',
+            'mot' => 'nullable|string|max:255',
+            'hackney' => 'nullable|string|max:255',
+            'lg_papers' => 'nullable|string|max:255',
+            'battery' => 'nullable|string|max:255',
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
+        ]);
+
+        $vehicle->update([
+            'name' => $validated['name'],
+            'chassis_number' => $validated['chassis_number'],
+            'license_plate' => $validated['license_plate'],
+            'vin' => $validated['vin'] ?? null,
+            'vendor' => $validated['vendor'] ?? null,
+            'year' => $validated['year'] ?? null,
+            'base_location' => $validated['base_location'] ?? null,
+            'color' => $validated['color'] ?? null,
+            'department_id' => $validated['department_id'] ?? null,
+            'vehicle_license' => $validated['vehicle_license'] ?? null,
+            'road_worthiness' => $validated['road_worthiness'] ?? null,
+            'insurance' => $validated['insurance'] ?? null,
+            'stage_carriage' => $validated['stage_carriage'] ?? null,
+            'mot' => $validated['mot'] ?? null,
+            'hackney' => $validated['hackney'] ?? null,
+            'lg_papers' => $validated['lg_papers'] ?? null,
+            'battery' => $validated['battery'] ?? null,
+            'latitude' => $validated['latitude'] ?? null,
+            'longitude' => $validated['longitude'] ?? null,
+        ]);
+
+        return back();
+    }
+
     public function drivers()
     {
         if (auth()->user()->role === 'driver') {
@@ -1007,6 +1056,31 @@ class DashboardController extends Controller
                 $departmentId = $dept ? $dept->id : (is_numeric($row['user']) ? $row['user'] : null);
             }
 
+            $baseLoc = strtolower(trim($row['location'] ?? ''));
+            $lat = null;
+            $lng = null;
+            
+            if ($baseLoc) {
+                if (str_contains($baseLoc, 'lagos')) {
+                    $lat = 6.5244 + (rand(-100, 100) / 10000); // add slight jitter
+                    $lng = 3.3792 + (rand(-100, 100) / 10000);
+                } elseif (str_contains($baseLoc, 'abuja')) {
+                    $lat = 9.0765 + (rand(-100, 100) / 10000);
+                    $lng = 7.3986 + (rand(-100, 100) / 10000);
+                } elseif (str_contains($baseLoc, 'ibadan')) {
+                    $lat = 7.3775 + (rand(-100, 100) / 10000);
+                    $lng = 3.9470 + (rand(-100, 100) / 10000);
+                } else {
+                    // Default to center of Nigeria with jitter
+                    $lat = 9.0820 + (rand(-500, 500) / 10000);
+                    $lng = 8.6753 + (rand(-500, 500) / 10000);
+                }
+            } else {
+                // Default if no location provided
+                $lat = 9.0820 + (rand(-500, 500) / 10000);
+                $lng = 8.6753 + (rand(-500, 500) / 10000);
+            }
+
             $attributes = [
                 'name' => $row['vehicle_name'] ?? 'Unknown',
                 'chassis_number' => !empty(trim($row['chasis'] ?? '')) ? trim($row['chasis']) : null,
@@ -1024,6 +1098,8 @@ class DashboardController extends Controller
                 'hackney' => $row['hackney'] ?? null,
                 'lg_papers' => $row['lg_papers'] ?? null,
                 'battery' => $row['battery'] ?? null,
+                'latitude' => $lat,
+                'longitude' => $lng,
                 'status' => 'active'
             ];
 
