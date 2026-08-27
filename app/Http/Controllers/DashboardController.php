@@ -131,12 +131,12 @@ class DashboardController extends Controller
 
         $validated['status'] = 'active';
 
-        // Default to Lagos with slight jitter if no location provided
+        // Default to Lagos with jitter if no location provided
         $lat = $validated['latitude'] ?? null;
         $lng = $validated['longitude'] ?? null;
         if (empty($lat) || empty($lng)) {
-            $lat = 6.5244 + (rand(-100, 100) / 10000);
-            $lng = 3.3792 + (rand(-100, 100) / 10000);
+            $lat = 6.5244 + (rand(-500, 500) / 10000);
+            $lng = 3.3792 + (rand(-500, 500) / 10000);
         }
 
         $vehicle = Vehicle::create([
@@ -201,12 +201,12 @@ class DashboardController extends Controller
             'longitude' => 'nullable|numeric|between:-180,180',
         ]);
 
-        // Default to Lagos with slight jitter if location is cleared
+        // Default to Lagos with jitter if location is cleared
         $lat = $validated['latitude'] ?? null;
         $lng = $validated['longitude'] ?? null;
         if (empty($lat) || empty($lng)) {
-            $lat = 6.5244 + (rand(-100, 100) / 10000);
-            $lng = 3.3792 + (rand(-100, 100) / 10000);
+            $lat = 6.5244 + (rand(-500, 500) / 10000);
+            $lng = 3.3792 + (rand(-500, 500) / 10000);
         }
 
         $vehicle->update([
@@ -1087,23 +1087,23 @@ class DashboardController extends Controller
             
             if ($baseLoc) {
                 if (str_contains($baseLoc, 'lagos')) {
-                    $lat = 6.5244 + (rand(-100, 100) / 10000); // add slight jitter
-                    $lng = 3.3792 + (rand(-100, 100) / 10000);
+                    $lat = 6.5244 + (rand(-500, 500) / 10000);
+                    $lng = 3.3792 + (rand(-500, 500) / 10000);
                 } elseif (str_contains($baseLoc, 'abuja')) {
-                    $lat = 9.0765 + (rand(-100, 100) / 10000);
-                    $lng = 7.3986 + (rand(-100, 100) / 10000);
+                    $lat = 9.0765 + (rand(-500, 500) / 10000);
+                    $lng = 7.3986 + (rand(-500, 500) / 10000);
                 } elseif (str_contains($baseLoc, 'ibadan')) {
-                    $lat = 7.3775 + (rand(-100, 100) / 10000);
-                    $lng = 3.9470 + (rand(-100, 100) / 10000);
+                    $lat = 7.3775 + (rand(-500, 500) / 10000);
+                    $lng = 3.9470 + (rand(-500, 500) / 10000);
                 } else {
                     // Default to Lagos with jitter
-                    $lat = 6.5244 + (rand(-100, 100) / 10000);
-                    $lng = 3.3792 + (rand(-100, 100) / 10000);
+                    $lat = 6.5244 + (rand(-500, 500) / 10000);
+                    $lng = 3.3792 + (rand(-500, 500) / 10000);
                 }
             } else {
                 // Default to Lagos if no location provided
-                $lat = 6.5244 + (rand(-100, 100) / 10000);
-                $lng = 3.3792 + (rand(-100, 100) / 10000);
+                $lat = 6.5244 + (rand(-500, 500) / 10000);
+                $lng = 3.3792 + (rand(-500, 500) / 10000);
             }
 
             $attributes = [
