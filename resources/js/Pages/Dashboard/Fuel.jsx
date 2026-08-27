@@ -122,7 +122,7 @@ export default function Fuel({ fuelLogs, vehicles, drivers, userRole }) {
         <DashboardLayout>
             <Head title="Fuel Logs - FKG.Fleet" />
 
-            <div className="p-4 md:p-8 max-w-7xl mx-auto">
+            <div className="p-4 md:p-8 w-full max-w-[1600px] mx-auto">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                     <div>
                         <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">Fuel Management</h1>
@@ -340,7 +340,7 @@ export default function Fuel({ fuelLogs, vehicles, drivers, userRole }) {
                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            className="glass-panel w-full max-w-lg overflow-hidden flex flex-col"
+                            className="glass-panel w-full max-w-3xl overflow-hidden flex flex-col"
                         >
                             <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/20">
                                 <h2 className="text-xl font-bold text-white">Log Fuel Receipt</h2>
@@ -446,7 +446,7 @@ export default function Fuel({ fuelLogs, vehicles, drivers, userRole }) {
                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            className="glass-panel w-full max-w-md overflow-hidden flex flex-col"
+                            className="glass-panel w-full max-w-xl overflow-hidden flex flex-col"
                         >
                             <div className={`p-6 border-b border-white/10 flex justify-between items-center ${
                                 actionType === 'Accepted' ? 'bg-emerald-500/20' :
@@ -508,7 +508,7 @@ export default function Fuel({ fuelLogs, vehicles, drivers, userRole }) {
                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            className="glass-panel w-full max-w-md overflow-hidden flex flex-col"
+                            className="glass-panel w-full max-w-2xl overflow-hidden flex flex-col"
                         >
                             <div className="p-6 border-b border-white/10 flex justify-between items-center bg-amber-500/20">
                                 <div>
