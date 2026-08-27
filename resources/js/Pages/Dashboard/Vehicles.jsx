@@ -617,14 +617,28 @@ export default function Vehicles({ vehicles, drivers, departments }) {
                                                                     <div className="flex justify-between p-2 border-b border-white/5"><span className="text-gray-400">Year</span><span className="text-white">{vehicle.year || 'N/A'}</span></div>
                                                                     <div className="flex justify-between p-2 border-b border-white/5"><span className="text-gray-400">Location</span><span className="text-white font-mono">{vehicle.base_location || 'N/A'}</span></div>
                                                                     <div className="flex justify-between p-2 border-b border-white/5"><span className="text-gray-400">Color</span><span className="text-white">{vehicle.color || 'N/A'}</span></div>
-                                                                    <div className="flex justify-between p-2 border-b border-white/5"><span className="text-gray-400">Vehicle License</span><span className="text-white">{vehicle.vehicle_license || 'N/A'}</span></div>
-                                                                    <div className="flex justify-between p-2 border-b border-white/5"><span className="text-gray-400">Road Worthiness</span><span className="text-white">{vehicle.road_worthiness || 'N/A'}</span></div>
-                                                                    <div className="flex justify-between p-2 border-b border-white/5"><span className="text-gray-400">Insurance</span><span className="text-white">{vehicle.insurance || 'N/A'}</span></div>
-                                                                    <div className="flex justify-between p-2 border-b border-white/5"><span className="text-gray-400">Stage Carriage</span><span className="text-white">{vehicle.stage_carriage || 'N/A'}</span></div>
-                                                                    <div className="flex justify-between p-2 border-b border-white/5"><span className="text-gray-400">MOT</span><span className="text-white">{vehicle.mot || 'N/A'}</span></div>
-                                                                    <div className="flex justify-between p-2 border-b border-white/5"><span className="text-gray-400">Hackney</span><span className="text-white">{vehicle.hackney || 'N/A'}</span></div>
-                                                                    <div className="flex justify-between p-2 border-b border-white/5"><span className="text-gray-400">LG Papers</span><span className="text-white">{vehicle.lg_papers || 'N/A'}</span></div>
-                                                                    <div className="flex justify-between p-2"><span className="text-gray-400">Battery</span><span className="text-white">{vehicle.battery || 'N/A'}</span></div>
+                                                                    {(() => {
+                                                                        const renderDocStatus = (docType) => {
+                                                                            const hasDoc = vehicle.documents && vehicle.documents.some(d => d.document_type === docType);
+                                                                            return hasDoc ? (
+                                                                                <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/20 text-emerald-400 uppercase tracking-wider">Active</span>
+                                                                            ) : (
+                                                                                <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-rose-500/20 text-rose-400 uppercase tracking-wider">Missing</span>
+                                                                            );
+                                                                        };
+                                                                        return (
+                                                                            <>
+                                                                                <div className="flex justify-between p-2 border-b border-white/5 items-center"><span className="text-gray-400">Vehicle License</span>{renderDocStatus('Vehicle License')}</div>
+                                                                                <div className="flex justify-between p-2 border-b border-white/5 items-center"><span className="text-gray-400">Roadworthiness</span>{renderDocStatus('Roadworthiness')}</div>
+                                                                                <div className="flex justify-between p-2 border-b border-white/5 items-center"><span className="text-gray-400">Insurance</span>{renderDocStatus('Insurance')}</div>
+                                                                                <div className="flex justify-between p-2 border-b border-white/5 items-center"><span className="text-gray-400">Stage Carriage</span>{renderDocStatus('Stage Carriage')}</div>
+                                                                                <div className="flex justify-between p-2 border-b border-white/5 items-center"><span className="text-gray-400">MOT</span>{renderDocStatus('MOT')}</div>
+                                                                                <div className="flex justify-between p-2 border-b border-white/5 items-center"><span className="text-gray-400">Hackney</span>{renderDocStatus('Hackney')}</div>
+                                                                                <div className="flex justify-between p-2 border-b border-white/5 items-center"><span className="text-gray-400">LG Papers</span>{renderDocStatus('LG Papers')}</div>
+                                                                                <div className="flex justify-between p-2 items-center"><span className="text-gray-400">Battery</span>{renderDocStatus('Battery')}</div>
+                                                                            </>
+                                                                        );
+                                                                    })()}
                                                                 </div>
                                                             </div>
                                                         </div>
