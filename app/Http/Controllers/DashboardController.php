@@ -968,13 +968,22 @@ class DashboardController extends Controller
         $data = [];
         if (($handle = fopen($file->getRealPath(), 'r')) !== false) {
             $headers = fgetcsv($handle, 1000, ',');
-            $headers = array_map(function ($header) {
-                return str_replace(' ', '_', trim(strtolower($header)));
-            }, $headers);
+            
+            if ($headers !== false) {
+                $headers = array_map(function ($header) {
+                    $header = str_replace(["\xA0", "\xC2\xA0"], ' ', $header);
+                    $header = mb_convert_encoding($header, 'UTF-8', 'UTF-8, ISO-8859-1, Windows-1252');
+                    return str_replace(' ', '_', trim(strtolower($header)));
+                }, $headers);
 
-            while (($row = fgetcsv($handle, 1000, ',')) !== false) {
-                if (count($headers) == count($row)) {
-                    $data[] = array_combine($headers, $row);
+                while (($row = fgetcsv($handle, 1000, ',')) !== false) {
+                    if (count($headers) == count($row)) {
+                        $row = array_map(function ($val) {
+                            $val = str_replace(["\xA0", "\xC2\xA0"], ' ', $val);
+                            return mb_convert_encoding($val, 'UTF-8', 'UTF-8, ISO-8859-1, Windows-1252');
+                        }, $row);
+                        $data[] = array_combine($headers, $row);
+                    }
                 }
             }
             fclose($handle);
