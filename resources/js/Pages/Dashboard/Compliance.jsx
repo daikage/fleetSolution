@@ -266,14 +266,36 @@ export default function Compliance({ documents, vehicles, drivers, missingDocume
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-1">Document Type</label>
-                                    <input
-                                        type="text"
+                                    <select
                                         value={data.document_type}
                                         onChange={e => setData('document_type', e.target.value)}
                                         className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue outline-none"
-                                        placeholder="e.g. Driver's License, Insurance"
                                         required
-                                    />
+                                    >
+                                        <option value="">-- Select Document Type --</option>
+                                        {data.documentable_type === 'vehicle' ? (
+                                            <>
+                                                <option value="Vehicle License">Vehicle License</option>
+                                                <option value="Road Worthiness">Road Worthiness</option>
+                                                <option value="Insurance">Insurance</option>
+                                                <option value="Stage Carriage">Stage Carriage</option>
+                                                <option value="MOT">MOT</option>
+                                                <option value="Hackney">Hackney</option>
+                                                <option value="LG Papers">LG Papers</option>
+                                                <option value="Battery">Battery</option>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <option value="Driver's License">Driver's License</option>
+                                                <option value="Medical Certificate">Medical Certificate</option>
+                                                <option value="Background Check">Background Check</option>
+                                                <option value="LASDRI">LASDRI</option>
+                                                <option value="Driver's Permit">Driver's Permit</option>
+                                                <option value="Guarantor Form">Guarantor Form</option>
+                                            </>
+                                        )}
+                                        <option value="Other">Other</option>
+                                    </select>
                                 </div>
 
                                 <div>
