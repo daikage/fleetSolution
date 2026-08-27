@@ -162,8 +162,8 @@ export default function Vehicles({ vehicles, drivers, departments }) {
 
     // Map location picker state
     const [mapLocation, setMapLocation] = useState({
-        latitude: 6.5244,
-        longitude: 3.3792,
+        latitude: 6.574368986524661,
+        longitude: 3.3891698249000393,
     });
     const [showMapPicker, setShowMapPicker] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -899,8 +899,8 @@ export default function Vehicles({ vehicles, drivers, departments }) {
                                                                 type="button"
                                                                 onClick={() => {
                                                                     setMapLocation({
-                                                                        latitude: parseFloat(data.latitude) || 6.5244,
-                                                                        longitude: parseFloat(data.longitude) || 3.3792,
+                                                                        latitude: parseFloat(data.latitude) || 6.574368986524661,
+                                                                        longitude: parseFloat(data.longitude) || 3.3891698249000393,
                                                                     });
                                                                     setShowMapPicker(true);
                                                                 }}

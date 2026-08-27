@@ -27,17 +27,17 @@ Route::get('/fix-map', function () {
     foreach($vehicles as $vehicle) {
         $baseLoc = strtolower(trim($vehicle->base_location ?? ''));
         if (str_contains($baseLoc, 'lagos')) {
-            $lat = 6.5244;
-            $lng = 3.3792;
+            $lat = 6.574368986524661;
+            $lng = 3.3891698249000393;
         } elseif (str_contains($baseLoc, 'abuja')) {
-            $lat = 9.0765;
-            $lng = 7.3986;
+            $lat = 9.018317344473623;
+            $lng = 7.456211478382267;
         } elseif (str_contains($baseLoc, 'ibadan')) {
             $lat = 7.3775;
             $lng = 3.9470;
         } else {
-            $lat = 6.5244;
-            $lng = 3.3792;
+            $lat = 6.574368986524661;
+            $lng = 3.3891698249000393;
         }
         $vehicle->update(['latitude' => $lat, 'longitude' => $lng]);
     }

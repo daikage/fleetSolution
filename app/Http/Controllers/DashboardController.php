@@ -231,8 +231,8 @@ class DashboardController extends Controller
         ]);
 
         $locations = [
-            'lagos'          => ['lat' => 6.5244, 'lng' => 3.3792, 'label' => 'Lagos'],
-            'abuja'          => ['lat' => 9.0765, 'lng' => 7.3986, 'label' => 'Abuja'],
+            'lagos'          => ['lat' => 6.574368986524661, 'lng' => 3.3891698249000393, 'label' => 'Lagos'],
+            'abuja'          => ['lat' => 9.018317344473623, 'lng' => 7.456211478382267, 'label' => 'Abuja'],
             'ibadan'         => ['lat' => 7.3775, 'lng' => 3.9470, 'label' => 'Ibadan'],
             'port_harcourt'  => ['lat' => 4.8156, 'lng' => 7.0498, 'label' => 'Port Harcourt'],
             'kano'           => ['lat' => 12.0022, 'lng' => 8.5920, 'label' => 'Kano'],
@@ -1103,23 +1103,23 @@ class DashboardController extends Controller
             
             if ($baseLoc) {
                 if (str_contains($baseLoc, 'lagos')) {
-                    $lat = 6.5244;
-                    $lng = 3.3792;
+                    $lat = 6.574368986524661;
+                    $lng = 3.3891698249000393;
                 } elseif (str_contains($baseLoc, 'abuja')) {
-                    $lat = 9.0765;
-                    $lng = 7.3986;
+                    $lat = 9.018317344473623;
+                    $lng = 7.456211478382267;
                 } elseif (str_contains($baseLoc, 'ibadan')) {
                     $lat = 7.3775;
                     $lng = 3.9470;
                 } else {
                     // Default to Lagos for unrecognised locations
-                    $lat = 6.5244;
-                    $lng = 3.3792;
+                    $lat = 6.574368986524661;
+                    $lng = 3.3891698249000393;
                 }
             } else {
                 // Default to Lagos if no location provided
-                $lat = 6.5244;
-                $lng = 3.3792;
+                $lat = 6.574368986524661;
+                $lng = 3.3891698249000393;
             }
 
             $attributes = [
