@@ -969,7 +969,7 @@ class DashboardController extends Controller
         if (($handle = fopen($file->getRealPath(), 'r')) !== false) {
             $headers = fgetcsv($handle, 1000, ',');
             $headers = array_map(function ($header) {
-                return trim(strtolower($header));
+                return str_replace(' ', '_', trim(strtolower($header)));
             }, $headers);
 
             while (($row = fgetcsv($handle, 1000, ',')) !== false) {
