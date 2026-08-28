@@ -138,13 +138,8 @@ class DashboardController extends Controller
             'status' => $validated['status'],
         ]);
 
-        if (!empty($validated['driver_id'])) {
-            \App\Domains\Driver\Models\Trip::create([
-                'vehicle_id' => $vehicle->id,
-                'driver_id' => $validated['driver_id'],
-                'start_time' => now(),
-            ]);
-        }
+        // Note: Automatic trip creation has been removed from here.
+        // Trips must be created explicitly via storeTrip to ensure compliance validation.
 
         if ($vehicle->latitude !== null && $vehicle->longitude !== null) {
             $job = new \App\Jobs\ProcessVehicleLocation($vehicle->id, $vehicle->latitude, $vehicle->longitude, 0);
@@ -1397,12 +1392,6 @@ class DashboardController extends Controller
 
         $morphClass = $typeMap[$validated['documentable_type']];
 
-        // Archive previous documents of the same type for this entity
-        \App\Domains\Fleet\Models\Document::where('documentable_type', $morphClass)
-            ->where('documentable_id', $validated['documentable_id'])
-            ->where('document_type', $validated['document_type'])
-            ->update(['is_archived' => true]);
-
         $url = $validated['url'] ?? null;
         if ($request->hasFile('document_file')) {
             $path = $request->file('document_file')->store('documents', 'public');
@@ -1438,6 +1427,13 @@ class DashboardController extends Controller
         ]);
 
         if ($validated['action'] === 'verify') {
+            // Archive other documents of the same type for this entity upon verification
+            \App\Domains\Fleet\Models\Document::where('documentable_type', $document->documentable_type)
+                ->where('documentable_id', $document->documentable_id)
+                ->where('document_type', $document->document_type)
+                ->where('id', '!=', $document->id)
+                ->update(['is_archived' => true]);
+
             $document->update(['status' => 'Verified']);
         } else {
             $document->update(['status' => 'Rejected']);
