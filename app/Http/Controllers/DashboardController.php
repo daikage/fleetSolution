@@ -1418,7 +1418,7 @@ class DashboardController extends Controller
     public function actionCompliance(\Illuminate\Http\Request $request, \App\Domains\Fleet\Models\Document $document)
     {
         $userRole = auth()->user()->role;
-        if (!in_array($userRole, ['admin', 'superadmin', 'super_admin'])) {
+        if (!in_array($userRole, ['admin', 'superadmin', 'super_admin', 'manager'])) {
             abort(403, 'Unauthorized action.');
         }
 

@@ -185,7 +185,7 @@ export default function Compliance({ documents, vehicles, drivers, missingDocume
                                             </td>
                                             <td className="p-4">
                                                 <div className="flex gap-2">
-                                                    {doc.status === 'Pending Verification' && ['admin', 'superadmin', 'super_admin'].includes(userRole) && (
+                                                    {doc.status === 'Pending Verification' && ['admin', 'superadmin', 'super_admin', 'manager'].includes(userRole) && (
                                                         <>
                                                             <button onClick={() => handleAction(doc.id, 'verify')} className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors" title="Verify">
                                                                 <CheckCircle className="w-4 h-4" />
