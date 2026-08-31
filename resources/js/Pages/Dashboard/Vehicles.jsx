@@ -1006,6 +1006,30 @@ export default function Vehicles({ vehicles, drivers, departments }) {
                                     </select>
                                     {dispatchForm.errors.driver_id && <div className="text-rose-400 text-xs mt-1">{dispatchForm.errors.driver_id}</div>}
                                 </div>
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Start Odometer (km)</label>
+                                    <input
+                                        type="number"
+                                        value={dispatchForm.data.start_odometer}
+                                        onChange={e => dispatchForm.setData('start_odometer', e.target.value)}
+                                        className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none"
+                                        placeholder="e.g. 45000"
+                                    />
+                                    {dispatchForm.errors.start_odometer && <div className="text-rose-400 text-xs mt-1">{dispatchForm.errors.start_odometer}</div>}
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Start Location</label>
+                                    <input
+                                        type="text"
+                                        value={dispatchForm.data.start_location}
+                                        onChange={e => dispatchForm.setData('start_location', e.target.value)}
+                                        className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none"
+                                        placeholder="e.g. Headquarters"
+                                    />
+                                    {dispatchForm.errors.start_location && <div className="text-rose-400 text-xs mt-1">{dispatchForm.errors.start_location}</div>}
+                                </div>
 
                                 <div className="mt-4 flex justify-end gap-3">
                                     <button type="button" onClick={() => { setIsDispatchModalOpen(false); dispatchForm.reset(); }} className="px-4 py-2 text-gray-400 hover:text-white transition-colors">Cancel</button>
@@ -1058,7 +1082,19 @@ export default function Vehicles({ vehicles, drivers, departments }) {
                                             <input
                                                 type="number"
                                                 value={endTripForm.data.end_odometer}
-                                                onChange={e => endTripForm.setData('end_odometer', e.target.value)}
+                                                onChange={e => {
+                                                    const val = e.target.value;
+                                                    endTripForm.setData('end_odometer', val);
+                                                    
+                                                    // Auto-calculate distance if start_odometer exists
+                                                    if (val && endTripVehicle?.currentTrip?.start_odometer) {
+                                                        const start = parseFloat(endTripVehicle.currentTrip.start_odometer);
+                                                        const end = parseFloat(val);
+                                                        if (!isNaN(start) && !isNaN(end) && end >= start) {
+                                                            endTripForm.setData('distance_km', (end - start).toFixed(1));
+                                                        }
+                                                    }
+                                                }}
                                                 className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:border-electric-blue focus:ring-1 focus:ring-electric-blue outline-none"
                                                 placeholder="e.g. 45000"
                                             />
