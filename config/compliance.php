@@ -23,8 +23,28 @@ return [
         'Roadworthiness',
     ],
 
+    'vehicle_all' => [
+        'Vehicle License',
+        'Roadworthiness',
+        'Insurance',
+        'Stage Carriage',
+        'MOT',
+        'Hackney',
+        'LG Papers',
+        'Battery',
+    ],
+
     'driver' => [
         'Driver License',
+    ],
+
+    'driver_all' => [
+        'Driver License',
+        'Medical Certificate',
+        'Background Check',
+        'LASDRI',
+        "Driver's Permit",
+        'Guarantor Form',
     ],
 
 ];

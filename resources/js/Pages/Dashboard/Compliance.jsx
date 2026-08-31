@@ -106,20 +106,37 @@ export default function Compliance({ documents, vehicles, drivers, missingDocume
                 </div>
 
                 {missingDocuments.length > 0 && (
-                    <div className="mb-8">
-                        <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 md:p-6 shadow-lg shadow-rose-500/5">
-                            <h2 className="text-lg font-bold text-rose-400 flex items-center gap-2 mb-4">
-                                <AlertTriangle className="w-5 h-5" /> Missing Mandatory Documents
-                            </h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {missingDocuments.map((missing, idx) => (
-                                    <div key={idx} className="bg-black/20 rounded-lg p-3 border border-rose-500/10">
-                                        <div className="font-semibold text-white mb-1">{missing.entity_name} <span className="text-xs text-gray-500 font-normal">({missing.entity_type})</span></div>
-                                        <div className="text-sm text-gray-400">Missing: <span className="text-rose-300 font-medium">{missing.missing.join(', ')}</span></div>
-                                    </div>
-                                ))}
+                    <div className="mb-8 space-y-6">
+                        {missingDocuments.filter(m => !m.is_active).length > 0 && (
+                            <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 md:p-6 shadow-lg shadow-rose-500/5">
+                                <h2 className="text-lg font-bold text-rose-400 flex items-center gap-2 mb-4">
+                                    <AlertTriangle className="w-5 h-5" /> Missing Mandatory Documents (Inactive)
+                                </h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {missingDocuments.filter(m => !m.is_active).map((missing, idx) => (
+                                        <div key={idx} className="bg-black/20 rounded-lg p-3 border border-rose-500/10">
+                                            <div className="font-semibold text-white mb-1">{missing.entity_name} <span className="text-xs text-gray-500 font-normal">({missing.entity_type})</span></div>
+                                            <div className="text-sm text-gray-400">Missing: <span className="text-rose-300 font-medium">{missing.missing.join(', ')}</span></div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
+                        )}
+                        {missingDocuments.filter(m => m.is_active).length > 0 && (
+                            <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 md:p-6 shadow-lg shadow-amber-500/5">
+                                <h2 className="text-lg font-bold text-amber-400 flex items-center gap-2 mb-4">
+                                    <AlertTriangle className="w-5 h-5" /> Action Required: Missing Documents (Active)
+                                </h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {missingDocuments.filter(m => m.is_active).map((missing, idx) => (
+                                        <div key={idx} className="bg-black/20 rounded-lg p-3 border border-amber-500/20">
+                                            <div className="font-semibold text-white mb-1">{missing.entity_name} <span className="text-xs text-gray-500 font-normal">({missing.entity_type})</span></div>
+                                            <div className="text-sm text-gray-400">Missing: <span className="text-amber-300 font-medium">{missing.missing.join(', ')}</span></div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 

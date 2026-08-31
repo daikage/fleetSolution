@@ -94,14 +94,14 @@ class DashboardController extends Controller
 
         $vehicles = Vehicle::with(['currentTrip.driver.user', 'documents', 'department'])->latest()->get();
 
-        $mandatoryVehicles = config('compliance.vehicle', []);
+        $minimumVehicles = config('compliance.vehicle', []);
+        $allVehicles = config('compliance.vehicle_all', []);
 
         // Effective status ties the Vehicles menu to the Compliance menu via a
-        // three-state highlight driven by mandatory documents
-        // (config/compliance.php): all present → active (green), some → pending
-        // (yellow), none → inactive (red). Manual "in_shop" is preserved.
-        $vehicles = $vehicles->map(function ($vehicle) use ($mandatoryVehicles) {
-            $total = count($mandatoryVehicles);
+        // highlight driven by documents: all minimum present → active (green),
+        // some present → pending (yellow), none → inactive (red). Manual "in_shop" is preserved.
+        $vehicles = $vehicles->map(function ($vehicle) use ($minimumVehicles, $allVehicles) {
+            $total = count($allVehicles);
 
             // Manual "in_shop" status is preserved and never recomputed.
             if ($vehicle->status === 'in_shop') {
@@ -111,22 +111,33 @@ class DashboardController extends Controller
                 return $vehicle;
             }
 
-            $present = $this->countPresentMandatoryDocuments($vehicle, $mandatoryVehicles);
+            $present = $this->countPresentMandatoryDocuments($vehicle, $allVehicles);
             $vehicle->documents_present = $present;
             $vehicle->documents_required = $total;
 
-            if ($total === 0 || $present === $total) {
-                // No mandatory docs configured, or every required doc is present → active
+            $hasMinimum = true;
+            foreach ($minimumVehicles as $docType) {
+                $hasValid = $vehicle->documents->where('document_type', $docType)
+                    ->where('is_archived', false)
+                    ->where('status', '!=', 'Rejected')
+                    ->filter(function ($d) {
+                        return !$d->expiry_date || \Carbon\Carbon::parse($d->expiry_date)->isFuture();
+                    })->isNotEmpty();
+                
+                if (!$hasValid) {
+                    $hasMinimum = false;
+                    break;
+                }
+            }
+
+            if ($hasMinimum) {
+                // Minimum docs are present → active
                 $vehicle->status = 'active';
                 $vehicle->document_status = 'active';
-            } elseif ($present > 0) {
-                // Some (but not all) mandatory docs present → pending
-                $vehicle->status = 'inactive';
-                $vehicle->document_status = 'pending';
             } else {
-                // None of the required docs present → inactive
+                // Missing minimum docs → inactive or pending
                 $vehicle->status = 'inactive';
-                $vehicle->document_status = 'inactive';
+                $vehicle->document_status = $present > 0 ? 'pending' : 'inactive';
             }
 
             return $vehicle;
@@ -1385,17 +1396,25 @@ class DashboardController extends Controller
 
         $mandatoryVehicles = config('compliance.vehicle', []);
         $mandatoryDrivers = config('compliance.driver', []);
+        $allVehicles = config('compliance.vehicle_all', []);
+        $allDrivers = config('compliance.driver_all', []);
         $missingDocuments = [];
 
         foreach ($vehicles as $vehicle) {
             $vehicleDocs = $documents->where('documentable_type', \App\Domains\Fleet\Models\Vehicle::class)->where('documentable_id', $vehicle->id);
             $missing = [];
-            foreach ($mandatoryVehicles as $docType) {
+            $hasMinimum = true;
+            
+            foreach ($allVehicles as $docType) {
                 $hasValid = $vehicleDocs->where('document_type', $docType)->where('status', '!=', 'Rejected')->filter(function($d) {
                     return !$d->expiry_date || \Carbon\Carbon::parse($d->expiry_date)->isFuture();
                 })->isNotEmpty();
+                
                 if (!$hasValid) {
                     $missing[] = $docType;
+                    if (in_array($docType, $mandatoryVehicles)) {
+                        $hasMinimum = false;
+                    }
                 }
             }
             if (!empty($missing)) {
@@ -1403,6 +1422,7 @@ class DashboardController extends Controller
                     'entity_type' => 'Vehicle',
                     'entity_name' => $vehicle->name . ' (' . $vehicle->license_plate . ')',
                     'missing' => $missing,
+                    'is_active' => $hasMinimum,
                 ];
             }
         }
@@ -1410,12 +1430,18 @@ class DashboardController extends Controller
         foreach ($drivers as $driver) {
             $driverDocs = $documents->where('documentable_type', \App\Domains\Driver\Models\Driver::class)->where('documentable_id', $driver->id);
             $missing = [];
-            foreach ($mandatoryDrivers as $docType) {
+            $hasMinimum = true;
+            
+            foreach ($allDrivers as $docType) {
                 $hasValid = $driverDocs->where('document_type', $docType)->where('status', '!=', 'Rejected')->filter(function($d) {
                     return !$d->expiry_date || \Carbon\Carbon::parse($d->expiry_date)->isFuture();
                 })->isNotEmpty();
+                
                 if (!$hasValid) {
                     $missing[] = $docType;
+                    if (in_array($docType, $mandatoryDrivers)) {
+                        $hasMinimum = false;
+                    }
                 }
             }
             if (!empty($missing)) {
@@ -1423,6 +1449,7 @@ class DashboardController extends Controller
                     'entity_type' => 'Driver',
                     'entity_name' => $driver->user ? $driver->user->name : 'Unknown Driver',
                     'missing' => $missing,
+                    'is_active' => $hasMinimum,
                 ];
             }
         }
