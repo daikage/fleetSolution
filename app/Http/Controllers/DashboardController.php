@@ -97,6 +97,14 @@ class DashboardController extends Controller
         $minimumVehicles = config('compliance.vehicle', []);
         $allVehicles = config('compliance.vehicle_all', []);
 
+        // SILENT FIX: Ensure existing documents map to the AppServiceProvider morph alias
+        \Illuminate\Support\Facades\DB::table('documents')
+            ->where('documentable_type', 'App\Domains\Fleet\Models\Vehicle')
+            ->update(['documentable_type' => 'App\Models\Vehicle']);
+        \Illuminate\Support\Facades\DB::table('documents')
+            ->where('documentable_type', 'App\Domains\Driver\Models\Driver')
+            ->update(['documentable_type' => 'App\Models\Driver']);
+
         // Effective status ties the Vehicles menu to the Compliance menu via a
         // highlight driven by documents: all minimum present → active (green),
         // some present → pending (yellow), none → inactive (red). Manual "in_shop" is preserved.
@@ -1401,7 +1409,8 @@ class DashboardController extends Controller
         $missingDocuments = [];
 
         foreach ($vehicles as $vehicle) {
-            $vehicleDocs = $documents->where('documentable_type', \App\Domains\Fleet\Models\Vehicle::class)->where('documentable_id', $vehicle->id);
+            $vehicleMorph = $vehicle->getMorphClass();
+            $vehicleDocs = $documents->where('documentable_type', $vehicleMorph)->where('documentable_id', $vehicle->id);
             $missing = [];
             $hasMinimum = true;
             
@@ -1428,7 +1437,8 @@ class DashboardController extends Controller
         }
 
         foreach ($drivers as $driver) {
-            $driverDocs = $documents->where('documentable_type', \App\Domains\Driver\Models\Driver::class)->where('documentable_id', $driver->id);
+            $driverMorph = $driver->getMorphClass();
+            $driverDocs = $documents->where('documentable_type', $driverMorph)->where('documentable_id', $driver->id);
             $missing = [];
             $hasMinimum = true;
             
@@ -1476,8 +1486,8 @@ class DashboardController extends Controller
         ]);
 
         $typeMap = [
-            'vehicle' => \App\Domains\Fleet\Models\Vehicle::class,
-            'driver' => \App\Domains\Driver\Models\Driver::class,
+            'vehicle' => (new \App\Domains\Fleet\Models\Vehicle)->getMorphClass(),
+            'driver' => (new \App\Domains\Driver\Models\Driver)->getMorphClass(),
         ];
 
         $morphClass = $typeMap[$validated['documentable_type']];
