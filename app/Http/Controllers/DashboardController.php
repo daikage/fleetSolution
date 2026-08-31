@@ -94,6 +94,21 @@ class DashboardController extends Controller
 
         $vehicles = Vehicle::with(['currentTrip.driver.user', 'documents', 'department'])->latest()->get();
 
+        $mandatoryVehicles = config('compliance.vehicle', []);
+
+        // Effective status ties the Vehicles menu to the Compliance menu:
+        // a vehicle is "active" only when it holds every mandatory document
+        // (verified + non-expired). Missing/expired docs drop it to "inactive".
+        // Manual "in_shop" status is preserved and never overridden.
+        $vehicles = $vehicles->map(function ($vehicle) use ($mandatoryVehicles) {
+            if ($vehicle->status !== 'in_shop') {
+                $vehicle->status = $this->vehicleHasMandatoryDocuments($vehicle, $mandatoryVehicles)
+                    ? 'active'
+                    : 'inactive';
+            }
+            return $vehicle;
+        });
+
         $drivers = \App\Domains\Driver\Models\Driver::with('user')->get();
         $departments = \App\Domains\Identity\Models\Department::orderBy('name')->get();
 
@@ -102,6 +117,29 @@ class DashboardController extends Controller
             'drivers' => $drivers,
             'departments' => $departments
         ]);
+    }
+
+    /**
+     * Determine whether a vehicle holds a valid, verified, non-expired copy of
+     * every mandatory document type. Mirrors the Compliance page and the
+     * storeTrip() enforcement so all three stay in sync.
+     */
+    private function vehicleHasMandatoryDocuments($vehicle, array $mandatoryVehicleDocs): bool
+    {
+        $validDocs = $vehicle->documents
+            ->where('is_archived', false)
+            ->where('status', 'Verified')
+            ->filter(function ($doc) {
+                return !$doc->expiry_date || \Carbon\Carbon::parse($doc->expiry_date)->isFuture();
+            });
+
+        foreach ($mandatoryVehicleDocs as $docType) {
+            if ($validDocs->where('document_type', $docType)->isEmpty()) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public function storeVehicle(\Illuminate\Http\Request $request)
