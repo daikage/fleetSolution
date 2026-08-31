@@ -185,6 +185,20 @@ export default function Vehicles({ vehicles, drivers, departments }) {
         longitude: '',
     });
 
+    const dispatchForm = useForm({
+        vehicle_id: '',
+        driver_id: '',
+        start_odometer: '',
+        start_location: '',
+    });
+
+    const endTripForm = useForm({
+        end_odometer: '',
+        end_location: '',
+        distance_km: '',
+        notes: '',
+    });
+
     const submit = (e) => {
         e.preventDefault();
         if (editingVehicleId) {
@@ -969,6 +983,12 @@ export default function Vehicles({ vehicles, drivers, departments }) {
                                     <p className="text-gray-300 text-sm mb-4">
                                         Assigning driver to: <strong className="text-white">{selectedVehicle.make} {selectedVehicle.model} ({selectedVehicle.license_plate})</strong>
                                     </p>
+                                    
+                                    {dispatchForm.errors.vehicle_id && (
+                                        <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded text-rose-400 text-sm mb-4">
+                                            {dispatchForm.errors.vehicle_id}
+                                        </div>
+                                    )}
 
                                     <label className="block text-sm font-medium text-gray-300 mb-1">Select Driver</label>
                                     <select
