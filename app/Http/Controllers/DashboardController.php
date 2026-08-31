@@ -126,9 +126,12 @@ class DashboardController extends Controller
      */
     private function vehicleHasMandatoryDocuments($vehicle, array $mandatoryVehicleDocs): bool
     {
+        // A required document counts as valid once it has been uploaded and is
+        // not archived / rejected / expired. It does NOT need to be "Verified" —
+        // uploading the minimum documents is what activates a vehicle.
         $validDocs = $vehicle->documents
             ->where('is_archived', false)
-            ->where('status', 'Verified')
+            ->where('status', '!=', 'Rejected')
             ->filter(function ($doc) {
                 return !$doc->expiry_date || \Carbon\Carbon::parse($doc->expiry_date)->isFuture();
             });
@@ -408,7 +411,7 @@ class DashboardController extends Controller
         $mandatoryDrivers = config('compliance.driver', []);
 
         foreach ($mandatoryVehicles as $docType) {
-            $hasValid = $vehicle->documents()->where('document_type', $docType)->where('is_archived', false)->where('status', 'Verified')->where(function($q) {
+            $hasValid = $vehicle->documents()->where('document_type', $docType)->where('is_archived', false)->where('status', '!=', 'Rejected')->where(function($q) {
                 $q->whereNull('expiry_date')->orWhere('expiry_date', '>', now());
             })->exists();
 
@@ -420,7 +423,7 @@ class DashboardController extends Controller
         }
 
         foreach ($mandatoryDrivers as $docType) {
-            $hasValid = $driver->documents()->where('document_type', $docType)->where('is_archived', false)->where('status', 'Verified')->where(function($q) {
+            $hasValid = $driver->documents()->where('document_type', $docType)->where('is_archived', false)->where('status', '!=', 'Rejected')->where(function($q) {
                 $q->whereNull('expiry_date')->orWhere('expiry_date', '>', now());
             })->exists();
 
@@ -1366,7 +1369,7 @@ class DashboardController extends Controller
             $vehicleDocs = $documents->where('documentable_type', \App\Domains\Fleet\Models\Vehicle::class)->where('documentable_id', $vehicle->id);
             $missing = [];
             foreach ($mandatoryVehicles as $docType) {
-                $hasValid = $vehicleDocs->where('document_type', $docType)->where('status', 'Verified')->filter(function($d) {
+                $hasValid = $vehicleDocs->where('document_type', $docType)->where('status', '!=', 'Rejected')->filter(function($d) {
                     return !$d->expiry_date || \Carbon\Carbon::parse($d->expiry_date)->isFuture();
                 })->isNotEmpty();
                 if (!$hasValid) {
@@ -1386,7 +1389,7 @@ class DashboardController extends Controller
             $driverDocs = $documents->where('documentable_type', \App\Domains\Driver\Models\Driver::class)->where('documentable_id', $driver->id);
             $missing = [];
             foreach ($mandatoryDrivers as $docType) {
-                $hasValid = $driverDocs->where('document_type', $docType)->where('status', 'Verified')->filter(function($d) {
+                $hasValid = $driverDocs->where('document_type', $docType)->where('status', '!=', 'Rejected')->filter(function($d) {
                     return !$d->expiry_date || \Carbon\Carbon::parse($d->expiry_date)->isFuture();
                 })->isNotEmpty();
                 if (!$hasValid) {

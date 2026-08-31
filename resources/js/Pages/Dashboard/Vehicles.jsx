@@ -604,8 +604,13 @@ export default function Vehicles({ vehicles, drivers, departments }) {
                                                                     <div className="flex justify-between p-2 border-b border-white/5"><span className="text-gray-400">Color</span><span className="text-white">{vehicle.color || 'N/A'}</span></div>
                                                                     {(() => {
                                                                         const renderDocStatus = (docType) => {
-                                                                            const hasDoc = vehicle.documents && vehicle.documents.some(d => d.document_type === docType);
-                                                                            return hasDoc ? (
+                                                                            const hasActiveDoc = vehicle.documents && vehicle.documents.some(d =>
+                                                d.document_type === docType &&
+                                                d.status !== 'Rejected' &&
+                                                !d.is_archived &&
+                                                (!d.expiry_date || new Date(d.expiry_date) >= new Date())
+                                            );
+                                                                            return hasActiveDoc ? (
                                                                                 <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/20 text-emerald-400 uppercase tracking-wider">Active</span>
                                                                             ) : (
                                                                                 <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-rose-500/20 text-rose-400 uppercase tracking-wider">Missing</span>
