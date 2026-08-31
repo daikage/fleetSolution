@@ -501,7 +501,7 @@ class DashboardController extends Controller
 
             $trip = \App\Domains\Driver\Models\Trip::findOrFail($tripId);
             $endTime = now();
-            $durationMinutes = $trip->start_time ? $trip->start_time->diffInMinutes($endTime) : 0;
+            $durationMinutes = $trip->start_time ? (int) round($trip->start_time->diffInMinutes($endTime)) : 0;
 
             $trip->end_time = $endTime;
             $trip->status = 'completed';
