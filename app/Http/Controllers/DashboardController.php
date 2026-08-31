@@ -325,7 +325,7 @@ class DashboardController extends Controller
 
         $passportPath = null;
         if ($request->hasFile('passport_photo')) {
-            $passportPath = $request->file('passport_photo')->store('passports', 'public');
+            $passportPath = $request->file('passport_photo')->store('passports');
         }
 
         // Create the user account for the driver
@@ -341,7 +341,7 @@ class DashboardController extends Controller
             'user_id' => $user->id,
             'license_no' => $validated['license_no'],
             'license_exp' => $validated['license_exp'],
-            'passport_photo' => $passportPath ? '/storage/' . $passportPath : null,
+            'passport_photo' => $passportPath ? \Illuminate\Support\Facades\Storage::url($passportPath) : null,
         ]);
 
         return back();
@@ -1494,8 +1494,8 @@ class DashboardController extends Controller
 
         $url = $validated['url'] ?? null;
         if ($request->hasFile('document_file')) {
-            $path = $request->file('document_file')->store('documents', 'public');
-            $url = '/storage/' . $path;
+            $path = $request->file('document_file')->store('documents');
+            $url = \Illuminate\Support\Facades\Storage::url($path);
         }
 
         $userRole = auth()->user()->role;
