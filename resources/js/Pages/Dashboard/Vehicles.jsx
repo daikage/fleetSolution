@@ -397,18 +397,30 @@ export default function Vehicles({ vehicles, drivers, departments }) {
                                                 <td className="p-4 text-gray-300">{vehicle.license_plate}</td>
                                                 <td className="p-4">
                                                     {(() => {
-                                                        // Effective status is computed server-side in
-                                                        // DashboardController@vehicles based on mandatory
-                                                        // compliance documents (see config/compliance.php).
-                                                        let displayStatus = vehicle.status;
+                                                        // Three-state highlight computed server-side in
+                                                        // DashboardController@vehicles from mandatory compliance
+                                                        // documents (config/compliance.php):
+                                                        //   all present → active (green)
+                                                        //   some present → pending (yellow)
+                                                        //   none present → inactive (red)
+                                                        const ds = vehicle.document_status || vehicle.status;
+                                                        const present = vehicle.documents_present ?? vehicle.documents?.length ?? 0;
+                                                        const required = vehicle.documents_required ?? present;
+
+                                                        let label;
+                                                        if (ds === 'active') label = 'Active';
+                                                        else if (ds === 'in_shop') label = 'In Shop';
+                                                        else if (ds === 'pending') label = required > 0 ? `Pending ${present}/${required}` : 'Pending';
+                                                        else label = 'Inactive';
 
                                                         return (
                                                             <span className={`px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wide ${
-                                                                displayStatus === 'active' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                                                                displayStatus === 'in_shop' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                                                                ds === 'active' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                                                                ds === 'in_shop' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                                                                ds === 'pending' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' :
                                                                 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                                                             }`}>
-                                                                {displayStatus.replace('_', ' ')}
+                                                                {label}
                                                             </span>
                                                         );
                                                     })()}
@@ -611,7 +623,7 @@ export default function Vehicles({ vehicles, drivers, departments }) {
                                                 (!d.expiry_date || new Date(d.expiry_date) >= new Date())
                                             );
                                                                             return hasActiveDoc ? (
-                                                                                <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/20 text-emerald-400 uppercase tracking-wider">Active</span>
+                                                                                <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/20 text-emerald-400 uppercase tracking-wider">Present</span>
                                                                             ) : (
                                                                                 <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-rose-500/20 text-rose-400 uppercase tracking-wider">Missing</span>
                                                                             );

@@ -96,16 +96,39 @@ class DashboardController extends Controller
 
         $mandatoryVehicles = config('compliance.vehicle', []);
 
-        // Effective status ties the Vehicles menu to the Compliance menu:
-        // a vehicle is "active" only when it holds every mandatory document
-        // (verified + non-expired). Missing/expired docs drop it to "inactive".
-        // Manual "in_shop" status is preserved and never overridden.
+        // Effective status ties the Vehicles menu to the Compliance menu via a
+        // three-state highlight driven by mandatory documents
+        // (config/compliance.php): all present → active (green), some → pending
+        // (yellow), none → inactive (red). Manual "in_shop" is preserved.
         $vehicles = $vehicles->map(function ($vehicle) use ($mandatoryVehicles) {
-            if ($vehicle->status !== 'in_shop') {
-                $vehicle->status = $this->vehicleHasMandatoryDocuments($vehicle, $mandatoryVehicles)
-                    ? 'active'
-                    : 'inactive';
+            $total = count($mandatoryVehicles);
+
+            // Manual "in_shop" status is preserved and never recomputed.
+            if ($vehicle->status === 'in_shop') {
+                $vehicle->document_status = 'in_shop';
+                $vehicle->documents_present = 0;
+                $vehicle->documents_required = $total;
+                return $vehicle;
             }
+
+            $present = $this->countPresentMandatoryDocuments($vehicle, $mandatoryVehicles);
+            $vehicle->documents_present = $present;
+            $vehicle->documents_required = $total;
+
+            if ($total === 0 || $present === $total) {
+                // No mandatory docs configured, or every required doc is present → active
+                $vehicle->status = 'active';
+                $vehicle->document_status = 'active';
+            } elseif ($present > 0) {
+                // Some (but not all) mandatory docs present → pending
+                $vehicle->status = 'inactive';
+                $vehicle->document_status = 'pending';
+            } else {
+                // None of the required docs present → inactive
+                $vehicle->status = 'inactive';
+                $vehicle->document_status = 'inactive';
+            }
+
             return $vehicle;
         });
 
@@ -120,15 +143,13 @@ class DashboardController extends Controller
     }
 
     /**
-     * Determine whether a vehicle holds a valid, verified, non-expired copy of
-     * every mandatory document type. Mirrors the Compliance page and the
-     * storeTrip() enforcement so all three stay in sync.
+     * Count how many of the required document types are currently present on the
+     * vehicle. A required document counts as present once it has been uploaded
+     * and is not archived / rejected / expired. Used to drive the three-state
+     * (active/pending/inactive) highlight on the Vehicles menu.
      */
-    private function vehicleHasMandatoryDocuments($vehicle, array $mandatoryVehicleDocs): bool
+    private function countPresentMandatoryDocuments($vehicle, array $mandatoryVehicleDocs): int
     {
-        // A required document counts as valid once it has been uploaded and is
-        // not archived / rejected / expired. It does NOT need to be "Verified" —
-        // uploading the minimum documents is what activates a vehicle.
         $validDocs = $vehicle->documents
             ->where('is_archived', false)
             ->where('status', '!=', 'Rejected')
@@ -136,13 +157,14 @@ class DashboardController extends Controller
                 return !$doc->expiry_date || \Carbon\Carbon::parse($doc->expiry_date)->isFuture();
             });
 
+        $present = 0;
         foreach ($mandatoryVehicleDocs as $docType) {
-            if ($validDocs->where('document_type', $docType)->isEmpty()) {
-                return false;
+            if ($validDocs->where('document_type', $docType)->isNotEmpty()) {
+                $present++;
             }
         }
 
-        return true;
+        return $present;
     }
 
     public function storeVehicle(\Illuminate\Http\Request $request)
