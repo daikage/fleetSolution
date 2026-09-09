@@ -58,6 +58,16 @@ export default function Welcome({ canLogin, canRegister, laravelVersion, phpVers
 
             {/* Hero Section */}
             <main className="relative z-10 flex flex-col items-center justify-center min-h-[80vh] px-4 text-center">
+                {/* Logo */}
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.05, duration: 0.6 }}
+                    className="mb-6"
+                >
+                    <img src="/images/logo.png" alt="FKG.Fleet" className="w-20 h-20 rounded-2xl shadow-[0_0_30px_rgba(14,165,233,0.3)]" />
+                </motion.div>
+
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
