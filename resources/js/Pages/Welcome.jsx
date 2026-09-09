@@ -1,6 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import { motion } from 'framer-motion';
-import { Activity, Car, Globe, Shield, ArrowRight } from 'lucide-react';
+import { Activity, Car, Shield, ArrowRight } from 'lucide-react';
 
 export default function Welcome({ canLogin, canRegister, laravelVersion, phpVersion }) {
     return (
