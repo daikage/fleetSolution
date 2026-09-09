@@ -61,9 +61,9 @@ export default function DashboardLayout({ children }) {
 
             {/* Mobile Header (Visible only on small screens) */}
             <div className="md:hidden absolute top-0 left-0 w-full h-16 bg-gray-900/80 backdrop-blur-md z-40 border-b border-white/10 flex items-center justify-between px-4">
-                <Link href={route('dashboard')} className="text-electric-blue font-bold text-xl flex items-center gap-2">
-                    <MapIcon className="w-6 h-6" />
-                    FKG.Fleet
+                <Link href={route('dashboard')} className="flex items-center gap-2">
+                    <img src="/images/logo.png" alt="FKG.Fleet" className="h-8 w-8 rounded-lg" />
+                    <span className="text-electric-blue font-bold text-xl">FKG.Fleet</span>
                 </Link>
                 <button onClick={toggleMenu} className="p-2 text-white hover:bg-white/10 rounded-lg transition-colors">
                     <Menu className="w-6 h-6" />
@@ -90,8 +90,9 @@ export default function DashboardLayout({ children }) {
                         >
                             <div className="p-4 flex flex-col gap-6 overflow-y-auto">
                                 <div className="flex justify-between items-center mt-2">
-                                    <Link href={route('dashboard')} onClick={closeMenu} className="text-electric-blue font-bold text-2xl flex items-center gap-2">
-                                        FKG.Fleet
+                                    <Link href={route('dashboard')} onClick={closeMenu} className="flex items-center gap-2">
+                                        <img src="/images/logo.png" alt="FKG.Fleet" className="h-9 w-9 rounded-lg" />
+                                        <span className="text-electric-blue font-bold text-2xl">FKG.Fleet</span>
                                     </Link>
                                     <button onClick={closeMenu} className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/10">
                                         <X className="w-6 h-6" />
@@ -131,9 +132,9 @@ export default function DashboardLayout({ children }) {
             {/* Desktop Sidebar Navigation */}
             <nav className="w-20 lg:w-64 z-40 glass-panel m-4 flex flex-col justify-between hidden md:flex overflow-hidden">
                 <div className="p-4 flex flex-col items-center lg:items-start overflow-y-auto flex-1">
-                    <Link href={route('dashboard')} className="text-electric-blue font-bold text-xl lg:text-2xl mt-2 mb-6 shrink-0 flex items-center gap-2">
-                        <span className="hidden lg:inline">FKG.Fleet</span>
-                        <MapIcon className="lg:hidden w-8 h-8" />
+                    <Link href={route('dashboard')} className="mt-2 mb-6 shrink-0 flex items-center gap-2">
+                        <img src="/images/logo.png" alt="FKG.Fleet" className="h-10 w-10 rounded-lg" />
+                        <span className="hidden lg:inline text-electric-blue font-bold text-2xl">FKG.Fleet</span>
                     </Link>
 
                     <ul className="flex flex-col gap-2 w-full">

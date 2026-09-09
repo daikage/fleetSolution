@@ -25,7 +25,7 @@ export default function Welcome({ canLogin, canRegister, laravelVersion, phpVers
                     animate={{ opacity: 1, x: 0 }}
                     className="flex items-center gap-2"
                 >
-                    <Globe className="w-8 h-8 text-electric-blue" />
+                    <img src="/images/logo.png" alt="FKG.Fleet" className="w-9 h-9 rounded-lg" />
                     <span className="text-2xl font-bold tracking-tight">FKG.Fleet</span>
                 </motion.div>
 
