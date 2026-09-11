@@ -1,6 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import { motion } from 'framer-motion';
-import { Activity, Car, Globe, Shield, ArrowRight } from 'lucide-react';
+import { Activity, Car, Shield, ArrowRight } from 'lucide-react';
 
 export default function Welcome({ canLogin, canRegister, laravelVersion, phpVersion }) {
     return (
@@ -25,7 +25,7 @@ export default function Welcome({ canLogin, canRegister, laravelVersion, phpVers
                     animate={{ opacity: 1, x: 0 }}
                     className="flex items-center gap-2"
                 >
-                    <Globe className="w-8 h-8 text-electric-blue" />
+                    <img src="/images/logo.png" alt="FKG.Fleet" className="w-9 h-9 rounded-lg" />
                     <span className="text-2xl font-bold tracking-tight">FKG.Fleet</span>
                 </motion.div>
 
@@ -58,6 +58,16 @@ export default function Welcome({ canLogin, canRegister, laravelVersion, phpVers
 
             {/* Hero Section */}
             <main className="relative z-10 flex flex-col items-center justify-center min-h-[80vh] px-4 text-center">
+                {/* Logo */}
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.05, duration: 0.6 }}
+                    className="mb-6"
+                >
+                    <img src="/images/logo.png" alt="FKG.Fleet" className="w-20 h-20 rounded-2xl shadow-[0_0_30px_rgba(14,165,233,0.3)]" />
+                </motion.div>
+
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
