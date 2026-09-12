@@ -1615,7 +1615,7 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function updateUser(Request $request, User $user)
+    public function updateUser(\Illuminate\Http\Request $request, User $user)
     {
         if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin'])) {
             abort(403, 'Unauthorized access.');
