@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Head, useForm, Link } from '@inertiajs/react';
+import { Head, router, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import { Shield, UserPlus, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 
@@ -95,8 +95,15 @@ export default function Users({ users }) {
                                                         <div className="max-w-2xl">
                                                             <h3 className="text-sm font-semibold text-gray-300 mb-4">Change User Role</h3>
                                                             <form
-                                                                action={`/dashboard/users/${user.id}`}
-                                                                method="PUT"
+                                                                onSubmit={(e) => {
+                                                                    e.preventDefault();
+                                                                    const formData = new FormData(e.target);
+                                                                    router.put(`/dashboard/users/${user.id}`, {
+                                                                        role: formData.get('role')
+                                                                    }, {
+                                                                        onSuccess: () => setExpandedUserId(null)
+                                                                    });
+                                                                }}
                                                                 className="space-y-4"
                                                             >
                                                                 <div>
