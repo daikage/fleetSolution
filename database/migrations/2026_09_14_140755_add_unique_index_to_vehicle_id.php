@@ -13,6 +13,11 @@ return new class extends Migration
      * Adds a unique index on vehicle_id to prevent duplicate codes.
      * First backfills any vehicles missing a code (e.g. from before the
      * created-hook change) so the unique index can be applied safely.
+     *
+     * The index check makes the migration idempotent: Laravel Cloud re-runs
+     * migrations, and a previous run may already have created the
+     * `vehicles_vehicle_id_unique` constraint without the migration being
+     * recorded. Skipping when it exists lets `artisan migrate` complete.
      */
     public function up(): void
     {
@@ -30,9 +35,11 @@ return new class extends Migration
                     ->update(['vehicle_id' => $code]);
             });
 
-        Schema::table('vehicles', function (Blueprint $table) {
-            $table->unique('vehicle_id');
-        });
+        if (! Schema::hasIndex('vehicles', ['vehicle_id'], 'unique')) {
+            Schema::table('vehicles', function (Blueprint $table) {
+                $table->unique('vehicle_id');
+            });
+        }
     }
 
     /**
