@@ -2,16 +2,18 @@
 
 namespace App\Domains\Telematics\Controllers;
 
+use App\Domains\Telematics\Services\TelematicsService;
+use App\Exceptions\InvalidSharedSecretException;
+use App\Exceptions\TrackingDisabledException;
+use App\Exceptions\UnauthorizedUserException;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Jobs\ProcessVehicleLocation;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class TelematicsController extends Controller
 {
-    public function __construct(private \App\Domains\Telematics\Services\TelematicsService $telematicsService)
-    {
-    }
+    public function __construct(private TelematicsService $telematicsService) {}
 
     public function store(Request $request)
     {
@@ -35,13 +37,16 @@ class TelematicsController extends Controller
                 $request->speed,
                 $userRole
             );
+
             return response()->json(['status' => 'processed']);
+        } catch (TrackingDisabledException $e) {
+            return response()->json(['status' => 'ignored', 'message' => $e->getMessage()], 400);
+        } catch (UnauthorizedUserException $e) {
+            return response()->json(['error' => $e->getMessage()], 403);
         } catch (\Exception $e) {
-            $status = $e->getCode() ?: 400;
-            if ($status === 400) {
-                return response()->json(['status' => 'ignored', 'message' => $e->getMessage()]);
-            }
-            return response()->json(['error' => $e->getMessage()], $status);
+            Log::error('Telematics store failed', ['error' => $e->getMessage()]);
+
+            return response()->json(['error' => 'An unexpected error occurred.'], 500);
         }
     }
 
@@ -68,13 +73,18 @@ class TelematicsController extends Controller
                 $request->speed,
                 $providedSecret
             );
+
             return response()->json(['status' => 'processed']);
+        } catch (InvalidSharedSecretException $e) {
+            Log::warning('Unauthorized OsmAnd access attempt from IP: '.$request->ip());
+
+            return response()->json(['error' => $e->getMessage()], 403);
+        } catch (TrackingDisabledException $e) {
+            return response()->json(['error' => $e->getMessage()], 403);
         } catch (\Exception $e) {
-            if ($e->getMessage() === 'Invalid or missing shared secret.') {
-                \Illuminate\Support\Facades\Log::warning('Unauthorized OsmAnd access attempt from IP: ' . $request->ip());
-            }
-            $status = $e->getCode() ?: 403;
-            return response()->json(['error' => $e->getMessage()], $status);
+            Log::error('OsmAnd store failed', ['error' => $e->getMessage()]);
+
+            return response()->json(['error' => 'An unexpected error occurred.'], 500);
         }
     }
 

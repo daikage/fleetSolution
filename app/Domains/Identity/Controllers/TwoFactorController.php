@@ -2,8 +2,8 @@
 
 namespace App\Domains\Identity\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Domains\Identity\Models\User;
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -11,9 +11,7 @@ use PragmaRX\Google2FA\Google2FA;
 
 class TwoFactorController extends Controller
 {
-    public function __construct(private Google2FA $google2fa)
-    {
-    }
+    public function __construct(private Google2FA $google2fa) {}
 
     /**
      * Generate a new 2FA secret and return the QR code.
@@ -27,7 +25,7 @@ class TwoFactorController extends Controller
         }
 
         $secret = $this->google2fa->generateSecretKey();
-        
+
         $user->forceFill([
             'two_factor_secret' => encrypt($secret),
             'two_factor_confirmed_at' => null, // Needs confirmation
@@ -114,6 +112,7 @@ class TwoFactorController extends Controller
 
         if (! $user) {
             $request->session()->forget('login.id');
+
             return redirect()->route('login');
         }
 
@@ -128,7 +127,7 @@ class TwoFactorController extends Controller
 
         // Successfully verified, log the user in!
         Auth::login($user, $request->session()->get('login.remember', false));
-        
+
         $request->session()->regenerate();
         $request->session()->forget('login.id');
         $request->session()->forget('login.remember');

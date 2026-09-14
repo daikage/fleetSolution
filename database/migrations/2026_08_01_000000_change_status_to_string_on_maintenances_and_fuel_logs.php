@@ -2,10 +2,11 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
     /**
      * Change status columns from enum to string to support 'Under Review' status.
      * Uses raw SQL for maximum reliability across database drivers.
@@ -20,8 +21,8 @@ return new class extends Migration {
             DB::statement("ALTER TABLE fuel_logs MODIFY COLUMN status VARCHAR(255) DEFAULT 'Pending'");
         } elseif ($driver === 'pgsql') {
             // PostgreSQL
-            DB::statement("ALTER TABLE maintenances ALTER COLUMN status TYPE VARCHAR(255)");
-            DB::statement("ALTER TABLE fuel_logs ALTER COLUMN status TYPE VARCHAR(255)");
+            DB::statement('ALTER TABLE maintenances ALTER COLUMN status TYPE VARCHAR(255)');
+            DB::statement('ALTER TABLE fuel_logs ALTER COLUMN status TYPE VARCHAR(255)');
         } else {
             // SQLite and others: use Laravel's change method
             Schema::table('maintenances', function (Blueprint $table) {

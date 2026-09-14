@@ -2,10 +2,10 @@
 
 namespace App\Domains\Communication\Controllers;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Domains\Driver\Models\Driver;
+use App\Http\Controllers\Controller;
 use App\Notifications\ForceStartTracking;
+use Illuminate\Http\Request;
 
 class PushNotificationController extends Controller
 {
@@ -17,7 +17,7 @@ class PushNotificationController extends Controller
         // Only admin and superadmin can force-start tracking
         $user = $request->user();
         $role = $user->role;
-        if (!in_array($role, ['manager', 'admin', 'superadmin', 'super_admin'])) {
+        if (! in_array($role, ['manager', 'admin', 'superadmin', 'super_admin'])) {
             return response()->json(['error' => 'Unauthorized. Only manager/admin/superadmin can force-start tracking.'], 403);
         }
 
@@ -27,10 +27,10 @@ class PushNotificationController extends Controller
 
         $driver = Driver::with('user')->findOrFail($request->driver_id);
 
-        if (!$driver->user || !$driver->user->push_token) {
+        if (! $driver->user || ! $driver->user->push_token) {
             return response()->json([
                 'success' => false,
-                'message' => 'Driver has no push token registered. They need to open the app at least once.'
+                'message' => 'Driver has no push token registered. They need to open the app at least once.',
             ], 404);
         }
 
@@ -39,7 +39,7 @@ class PushNotificationController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => "Push notification sent to {$driver->user->name}."
+            'message' => "Push notification sent to {$driver->user->name}.",
         ]);
     }
 
@@ -61,7 +61,7 @@ class PushNotificationController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Push token registered successfully.'
+            'message' => 'Push token registered successfully.',
         ]);
     }
 }

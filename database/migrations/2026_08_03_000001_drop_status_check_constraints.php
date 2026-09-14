@@ -1,11 +1,10 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 
-return new class extends Migration {
+return new class extends Migration
+{
     /**
      * Drop the check constraints on status columns that prevent 'Under Review'.
      * In PostgreSQL, Laravel creates enum columns using VARCHAR with a CHECK constraint.

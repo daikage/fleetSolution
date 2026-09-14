@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Domains\Identity\Models\Setting;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -35,7 +36,7 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
                 'unreadNotificationsCount' => $request->user() ? $request->user()->unreadNotifications()->count() : 0,
             ],
-            'settings' => \App\Domains\Identity\Models\Setting::all()->pluck('value', 'key')->toArray(),
+            'settings' => Setting::all()->pluck('value', 'key')->toArray(),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

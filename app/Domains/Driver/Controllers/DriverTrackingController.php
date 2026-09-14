@@ -2,14 +2,14 @@
 
 namespace App\Domains\Driver\Controllers;
 
+use App\Domains\Driver\Services\DriverTrackingService;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class DriverTrackingController extends Controller
 {
-    public function __construct(private \App\Domains\Driver\Services\DriverTrackingService $trackingService)
-    {
-    }
+    public function __construct(private DriverTrackingService $trackingService) {}
 
     public function shouldTrack(Request $request)
     {
@@ -26,6 +26,7 @@ class DriverTrackingController extends Controller
 
         try {
             $response = $this->trackingService->reportStatus($request->user()->id, $request->is_tracking);
+
             return response()->json($response);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 404);
@@ -34,7 +35,7 @@ class DriverTrackingController extends Controller
 
     public function autoPing(Request $request)
     {
-        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+        $validator = Validator::make($request->all(), [
             'latitude' => 'required|numeric',
             'longitude' => 'required|numeric',
             'speed' => 'nullable|numeric',
@@ -51,6 +52,7 @@ class DriverTrackingController extends Controller
                 $request->longitude,
                 $request->speed
             );
+
             return response()->json($response);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 404);

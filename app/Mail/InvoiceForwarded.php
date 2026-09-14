@@ -13,7 +13,9 @@ class InvoiceForwarded extends Mailable
     use Queueable, SerializesModels;
 
     public $record;
+
     public $recordType; // 'Maintenance' or 'Fuel'
+
     public $senderName;
 
     /**

@@ -1,20 +1,16 @@
 <?php
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
-
-// Identity Domain
-use App\Domains\Identity\Controllers\AuthController;
-
-// Telematics Domain
-use App\Domains\Telematics\Controllers\TelematicsController;
-
-// Communication Domain
-use App\Domains\Communication\Controllers\PushNotificationController;
 use App\Domains\Communication\Controllers\ChatController;
-
-// Driver Domain
+use App\Domains\Communication\Controllers\PushNotificationController;
+// Identity Domain
 use App\Domains\Driver\Controllers\DriverTrackingController;
+// Telematics Domain
+use App\Domains\Identity\Controllers\AuthController;
+// Communication Domain
+use App\Domains\Telematics\Controllers\TelematicsController;
+use Illuminate\Http\Request;
+// Driver Domain
+use Illuminate\Support\Facades\Route;
 
 Route::get('/user', function (Request $request) {
     return $request->user()->only(['id', 'name', 'email', 'role']);

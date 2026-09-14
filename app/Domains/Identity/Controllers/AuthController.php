@@ -2,18 +2,17 @@
 
 namespace App\Domains\Identity\Controllers;
 
+use App\Domains\Identity\Services\AuthenticationService;
+use App\Exceptions\InvalidCredentialsException;
+use App\Exceptions\UnauthorizedUserException;
+use App\Exceptions\DriverProfileNotFoundException;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Domains\Identity\Models\User;
-use App\Domains\Driver\Models\Driver;
-use App\Domains\Driver\Models\Trip;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
-    public function __construct(private \App\Domains\Identity\Services\AuthenticationService $authService)
-    {
-    }
+    public function __construct(private AuthenticationService $authService) {}
 
     public function mobileLogin(Request $request)
     {
@@ -24,10 +23,21 @@ class AuthController extends Controller
 
         try {
             $data = $this->authService->authenticateDriver($request->email, $request->password);
+
             return response()->json($data);
+        } catch (InvalidCredentialsException $e) {
+            return response()->json(['message' => $e->getMessage()], 401);
+        } catch (UnauthorizedUserException $e) {
+            return response()->json(['message' => $e->getMessage()], 403);
+        } catch (DriverProfileNotFoundException $e) {
+            return response()->json(['message' => $e->getMessage()], 404);
         } catch (\Exception $e) {
-            $status = $e->getCode() ?: 400;
-            return response()->json(['message' => $e->getMessage()], $status);
+            Log::error('Mobile login failed', ['error' => $e->getMessage()]);
+            $status = is_int($e->getCode()) && $e->getCode() >= 100 && $e->getCode() < 600
+                ? $e->getCode()
+                : 500;
+
+            return response()->json(['message' => 'An unexpected error occurred.'], $status);
         }
     }
 }

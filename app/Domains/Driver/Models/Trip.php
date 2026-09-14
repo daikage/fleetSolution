@@ -3,8 +3,6 @@
 namespace App\Domains\Driver\Models;
 
 use App\Domains\Fleet\Models\Vehicle;
-
-
 use Illuminate\Database\Eloquent\Model;
 
 class Trip extends Model
@@ -44,8 +42,10 @@ class Trip extends Model
 
     public function getDurationAttribute()
     {
-        if (!$this->end_time)
+        if (! $this->end_time) {
             return null;
+        }
+
         return $this->start_time->diffInMinutes($this->end_time);
     }
 }

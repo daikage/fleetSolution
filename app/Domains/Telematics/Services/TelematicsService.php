@@ -2,11 +2,12 @@
 
 namespace App\Domains\Telematics\Services;
 
-use App\Domains\Identity\Models\Setting;
 use App\Domains\Fleet\Models\Vehicle;
+use App\Domains\Identity\Models\Setting;
+use App\Exceptions\InvalidSharedSecretException;
+use App\Exceptions\TrackingDisabledException;
+use App\Exceptions\UnauthorizedUserException;
 use App\Jobs\ProcessVehicleLocation;
-use Illuminate\Support\Facades\Log;
-use Exception;
 
 class TelematicsService
 {
@@ -15,39 +16,37 @@ class TelematicsService
         $trackerType = Setting::where('key', 'tracker_type')->value('value') ?? 'mobile_app';
 
         if ($userRole === 'driver' && $trackerType !== 'mobile_app') {
-            throw new Exception('Mobile app tracking is disabled in settings.', 400);
+            throw new TrackingDisabledException('Mobile app tracking is disabled in settings.');
         }
 
-        if (!in_array($trackerType, ['mobile_app', 'traccar', 'custom_iot'])) {
-            throw new Exception('Current tracker setting does not support this endpoint.', 403);
+        if (! in_array($trackerType, ['mobile_app', 'traccar', 'custom_iot'])) {
+            throw new UnauthorizedUserException('Current tracker setting does not support this endpoint.');
         }
 
-        $job = new ProcessVehicleLocation($vehicleId, $latitude, $longitude, (int) ($speed ?? 0));
-        $job->handle();
+        ProcessVehicleLocation::dispatch($vehicleId, $latitude, $longitude, (int) ($speed ?? 0));
     }
 
     public function processOsmAndLocation(int $vehicleId, float $latitude, float $longitude, ?float $speed, string $providedSecret): void
     {
         $trackerType = Setting::where('key', 'tracker_type')->value('value');
-        
+
         if ($trackerType !== 'osmand') {
-            throw new Exception('OsmAnd tracking is not enabled.', 403);
+            throw new TrackingDisabledException('OsmAnd tracking is not enabled.');
         }
 
         $sharedSecret = Setting::where('key', 'osmand_secret')->value('value');
 
-        if (!$sharedSecret || $providedSecret !== $sharedSecret) {
-            throw new Exception('Invalid or missing shared secret.', 403);
+        if (! $sharedSecret || $providedSecret !== $sharedSecret) {
+            throw new InvalidSharedSecretException('Invalid or missing shared secret.');
         }
 
-        $job = new ProcessVehicleLocation($vehicleId, $latitude, $longitude, (int) ($speed ?? 0));
-        $job->handle();
+        ProcessVehicleLocation::dispatch($vehicleId, $latitude, $longitude, (int) ($speed ?? 0));
     }
 
     public function getLatestLocations(): array
     {
         return Vehicle::with(['latestLocation', 'currentTrip.driver.user'])->get()
-            ->map(fn($v) => [
+            ->map(fn ($v) => [
                 'id' => $v->id,
                 'latitude' => $v->latestLocation?->latitude ?? $v->latitude,
                 'longitude' => $v->latestLocation?->longitude ?? $v->longitude,

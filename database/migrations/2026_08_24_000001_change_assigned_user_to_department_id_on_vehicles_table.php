@@ -15,7 +15,7 @@ return new class extends Migration
             if (Schema::hasColumn('vehicles', 'assigned_user')) {
                 $table->dropColumn('assigned_user');
             }
-            if (!Schema::hasColumn('vehicles', 'department_id')) {
+            if (! Schema::hasColumn('vehicles', 'department_id')) {
                 $table->foreignId('department_id')->nullable()->constrained('departments')->nullOnDelete();
             }
         });

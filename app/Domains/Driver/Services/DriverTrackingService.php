@@ -13,9 +13,10 @@ class DriverTrackingService
     public function getDriver(int $userId)
     {
         $driver = Driver::where('user_id', $userId)->first();
-        if (!$driver) {
+        if (! $driver) {
             throw new Exception('Driver profile not found.', 404);
         }
+
         return $driver;
     }
 
@@ -36,7 +37,7 @@ class DriverTrackingService
             ->latest()
             ->first();
 
-        if (!$activeTrip) {
+        if (! $activeTrip) {
             return [
                 'should_track' => false,
                 'message' => 'No active trip assigned.',
@@ -54,8 +55,7 @@ class DriverTrackingService
             'vehicle_id' => $activeTrip->vehicle_id,
             'vehicle' => $activeTrip->vehicle ? [
                 'id' => $activeTrip->vehicle->id,
-                'make' => $activeTrip->vehicle->make,
-                'model' => $activeTrip->vehicle->model,
+                'name' => $activeTrip->vehicle->name,
                 'license_plate' => $activeTrip->vehicle->license_plate,
             ] : null,
             'is_tracking_active' => $recentPing,
@@ -79,7 +79,7 @@ class DriverTrackingService
             ->whereNull('end_time')
             ->exists();
 
-        $needsTracking = $activeTrip && !$isTracking;
+        $needsTracking = $activeTrip && ! $isTracking;
 
         return [
             'success' => true,
@@ -100,20 +100,19 @@ class DriverTrackingService
             ->latest()
             ->first();
 
-        if (!$activeTrip || !$activeTrip->vehicle) {
+        if (! $activeTrip || ! $activeTrip->vehicle) {
             return [
                 'accepted' => false,
                 'message' => 'No active trip assigned. Location not recorded.',
             ];
         }
 
-        $job = new ProcessVehicleLocation(
+        ProcessVehicleLocation::dispatch(
             $activeTrip->vehicle_id,
             $latitude,
             $longitude,
             (int) ($speed ?? 0)
         );
-        $job->handle();
 
         return [
             'accepted' => true,

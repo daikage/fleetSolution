@@ -3,23 +3,24 @@
 namespace App\Domains\Identity\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Domains\Communication\Models\Conversation;
+use App\Domains\Communication\Models\Message;
+use App\Domains\Driver\Models\Driver;
 use Database\Factories\UserFactory;
+use Illuminate\Auth\Passwords\CanResetPassword;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
-use App\Domains\Driver\Models\Driver;
-use App\Domains\Communication\Models\Conversation;
-use App\Domains\Communication\Models\Message;
 
 #[Fillable(['name', 'email', 'password', 'role', 'push_token', 'push_token_updated_at', 'two_factor_secret', 'two_factor_recovery_codes', 'two_factor_confirmed_at'])]
 #[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable;
+    use CanResetPassword, HasApiTokens, HasFactory, Notifiable;
 
     /**
      * Get the driver profile associated with the user.

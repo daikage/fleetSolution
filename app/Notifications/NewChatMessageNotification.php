@@ -2,17 +2,18 @@
 
 namespace App\Notifications;
 
+use App\Domains\Communication\Models\Conversation;
+use App\Domains\Communication\Models\Message;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
-use App\Domains\Communication\Models\Message;
-use App\Domains\Communication\Models\Conversation;
 
-class NewChatMessageNotification extends Notification
+class NewChatMessageNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
     public $message;
+
     public $conversation;
 
     /**
@@ -45,8 +46,8 @@ class NewChatMessageNotification extends Notification
             'message' => "You have a new message from {$this->message->sender->name}.",
             'conversation_id' => $this->conversation->id,
             'sender_name' => $this->message->sender->name,
-            'url' => '/dashboard/chat?conversation=' . $this->conversation->id,
-            'type' => 'chat_message'
+            'url' => '/dashboard/chat?conversation='.$this->conversation->id,
+            'type' => 'chat_message',
         ];
     }
 }

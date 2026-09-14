@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Head, router, Link } from '@inertiajs/react';
+import { Head, useForm, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import { Shield, UserPlus, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 
@@ -95,15 +95,8 @@ export default function Users({ users }) {
                                                         <div className="max-w-2xl">
                                                             <h3 className="text-sm font-semibold text-gray-300 mb-4">Change User Role</h3>
                                                             <form
-                                                                onSubmit={(e) => {
-                                                                    e.preventDefault();
-                                                                    const formData = new FormData(e.target);
-                                                                    router.put(`/dashboard/users/${user.id}`, {
-                                                                        role: formData.get('role')
-                                                                    }, {
-                                                                        onSuccess: () => setExpandedUserId(null)
-                                                                    });
-                                                                }}
+                                                                action={`/dashboard/users/${user.id}`}
+                                                                method="PUT"
                                                                 className="space-y-4"
                                                             >
                                                                 <div>
@@ -137,6 +130,29 @@ export default function Users({ users }) {
                                                                     </button>
                                                                 </div>
                                                             </form>
+
+                                                            {user.role === 'driver' && (
+                                                                <div className="mt-6 pt-6 border-t border-white/10">
+                                                                    <h3 className="text-sm font-semibold text-gray-300 mb-3">Devices</h3>
+                                                                    <form
+                                                                        action={`/dashboard/users/${user.id}/revoke-devices`}
+                                                                        method="POST"
+                                                                        onSubmit={(e) => {
+                                                                            if (!confirm(`Sign ${user.name} out from all devices? They will need to log in again on the mobile app.`)) {
+                                                                                e.preventDefault();
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        <input type="hidden" name="user_id" value={user.id} />
+                                                                        <button
+                                                                            type="submit"
+                                                                            className="bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 px-6 py-2.5 rounded-lg font-medium transition-colors"
+                                                                        >
+                                                                            Sign Out Devices
+                                                                        </button>
+                                                                    </form>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </td>
                                                 </tr>

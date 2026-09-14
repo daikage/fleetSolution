@@ -2,10 +2,11 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
     /**
      * Ensure status columns are VARCHAR(255) to support 'Under Review' status.
      * This migration is idempotent — safe to run even if the column is already VARCHAR.
@@ -16,8 +17,8 @@ return new class extends Migration {
 
         if ($driver === 'pgsql') {
             // PostgreSQL: ALTER COLUMN TYPE is safe even if already VARCHAR
-            DB::statement("ALTER TABLE maintenances ALTER COLUMN status TYPE VARCHAR(255)");
-            DB::statement("ALTER TABLE fuel_logs ALTER COLUMN status TYPE VARCHAR(255)");
+            DB::statement('ALTER TABLE maintenances ALTER COLUMN status TYPE VARCHAR(255)');
+            DB::statement('ALTER TABLE fuel_logs ALTER COLUMN status TYPE VARCHAR(255)');
         } elseif ($driver === 'mysql' || $driver === 'mariadb') {
             DB::statement("ALTER TABLE maintenances MODIFY COLUMN status VARCHAR(255) DEFAULT 'Pending'");
             DB::statement("ALTER TABLE fuel_logs MODIFY COLUMN status VARCHAR(255) DEFAULT 'Pending'");

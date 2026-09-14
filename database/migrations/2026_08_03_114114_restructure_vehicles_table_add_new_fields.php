@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -42,11 +42,11 @@ return new class extends Migration
         $vehicles = DB::table('vehicles')->orderBy('id')->get();
         $counter = 1;
         foreach ($vehicles as $vehicle) {
-            $formattedId = 'veh' . str_pad($counter, 3, '0', STR_PAD_LEFT);
+            $formattedId = 'veh'.str_pad($counter, 3, '0', STR_PAD_LEFT);
             DB::table('vehicles')->where('id', $vehicle->id)->update([
                 'vehicle_id' => $formattedId,
-                'name' => trim($vehicle->make . ' ' . $vehicle->model) ?: null,
-                'chassis_number' => $vehicle->vin
+                'name' => trim($vehicle->make.' '.$vehicle->model) ?: null,
+                'chassis_number' => $vehicle->vin,
             ]);
             $counter++;
         }
@@ -59,9 +59,9 @@ return new class extends Migration
     {
         Schema::table('vehicles', function (Blueprint $table) {
             $table->dropColumn([
-                'vehicle_id', 'name', 'chassis_number', 'base_location', 'color', 
-                'assigned_user', 'vehicle_license', 'road_worthiness', 'insurance', 
-                'stage_carriage', 'mot', 'hackney', 'lg_papers', 'battery'
+                'vehicle_id', 'name', 'chassis_number', 'base_location', 'color',
+                'assigned_user', 'vehicle_license', 'road_worthiness', 'insurance',
+                'stage_carriage', 'mot', 'hackney', 'lg_papers', 'battery',
             ]);
         });
     }

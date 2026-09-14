@@ -26,7 +26,7 @@ export default function Reports({ summary, maintenance_records, fuel_records }) 
     const maintenanceData = maintenance_records.map(r => ({
         date: new Date(r.date).toLocaleDateString(),
         type: 'Maintenance',
-        vehicle: r.vehicle ? `${r.vehicle.make} ${r.vehicle.model} (${r.vehicle.license_plate})` : 'Unknown',
+        vehicle: r.vehicle ? `${r.vehicle.name} (${r.vehicle.license_plate})` : 'Unknown',
         details: r.service_type,
         cost: r.cost
     }));
@@ -34,7 +34,7 @@ export default function Reports({ summary, maintenance_records, fuel_records }) 
     const fuelData = fuel_records.map(r => ({
         date: new Date(r.date).toLocaleDateString(),
         type: 'Fuel',
-        vehicle: r.vehicle ? `${r.vehicle.make} ${r.vehicle.model} (${r.vehicle.license_plate})` : 'Unknown',
+        vehicle: r.vehicle ? `${r.vehicle.name} (${r.vehicle.license_plate})` : 'Unknown',
         details: `${r.liters} L`,
         cost: r.cost
     }));

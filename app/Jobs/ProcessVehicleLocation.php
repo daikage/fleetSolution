@@ -2,20 +2,26 @@
 
 namespace App\Jobs;
 
+use App\Domains\Driver\Models\Trip;
+use App\Domains\Fleet\Models\Geofence;
+use App\Domains\Telematics\Models\Location;
+use App\Events\VehicleLocationUpdated;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use App\Domains\Telematics\Models\Location;
-use App\Events\VehicleLocationUpdated;
+use Illuminate\Support\Facades\Log;
 
 class ProcessVehicleLocation implements ShouldQueue
 {
     use InteractsWithQueue, Queueable, SerializesModels;
 
     public $vehicleId;
+
     public $latitude;
+
     public $longitude;
+
     public $speed;
 
     /**
@@ -58,7 +64,7 @@ class ProcessVehicleLocation implements ShouldQueue
         ]);
 
         // Check Geofences
-        $geofences = \App\Domains\Fleet\Models\Geofence::where('type', 'restricted')->get();
+        $geofences = Geofence::where('type', 'restricted')->get();
         foreach ($geofences as $geofence) {
             $earthRadius = 6371000; // in meters
             $latFrom = deg2rad((float) $geofence->latitude);
@@ -76,13 +82,13 @@ class ProcessVehicleLocation implements ShouldQueue
             $distance = $earthRadius * $c;
 
             if ($distance <= $geofence->radius_meters) {
-                \Illuminate\Support\Facades\Log::warning("Vehicle {$this->vehicleId} entered restricted geofence {$geofence->name}!");
+                Log::warning("Vehicle {$this->vehicleId} entered restricted geofence {$geofence->name}!");
             }
         }
 
         // Look up the active driver for this vehicle
         $activeDriver = null;
-        $trip = \App\Domains\Driver\Models\Trip::where('vehicle_id', $this->vehicleId)
+        $trip = Trip::where('vehicle_id', $this->vehicleId)
             ->whereNull('end_time')
             ->with('driver.user')
             ->first();

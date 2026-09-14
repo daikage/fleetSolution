@@ -6,7 +6,7 @@
 <body>
     <h2>Your Maintenance Request has been {{ $maintenance->status }}</h2>
     
-    <p><strong>Vehicle:</strong> {{ $maintenance->vehicle->make }} {{ $maintenance->vehicle->model }} ({{ $maintenance->vehicle->license_plate }})</p>
+    <p><strong>Vehicle:</strong> {{ $maintenance->vehicle->name }} ({{ $maintenance->vehicle->license_plate }})</p>
     <p><strong>Service Type:</strong> {{ $maintenance->service_type }}</p>
     <p><strong>Cost:</strong> ₦{{ number_format($maintenance->cost, 2) }}</p>
     <p><strong>Date:</strong> {{ $maintenance->date->format('M d, Y') }}</p>

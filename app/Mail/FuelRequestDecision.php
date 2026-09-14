@@ -2,8 +2,8 @@
 
 namespace App\Mail;
 
+use App\Domains\Telematics\Models\FuelLog;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
@@ -19,7 +19,7 @@ class FuelRequestDecision extends Mailable
     /**
      * Create a new message instance.
      */
-    public function __construct(\App\Domains\Telematics\Models\FuelLog $fuelLog)
+    public function __construct(FuelLog $fuelLog)
     {
         $this->fuelLog = $fuelLog;
     }
@@ -30,7 +30,7 @@ class FuelRequestDecision extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Fuel Request ' . $this->fuelLog->status,
+            subject: 'Fuel Request '.$this->fuelLog->status,
         );
     }
 

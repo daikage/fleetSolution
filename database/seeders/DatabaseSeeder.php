@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Domains\Fleet\Models\Vehicle;
 use App\Domains\Identity\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -38,7 +39,7 @@ class DatabaseSeeder extends Seeder
         );
 
         // Create a test Vehicle
-        \App\Domains\Fleet\Models\Vehicle::updateOrCreate(
+        Vehicle::updateOrCreate(
             ['vin' => '1FTBR1ZC1PKA12345'],
             [
                 'make' => 'Ford',

@@ -84,7 +84,7 @@ export default function FinancialReports({ maintenance_records, fuel_records, ye
             date: r.date,
             type: 'Maintenance',
             category: r.service_type || r.type,
-            vehicle: r.vehicle ? `${r.vehicle.make} ${r.vehicle.model} (${r.vehicle.license_plate})` : 'Unknown',
+            vehicle: r.vehicle ? `${r.vehicle.name} (${r.vehicle.license_plate})` : 'Unknown',
             cost: Number(r.cost),
         }));
         const fRecords = fuel_records.map(r => ({
@@ -92,7 +92,7 @@ export default function FinancialReports({ maintenance_records, fuel_records, ye
             date: r.date,
             type: 'Fuel',
             category: `${r.liters} L`,
-            vehicle: r.vehicle ? `${r.vehicle.make} ${r.vehicle.model} (${r.vehicle.license_plate})` : 'Unknown',
+            vehicle: r.vehicle ? `${r.vehicle.name} (${r.vehicle.license_plate})` : 'Unknown',
             cost: Number(r.cost),
         }));
         return [...mRecords, ...fRecords].sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -231,7 +231,7 @@ export default function FinancialReports({ maintenance_records, fuel_records, ye
                         >
                             <option value="">All Vehicles</option>
                             {vehicles?.map(v => (
-                                <option key={v.id} value={v.id}>{v.make} {v.model} ({v.license_plate})</option>
+                                <option key={v.id} value={v.id}>{v.name} ({v.license_plate})</option>
                             ))}
                         </select>
 

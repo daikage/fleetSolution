@@ -3,12 +3,12 @@
 namespace App\Domains\Fleet\Models;
 
 use App\Domains\Driver\Models\Trip;
-use App\Domains\Telematics\Models\Location;
-use App\Domains\Maintenance\Models\Maintenance;
-use App\Domains\Telematics\Models\FuelLog;
-use App\Domains\Maintenance\Models\Inspection;
-use App\Domains\Maintenance\Models\MaintenanceSchedule;
 use App\Domains\Identity\Models\Department;
+use App\Domains\Maintenance\Models\Inspection;
+use App\Domains\Maintenance\Models\Maintenance;
+use App\Domains\Maintenance\Models\MaintenanceSchedule;
+use App\Domains\Telematics\Models\FuelLog;
+use App\Domains\Telematics\Models\Location;
 use Illuminate\Database\Eloquent\Model;
 
 class Vehicle extends Model
@@ -27,11 +27,10 @@ class Vehicle extends Model
     {
         parent::boot();
 
-        static::creating(function ($vehicle) {
+        static::created(function ($vehicle) {
             if (empty($vehicle->vehicle_id)) {
-                $latest = static::orderBy('id', 'desc')->first();
-                $nextId = $latest ? $latest->id + 1 : 1;
-                $vehicle->vehicle_id = 'veh' . str_pad($nextId, 3, '0', STR_PAD_LEFT);
+                $vehicle->vehicle_id = 'veh'.str_pad($vehicle->id, 3, '0', STR_PAD_LEFT);
+                $vehicle->saveQuietly();
             }
         });
     }

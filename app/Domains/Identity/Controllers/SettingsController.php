@@ -2,6 +2,7 @@
 
 namespace App\Domains\Identity\Controllers;
 
+use App\Domains\Identity\Models\Setting;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
@@ -9,7 +10,8 @@ class SettingsController extends Controller
 {
     public function index()
     {
-        $settings = \App\Domains\Identity\Models\Setting::all()->pluck('value', 'key');
+        $settings = Setting::all()->pluck('value', 'key');
+
         return response()->json($settings);
     }
 
@@ -20,12 +22,12 @@ class SettingsController extends Controller
             'map_provider' => 'required|string|in:map_libre,google_maps',
         ]);
 
-        \App\Domains\Identity\Models\Setting::updateOrCreate(
+        Setting::updateOrCreate(
             ['key' => 'tracker_type'],
             ['value' => $request->tracker_type]
         );
 
-        \App\Domains\Identity\Models\Setting::updateOrCreate(
+        Setting::updateOrCreate(
             ['key' => 'map_provider'],
             ['value' => $request->map_provider]
         );

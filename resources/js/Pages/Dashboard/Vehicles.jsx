@@ -981,7 +981,7 @@ export default function Vehicles({ vehicles, drivers, departments }) {
                             <form onSubmit={submitDispatch} className="p-6 flex flex-col gap-4">
                                 <div>
                                     <p className="text-gray-300 text-sm mb-4">
-                                        Assigning driver to: <strong className="text-white">{selectedVehicle.make} {selectedVehicle.model} ({selectedVehicle.license_plate})</strong>
+                                        Assigning driver to: <strong className="text-white">{selectedVehicle.name} ({selectedVehicle.license_plate})</strong>
                                     </p>
                                     
                                     {dispatchForm.errors.vehicle_id && (
@@ -1061,7 +1061,7 @@ export default function Vehicles({ vehicles, drivers, departments }) {
 
                             <form onSubmit={(e) => {
                                 e.preventDefault();
-                                endTripForm.put(route('dashboard.trips.end.direct', endTripVehicle.currentTrip.id), {
+                                endTripForm.put(route('dashboard.trips.end', endTripVehicle.currentTrip.id), {
                                     onSuccess: () => {
                                         setIsEndTripModalOpen(false);
                                         endTripForm.reset();
@@ -1073,7 +1073,7 @@ export default function Vehicles({ vehicles, drivers, departments }) {
                             }} className="p-6 flex flex-col gap-4">
                                 <div>
                                     <p className="text-gray-300 text-sm mb-4">
-                                        Ending trip for: <strong className="text-white">{endTripVehicle.make} {endTripVehicle.model} ({endTripVehicle.license_plate})</strong>
+                                        Ending trip for: <strong className="text-white">{endTripVehicle.name} ({endTripVehicle.license_plate})</strong>
                                     </p>
 
                                     <div className="space-y-4">

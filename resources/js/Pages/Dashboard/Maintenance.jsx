@@ -125,7 +125,7 @@ export default function Maintenance({ maintenances, vehicles, userRole }) {
     ];
 
     const exportData = maintenances.map(log => ({
-        vehicle_name: `${log.vehicle?.make || ''} ${log.vehicle?.model || ''}`.trim() || 'Unknown',
+        vehicle_name: `${log.vehicle?.name || ''}`.trim() || 'Unknown',
         license_plate: log.vehicle?.license_plate || 'N/A',
         diagnosis: log.diagnosis || '',
         work_to_be_done: log.work_to_be_done || '',
@@ -196,7 +196,7 @@ export default function Maintenance({ maintenances, vehicles, userRole }) {
                                                 {new Date(log.date).toLocaleDateString()}
                                             </td>
                                             <td className="p-4">
-                                                <div className="font-medium text-white">{log.vehicle?.make} {log.vehicle?.model}</div>
+                                                <div className="font-medium text-white">{log.vehicle?.name}</div>
                                                 <div className="text-sm text-gray-400">{log.vehicle?.license_plate}</div>
                                             </td>
                                             <td className="p-4 text-gray-300 text-sm">
@@ -430,7 +430,7 @@ export default function Maintenance({ maintenances, vehicles, userRole }) {
                                         <option value="">-- Choose a Vehicle --</option>
                                         {vehicles.map(v => (
                                             <option key={v.id} value={v.id}>
-                                                {v.make} {v.model} ({v.license_plate})
+                                                {v.name} ({v.license_plate})
                                             </option>
                                         ))}
                                     </select>
@@ -708,7 +708,7 @@ export default function Maintenance({ maintenances, vehicles, userRole }) {
                                         <RefreshCw className="w-5 h-5 text-amber-400" />
                                         Resubmit Request
                                     </h2>
-                                    <p className="text-xs text-gray-400 mt-1">{resubmitTarget.vehicle?.make} {resubmitTarget.vehicle?.model} — {resubmitTarget.vehicle?.license_plate}</p>
+                                    <p className="text-xs text-gray-400 mt-1">{resubmitTarget.vehicle?.name} — {resubmitTarget.vehicle?.license_plate}</p>
                                 </div>
                                 <button onClick={() => setResubmitModalOpen(false)} className="p-2 rounded-full hover:bg-white/10 text-gray-400 transition-colors">
                                     <X className="w-5 h-5" />

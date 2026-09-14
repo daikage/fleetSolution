@@ -6,11 +6,12 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class RequestActioned extends Notification
+class RequestActioned extends Notification implements ShouldQueue
 {
     use Queueable;
 
     public $requestModel;
+
     public $requestType;
 
     /**

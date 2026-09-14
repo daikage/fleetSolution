@@ -2,12 +2,10 @@
 
 namespace App\Domains\Driver\Models;
 
-use App\Domains\Identity\Models\User;
-use App\Domains\Telematics\Models\FuelLog;
-use App\Domains\Maintenance\Models\Inspection;
-
-
 use App\Domains\Fleet\Models\Document;
+use App\Domains\Identity\Models\User;
+use App\Domains\Maintenance\Models\Inspection;
+use App\Domains\Telematics\Models\FuelLog;
 use Illuminate\Database\Eloquent\Model;
 
 class Driver extends Model

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Domains\Identity\Models\User;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -40,13 +41,14 @@ class LoginRequest extends FormRequest
         $credentials = $this->only('email', 'password');
 
         if (Auth::validate($credentials)) {
-            $user = \App\Domains\Identity\Models\User::where('email', $this->email)->first();
+            $user = User::where('email', $this->email)->first();
 
             if ($user && $user->hasEnabledTwoFactorAuthentication()) {
                 // Do not log the user in yet. Put their ID in session and redirect to 2FA challenge.
                 $this->session()->put('login.id', $user->id);
                 $this->session()->put('login.remember', $this->boolean('remember'));
                 RateLimiter::clear($this->throttleKey());
+
                 return;
             }
         }

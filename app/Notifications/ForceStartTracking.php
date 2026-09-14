@@ -4,8 +4,8 @@ namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Messages\BroadcastMessage;
+use Illuminate\Notifications\Notification;
 
 class ForceStartTracking extends Notification implements ShouldQueue
 {
@@ -42,7 +42,7 @@ class ForceStartTracking extends Notification implements ShouldQueue
             'driver_id' => $this->driver->id,
             'user_id' => $this->driver->user_id,
             'driver_name' => $this->driver->user->name,
-            'message' => "Fleet manager has requested you to start tracking. Please open the app and tap Start Tracking.",
+            'message' => 'Fleet manager has requested you to start tracking. Please open the app and tap Start Tracking.',
             'created_at' => now()->toIso8601String(),
         ]);
     }
@@ -58,7 +58,7 @@ class ForceStartTracking extends Notification implements ShouldQueue
             'driver_id' => $this->driver->id,
             'user_id' => $this->driver->user_id,
             'driver_name' => $this->driver->user->name,
-            'message' => "Fleet manager has requested you to start tracking. Please open the app and tap Start Tracking.",
+            'message' => 'Fleet manager has requested you to start tracking. Please open the app and tap Start Tracking.',
             'created_at' => now()->toIso8601String(),
         ];
     }

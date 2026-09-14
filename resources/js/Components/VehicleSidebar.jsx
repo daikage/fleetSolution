@@ -16,7 +16,7 @@ export default function VehicleSidebar({ vehicle, onClose }) {
                     {/* Header */}
                     <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/20">
                         <div>
-                            <h2 className="text-xl font-bold text-white">{vehicle.make} {vehicle.model}</h2>
+                            <h2 className="text-xl font-bold text-white">{vehicle.name}</h2>
                             <p className="text-gray-400 text-sm mt-1">{vehicle.license_plate}</p>
                         </div>
                         <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10 text-gray-400 transition-colors">

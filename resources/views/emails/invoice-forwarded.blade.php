@@ -58,7 +58,7 @@
             @if($record->vehicle)
             <div class="detail-row">
                 <span class="detail-label">Vehicle</span>
-                <span class="detail-value">{{ $record->vehicle->make ?? '' }} {{ $record->vehicle->model ?? '' }} ({{ $record->vehicle->license_plate ?? 'N/A' }})</span>
+                <span class="detail-value">{{ $record->vehicle->name ?? '' }} ({{ $record->vehicle->license_plate ?? 'N/A' }})</span>
             </div>
             @endif
 

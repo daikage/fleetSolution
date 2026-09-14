@@ -3,11 +3,10 @@
 namespace App\Domains\Communication\Models;
 
 use App\Domains\Identity\Models\User;
-
-
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 class Message extends Model
 {
@@ -26,11 +25,11 @@ class Message extends Model
      */
     public function getImageUrlAttribute(): ?string
     {
-        if (!$this->image_path) {
+        if (! $this->image_path) {
             return null;
         }
 
-        return asset('storage/' . $this->image_path);
+        return Storage::disk('r2')->url($this->image_path);
     }
 
     public function conversation(): BelongsTo

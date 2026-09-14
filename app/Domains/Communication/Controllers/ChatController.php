@@ -2,15 +2,16 @@
 
 namespace App\Domains\Communication\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Domains\Communication\Models\Conversation;
 use App\Domains\Communication\Models\Message;
 use App\Domains\Identity\Models\User;
 use App\Events\MessageSent;
+use App\Http\Controllers\Controller;
 use App\Notifications\NewChatMessageNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class ChatController extends Controller
 {
@@ -23,7 +24,7 @@ class ChatController extends Controller
 
         // If driver, they can chat with managers and other drivers.
         // If manager, they can chat with drivers.
-        
+
         $query = User::query()->where('id', '!=', $user->id);
 
         if ($user->role === 'driver') {
@@ -67,7 +68,7 @@ class ChatController extends Controller
             })
             ->first();
 
-        if (!$conversation) {
+        if (! $conversation) {
             DB::transaction(function () use ($user, $otherUser, &$conversation) {
                 $conversation = Conversation::create(['is_group' => false]);
                 $conversation->users()->attach([$user->id, $otherUser->id]);
@@ -83,11 +84,18 @@ class ChatController extends Controller
     public function messages(Request $request, Conversation $conversation)
     {
         // Ensure user is part of the conversation
-        if (!$conversation->users()->where('users.id', $request->user()->id)->exists()) {
+        if (! $conversation->users()->where('users.id', $request->user()->id)->exists()) {
             abort(403);
         }
 
-        $messages = $conversation->messages()->with('sender:id,name')->oldest()->get();
+        $messages = $conversation->messages()->with('sender:id,name')->oldest()->get()->map(function ($message) {
+            if ($message->image_path) {
+                $message->image_path = route('files.show', ['disk' => 'r2', 'path' => $message->image_path]);
+            }
+
+            return $message;
+        });
+
         return response()->json($messages);
     }
 
@@ -102,20 +110,22 @@ class ChatController extends Controller
         ]);
 
         // At least one of content or image must be present
-        if (!$request->input('content') && !$request->hasFile('image')) {
+        if (! $request->input('content') && ! $request->hasFile('image')) {
             return response()->json(['message' => 'A message must contain text or an image.'], 422);
         }
 
         $user = $request->user();
 
-        if (!$conversation->users()->where('users.id', $user->id)->exists()) {
+        if (! $conversation->users()->where('users.id', $user->id)->exists()) {
             abort(403);
         }
 
         $imagePath = null;
         if ($request->hasFile('image')) {
-            $imagePath = $request->file('image')->store('chat-images', 'public');
+            $imagePath = $request->file('image')->store('chat-images', 'r2');
         }
+
+        // Store only the path; URLs are generated on-demand via the file serving route
 
         $message = $conversation->messages()->create([
             'sender_id' => $user->id,
@@ -133,7 +143,7 @@ class ChatController extends Controller
 
         // Send push notification to offline users
         $otherUsers = $conversation->users()->where('users.id', '!=', $user->id)->get();
-        
+
         $pushMessages = [];
         foreach ($otherUsers as $otherUser) {
             // Create database notification for dashboard users (managers/admins)
@@ -144,7 +154,7 @@ class ChatController extends Controller
             if ($otherUser->push_token) {
                 $pushMessages[] = [
                     'to' => $otherUser->push_token,
-                    'title' => 'New message from ' . $user->name,
+                    'title' => 'New message from '.$user->name,
                     'body' => $imagePath ? ($message->content ?: '📷 Image') : $message->content,
                     'sound' => 'notification.mp3',
                     'channelId' => 'chat-messages',
@@ -152,25 +162,29 @@ class ChatController extends Controller
                         'conversation_id' => $conversation->id,
                         'sender_id' => $user->id,
                         'sender_name' => $user->name,
-                        'type' => 'chat_message'
+                        'type' => 'chat_message',
                     ],
                 ];
             }
         }
 
-        if (!empty($pushMessages)) {
+        if (! empty($pushMessages)) {
             try {
-                $response = \Illuminate\Support\Facades\Http::withHeaders([
+                $response = Http::withHeaders([
                     'Accept' => 'application/json',
                     'Content-Type' => 'application/json',
                 ])->post('https://exp.host/--/api/v2/push/send', $pushMessages);
 
-                if (!$response->successful()) {
-                    \Illuminate\Support\Facades\Log::error('Expo Push API Error: ' . $response->body());
+                if (! $response->successful()) {
+                    Log::error('Expo Push API Error: '.$response->body());
                 }
             } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error('Failed to send Expo push notification: ' . $e->getMessage());
+                Log::error('Failed to send Expo push notification: '.$e->getMessage());
             }
+        }
+
+        if ($message->image_path) {
+            $message->image_path = route('files.show', ['disk' => 'r2', 'path' => $message->image_path]);
         }
 
         return response()->json($message);

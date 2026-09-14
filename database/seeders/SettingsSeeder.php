@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Domains\Identity\Models\Setting;
 use Illuminate\Database\Seeder;
 
 class SettingsSeeder extends Seeder
@@ -12,12 +12,12 @@ class SettingsSeeder extends Seeder
      */
     public function run(): void
     {
-        \App\Domains\Identity\Models\Setting::updateOrCreate(
+        Setting::updateOrCreate(
             ['key' => 'tracker_type'],
             ['value' => 'mobile_app']
         );
 
-        \App\Domains\Identity\Models\Setting::updateOrCreate(
+        Setting::updateOrCreate(
             ['key' => 'map_provider'],
             ['value' => 'map_libre']
         );

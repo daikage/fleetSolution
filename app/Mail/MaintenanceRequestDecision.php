@@ -2,8 +2,8 @@
 
 namespace App\Mail;
 
+use App\Domains\Maintenance\Models\Maintenance;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
@@ -19,7 +19,7 @@ class MaintenanceRequestDecision extends Mailable
     /**
      * Create a new message instance.
      */
-    public function __construct(\App\Domains\Maintenance\Models\Maintenance $maintenance)
+    public function __construct(Maintenance $maintenance)
     {
         $this->maintenance = $maintenance;
     }
@@ -30,7 +30,7 @@ class MaintenanceRequestDecision extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Maintenance Request ' . $this->maintenance->status,
+            subject: 'Maintenance Request '.$this->maintenance->status,
         );
     }
 

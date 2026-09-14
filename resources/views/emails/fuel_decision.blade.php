@@ -6,7 +6,7 @@
 <body>
     <h2>Your Fuel Request has been {{ $fuelLog->status }}</h2>
     
-    <p><strong>Vehicle:</strong> {{ $fuelLog->vehicle->make }} {{ $fuelLog->vehicle->model }} ({{ $fuelLog->vehicle->license_plate }})</p>
+    <p><strong>Vehicle:</strong> {{ $fuelLog->vehicle->name }} ({{ $fuelLog->vehicle->license_plate }})</p>
     <p><strong>Liters:</strong> {{ $fuelLog->liters }} L</p>
     <p><strong>Cost:</strong> ₦{{ number_format($fuelLog->cost, 2) }}</p>
     <p><strong>Date:</strong> {{ $fuelLog->date->format('M d, Y') }}</p>

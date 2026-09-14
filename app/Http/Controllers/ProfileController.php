@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Domains\Identity\Models\Setting;
 use App\Http\Requests\ProfileUpdateRequest;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
@@ -10,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
 use Inertia\Response;
+use PragmaRX\Google2FA\Google2FA;
 
 class ProfileController extends Controller
 {
@@ -19,14 +21,14 @@ class ProfileController extends Controller
     public function edit(Request $request): Response
     {
         $user = $request->user();
-        
+
         $twoFactorEnabled = $user->hasEnabledTwoFactorAuthentication();
-        $twoFactorPending = !is_null($user->two_factor_secret) && is_null($user->two_factor_confirmed_at);
+        $twoFactorPending = ! is_null($user->two_factor_secret) && is_null($user->two_factor_confirmed_at);
         $twoFactorSecret = null;
         $twoFactorQrCode = null;
-        
+
         if ($twoFactorPending && $user->two_factor_secret) {
-            $google2fa = app(\PragmaRX\Google2FA\Google2FA::class);
+            $google2fa = app(Google2FA::class);
             $twoFactorSecret = decrypt($user->two_factor_secret);
             $twoFactorQrCode = $google2fa->getQRCodeInline(
                 config('app.name'),
@@ -92,12 +94,12 @@ class ProfileController extends Controller
             'map_provider' => 'required|string|in:map_libre,mapbox,google_maps',
         ]);
 
-        \App\Domains\Identity\Models\Setting::updateOrCreate(
+        Setting::updateOrCreate(
             ['key' => 'tracker_type'],
             ['value' => $request->tracker_type]
         );
 
-        \App\Domains\Identity\Models\Setting::updateOrCreate(
+        Setting::updateOrCreate(
             ['key' => 'map_provider'],
             ['value' => $request->map_provider]
         );

@@ -2,14 +2,31 @@
 
 namespace App\Http\Controllers;
 
-use Inertia\Inertia;
+use App\Domains\Driver\Models\Driver;
+use App\Domains\Driver\Models\Trip;
+use App\Domains\Fleet\Models\Document;
 use App\Domains\Fleet\Models\Vehicle;
+use App\Domains\Fleet\Models\Vendor;
+use App\Domains\Identity\Models\Department;
 use App\Domains\Identity\Models\User;
-use Illuminate\Support\Facades\Mail;
-use App\Mail\MaintenanceRequestDecision;
+use App\Domains\Maintenance\Models\Maintenance;
+use App\Domains\Telematics\Models\FuelLog;
+use App\Jobs\ProcessVehicleLocation;
 use App\Mail\FuelRequestDecision;
 use App\Mail\InvoiceForwarded;
+use App\Mail\MaintenanceRequestDecision;
+use App\Notifications\RequestActioned;
+use App\Notifications\RequestSubmitted;
 use App\Notifications\ReviewRequestForwarded;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+use Log;
 
 class DashboardController extends Controller
 {
@@ -27,7 +44,7 @@ class DashboardController extends Controller
         // Use vehicle's registered lat/lng as fallback when no GPS ping exists yet
         $vehicles = Vehicle::with([
             'latestLocation',
-            'currentTrip.driver.user'
+            'currentTrip.driver.user',
         ])->get()->map(function ($vehicle) {
             $latestLocation = $vehicle->latestLocation;
             $activeTrip = $vehicle->currentTrip;
@@ -41,8 +58,7 @@ class DashboardController extends Controller
             // as NULL — the FleetMap component will skip them automatically
             return [
                 'id' => $vehicle->id,
-                'make' => $vehicle->make,
-                'model' => $vehicle->model,
+                'name' => $vehicle->name,
                 'license_plate' => $vehicle->license_plate,
                 'latitude' => $latitude,
                 'longitude' => $longitude,
@@ -61,22 +77,23 @@ class DashboardController extends Controller
         });
 
         // Expiry alerts logic
-        $upcomingExpiries = \App\Domains\Fleet\Models\Document::with('documentable')
+        $upcomingExpiries = Document::with('documentable')
             ->whereNotNull('expiry_date')
             ->where('expiry_date', '<=', now()->addDays(30)->format('Y-m-d'))
             ->get()->map(function ($doc) {
                 $docName = 'Unknown';
-                if ($doc->documentable_type === \App\Domains\Fleet\Models\Vehicle::class && $doc->documentable) {
-                    $docName = $doc->documentable->name . ' (' . $doc->documentable->license_plate . ')';
-                } elseif ($doc->documentable_type === \App\Domains\Driver\Models\Driver::class && $doc->documentable && $doc->documentable->user) {
+                if ($doc->documentable_type === Vehicle::class && $doc->documentable) {
+                    $docName = $doc->documentable->name.' ('.$doc->documentable->license_plate.')';
+                } elseif ($doc->documentable_type === Driver::class && $doc->documentable && $doc->documentable->user) {
                     $docName = $doc->documentable->user->name;
                 }
+
                 return [
                     'id' => $doc->id,
                     'type' => $doc->document_type,
                     'entity' => $docName,
                     'expiry_date' => $doc->expiry_date,
-                    'is_expired' => \Carbon\Carbon::parse($doc->expiry_date)->isPast()
+                    'is_expired' => Carbon::parse($doc->expiry_date)->isPast(),
                 ];
             });
 
@@ -97,14 +114,6 @@ class DashboardController extends Controller
         $minimumVehicles = config('compliance.vehicle', []);
         $allVehicles = config('compliance.vehicle_all', []);
 
-        // SILENT FIX: Ensure existing documents map to the AppServiceProvider morph alias
-        \Illuminate\Support\Facades\DB::table('documents')
-            ->where('documentable_type', 'App\Domains\Fleet\Models\Vehicle')
-            ->update(['documentable_type' => 'App\Models\Vehicle']);
-        \Illuminate\Support\Facades\DB::table('documents')
-            ->where('documentable_type', 'App\Domains\Driver\Models\Driver')
-            ->update(['documentable_type' => 'App\Models\Driver']);
-
         // Effective status ties the Vehicles menu to the Compliance menu via a
         // highlight driven by documents: all minimum present → active (green),
         // some present → pending (yellow), none → inactive (red). Manual "in_shop" is preserved.
@@ -116,6 +125,7 @@ class DashboardController extends Controller
                 $vehicle->document_status = 'in_shop';
                 $vehicle->documents_present = 0;
                 $vehicle->documents_required = $total;
+
                 return $vehicle;
             }
 
@@ -129,10 +139,10 @@ class DashboardController extends Controller
                     ->where('is_archived', false)
                     ->where('status', '!=', 'Rejected')
                     ->filter(function ($d) {
-                        return !$d->expiry_date || \Carbon\Carbon::parse($d->expiry_date)->isFuture();
+                        return ! $d->expiry_date || Carbon::parse($d->expiry_date)->isFuture();
                     })->isNotEmpty();
-                
-                if (!$hasValid) {
+
+                if (! $hasValid) {
                     $hasMinimum = false;
                     break;
                 }
@@ -151,13 +161,13 @@ class DashboardController extends Controller
             return $vehicle;
         });
 
-        $drivers = \App\Domains\Driver\Models\Driver::with('user')->get();
-        $departments = \App\Domains\Identity\Models\Department::orderBy('name')->get();
+        $drivers = Driver::with('user')->get();
+        $departments = Department::orderBy('name')->get();
 
         return Inertia::render('Dashboard/Vehicles', [
             'vehicles' => $vehicles,
             'drivers' => $drivers,
-            'departments' => $departments
+            'departments' => $departments,
         ]);
     }
 
@@ -173,7 +183,7 @@ class DashboardController extends Controller
             ->where('is_archived', false)
             ->where('status', '!=', 'Rejected')
             ->filter(function ($doc) {
-                return !$doc->expiry_date || \Carbon\Carbon::parse($doc->expiry_date)->isFuture();
+                return ! $doc->expiry_date || Carbon::parse($doc->expiry_date)->isFuture();
             });
 
         $present = 0;
@@ -186,7 +196,7 @@ class DashboardController extends Controller
         return $present;
     }
 
-    public function storeVehicle(\Illuminate\Http\Request $request)
+    public function storeVehicle(Request $request)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -224,20 +234,19 @@ class DashboardController extends Controller
         // Trips must be created explicitly via storeTrip to ensure compliance validation.
 
         if ($vehicle->latitude !== null && $vehicle->longitude !== null) {
-            $job = new \App\Jobs\ProcessVehicleLocation($vehicle->id, $vehicle->latitude, $vehicle->longitude, 0);
-            $job->handle();
+            ProcessVehicleLocation::dispatch($vehicle->id, $vehicle->latitude, $vehicle->longitude, 0);
         }
 
         return back();
     }
 
-    public function updateVehicle(\Illuminate\Http\Request $request, Vehicle $vehicle)
+    public function updateVehicle(Request $request, Vehicle $vehicle)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'chassis_number' => 'required|string|max:255|unique:vehicles,chassis_number,' . $vehicle->id,
-            'license_plate' => 'required|string|max:255|unique:vehicles,license_plate,' . $vehicle->id,
-            'vin' => 'nullable|string|max:255|unique:vehicles,vin,' . $vehicle->id,
+            'chassis_number' => 'required|string|max:255|unique:vehicles,chassis_number,'.$vehicle->id,
+            'license_plate' => 'required|string|max:255|unique:vehicles,license_plate,'.$vehicle->id,
+            'vin' => 'nullable|string|max:255|unique:vehicles,vin,'.$vehicle->id,
             'vendor' => 'nullable|string|max:255',
             'year' => 'nullable|integer|min:1900|max:2100',
             'base_location' => 'nullable|string|max:255',
@@ -262,25 +271,24 @@ class DashboardController extends Controller
         ]);
 
         if (($vehicle->wasChanged('latitude') || $vehicle->wasChanged('longitude')) && $vehicle->latitude !== null && $vehicle->longitude !== null) {
-            $job = new \App\Jobs\ProcessVehicleLocation($vehicle->id, $vehicle->latitude, $vehicle->longitude, 0);
-            $job->handle();
+            ProcessVehicleLocation::dispatch($vehicle->id, $vehicle->latitude, $vehicle->longitude, 0);
         }
 
         return back();
     }
 
-    public function updateVehicleLocation(\Illuminate\Http\Request $request, Vehicle $vehicle)
+    public function updateVehicleLocation(Request $request, Vehicle $vehicle)
     {
         $validated = $request->validate([
             'location' => 'required|string|in:lagos,abuja,ibadan,port_harcourt,kano',
         ]);
 
         $locations = [
-            'lagos'          => ['lat' => 6.574368986524661, 'lng' => 3.3891698249000393, 'label' => 'Lagos'],
-            'abuja'          => ['lat' => 9.018317344473623, 'lng' => 7.456211478382267, 'label' => 'Abuja'],
-            'ibadan'         => ['lat' => 7.3775, 'lng' => 3.9470, 'label' => 'Ibadan'],
-            'port_harcourt'  => ['lat' => 4.8156, 'lng' => 7.0498, 'label' => 'Port Harcourt'],
-            'kano'           => ['lat' => 12.0022, 'lng' => 8.5920, 'label' => 'Kano'],
+            'lagos' => ['lat' => 6.574368986524661, 'lng' => 3.3891698249000393, 'label' => 'Lagos'],
+            'abuja' => ['lat' => 9.018317344473623, 'lng' => 7.456211478382267, 'label' => 'Abuja'],
+            'ibadan' => ['lat' => 7.3775, 'lng' => 3.9470, 'label' => 'Ibadan'],
+            'port_harcourt' => ['lat' => 4.8156, 'lng' => 7.0498, 'label' => 'Port Harcourt'],
+            'kano' => ['lat' => 12.0022, 'lng' => 8.5920, 'label' => 'Kano'],
         ];
 
         $loc = $locations[$validated['location']];
@@ -294,8 +302,7 @@ class DashboardController extends Controller
         ]);
 
         // Register location so the map picks it up immediately
-        $job = new \App\Jobs\ProcessVehicleLocation($vehicle->id, $lat, $lng, 0);
-        $job->handle();
+        ProcessVehicleLocation::dispatch($vehicle->id, $lat, $lng, 0);
 
         return back();
     }
@@ -306,13 +313,20 @@ class DashboardController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
-        $drivers = \App\Domains\Driver\Models\Driver::with(['user', 'documents'])->latest()->get();
+        $drivers = Driver::with(['user', 'documents'])->latest()->get()->map(function ($driver) {
+            $driver->passport_photo = $driver->passport_photo
+                ? route('files.show', ['disk' => 'r2', 'path' => $driver->passport_photo])
+                : null;
+
+            return $driver;
+        });
+
         return Inertia::render('Dashboard/Drivers', [
-            'drivers' => $drivers
+            'drivers' => $drivers,
         ]);
     }
 
-    public function storeDriver(\Illuminate\Http\Request $request)
+    public function storeDriver(Request $request)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -325,23 +339,23 @@ class DashboardController extends Controller
 
         $passportPath = null;
         if ($request->hasFile('passport_photo')) {
-            $passportPath = $request->file('passport_photo')->store('passports');
+            $passportPath = $request->file('passport_photo')->store('passports', 'r2');
         }
 
         // Create the user account for the driver
-        $user = \App\Domains\Identity\Models\User::create([
+        $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
-            'password' => \Illuminate\Support\Facades\Hash::make($validated['password']),
+            'password' => Hash::make($validated['password']),
             'role' => 'driver',
         ]);
 
         // Create the driver profile linked to the user
-        \App\Domains\Driver\Models\Driver::create([
+        Driver::create([
             'user_id' => $user->id,
             'license_no' => $validated['license_no'],
             'license_exp' => $validated['license_exp'],
-            'passport_photo' => $passportPath ? \Illuminate\Support\Facades\Storage::url($passportPath) : null,
+            'passport_photo' => $passportPath,
         ]);
 
         return back();
@@ -350,15 +364,16 @@ class DashboardController extends Controller
     public function destroyVehicle(Vehicle $vehicle)
     {
         $vehicle->delete();
+
         return back();
     }
 
-    public function destroyDocument(\App\Domains\Fleet\Models\Document $document)
+    public function destroyDocument(Document $document)
     {
         // Delete physical file
         if ($document->file_path) {
             $path = str_replace('/storage/', '', $document->file_path);
-            \Illuminate\Support\Facades\Storage::disk('public')->delete($path);
+            Storage::disk('r2')->delete($path);
         }
 
         $document->delete();
@@ -368,20 +383,20 @@ class DashboardController extends Controller
 
     public function departments()
     {
-        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin'])) {
+        if (! in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin'])) {
             abort(403, 'Unauthorized access.');
         }
 
-        $departments = \App\Domains\Identity\Models\Department::withCount('vehicles')->orderBy('name')->get();
+        $departments = Department::withCount('vehicles')->orderBy('name')->get();
 
         return Inertia::render('Dashboard/Departments', [
             'departments' => $departments,
         ]);
     }
 
-    public function storeDepartment(\Illuminate\Http\Request $request)
+    public function storeDepartment(Request $request)
     {
-        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin'])) {
+        if (! in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin'])) {
             abort(403, 'Unauthorized access.');
         }
 
@@ -389,19 +404,19 @@ class DashboardController extends Controller
             'name' => 'required|string|max:255|unique:departments,name',
         ]);
 
-        \App\Domains\Identity\Models\Department::create($validated);
+        Department::create($validated);
 
         return back();
     }
 
-    public function updateDepartment(\Illuminate\Http\Request $request, \App\Domains\Identity\Models\Department $department)
+    public function updateDepartment(Request $request, Department $department)
     {
-        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin'])) {
+        if (! in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin'])) {
             abort(403, 'Unauthorized access.');
         }
 
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:departments,name,' . $department->id,
+            'name' => 'required|string|max:255|unique:departments,name,'.$department->id,
         ]);
 
         $department->update($validated);
@@ -409,9 +424,9 @@ class DashboardController extends Controller
         return back();
     }
 
-    public function destroyDepartment(\App\Domains\Identity\Models\Department $department)
+    public function destroyDepartment(Department $department)
     {
-        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin'])) {
+        if (! in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin'])) {
             abort(403, 'Unauthorized access.');
         }
 
@@ -424,7 +439,7 @@ class DashboardController extends Controller
         return back();
     }
 
-    public function destroyDriver(\App\Domains\Driver\Models\Driver $driver)
+    public function destroyDriver(Driver $driver)
     {
         $user = $driver->user;
         $driver->delete();
@@ -435,7 +450,7 @@ class DashboardController extends Controller
         return back();
     }
 
-    public function storeTrip(\Illuminate\Http\Request $request)
+    public function storeTrip(Request $request)
     {
         $validated = $request->validate([
             'vehicle_id' => 'required|exists:vehicles,id',
@@ -445,37 +460,37 @@ class DashboardController extends Controller
         ]);
 
         // Compliance checks
-        $vehicle = \App\Domains\Fleet\Models\Vehicle::find($validated['vehicle_id']);
-        $driver = \App\Domains\Driver\Models\Driver::find($validated['driver_id']);
+        $vehicle = Vehicle::find($validated['vehicle_id']);
+        $driver = Driver::find($validated['driver_id']);
 
         $mandatoryVehicles = config('compliance.vehicle', []);
         $mandatoryDrivers = config('compliance.driver', []);
 
         foreach ($mandatoryVehicles as $docType) {
-            $hasValid = $vehicle->documents()->where('document_type', $docType)->where('is_archived', false)->where('status', '!=', 'Rejected')->where(function($q) {
+            $hasValid = $vehicle->documents()->where('document_type', $docType)->where('is_archived', false)->where('status', '!=', 'Rejected')->where(function ($q) {
                 $q->whereNull('expiry_date')->orWhere('expiry_date', '>', now());
             })->exists();
 
-            if (!$hasValid) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
-                    'vehicle_id' => "Vehicle is missing a valid/verified {$docType}."
+            if (! $hasValid) {
+                throw ValidationException::withMessages([
+                    'vehicle_id' => "Vehicle is missing a valid/verified {$docType}.",
                 ]);
             }
         }
 
         foreach ($mandatoryDrivers as $docType) {
-            $hasValid = $driver->documents()->where('document_type', $docType)->where('is_archived', false)->where('status', '!=', 'Rejected')->where(function($q) {
+            $hasValid = $driver->documents()->where('document_type', $docType)->where('is_archived', false)->where('status', '!=', 'Rejected')->where(function ($q) {
                 $q->whereNull('expiry_date')->orWhere('expiry_date', '>', now());
             })->exists();
 
-            if (!$hasValid) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
-                    'driver_id' => "Driver is missing a valid/verified {$docType}."
+            if (! $hasValid) {
+                throw ValidationException::withMessages([
+                    'driver_id' => "Driver is missing a valid/verified {$docType}.",
                 ]);
             }
         }
 
-        \App\Domains\Driver\Models\Trip::create([
+        Trip::create([
             'vehicle_id' => $validated['vehicle_id'],
             'driver_id' => $validated['driver_id'],
             'start_time' => now(),
@@ -487,43 +502,38 @@ class DashboardController extends Controller
         return back();
     }
 
-    public function endTrip(\Illuminate\Http\Request $request, $tripId)
+    public function endTrip(Request $request, Trip $trip)
     {
-        try {
-            \Log::info('endTrip called', ['tripId' => $tripId, 'user' => auth()->id()]);
+        Log::info('endTrip called', ['tripId' => $trip->id, 'user' => auth()->id()]);
 
-            $validated = $request->validate([
-                'end_odometer' => 'nullable|numeric|min:0',
-                'end_location' => 'nullable|string|max:255',
-                'distance_km' => 'nullable|numeric|min:0',
-                'notes' => 'nullable|string',
-            ]);
+        $validated = $request->validate([
+            'end_odometer' => 'nullable|numeric|min:0',
+            'end_location' => 'nullable|string|max:255',
+            'distance_km' => 'nullable|numeric|min:0',
+            'notes' => 'nullable|string',
+        ]);
 
-            $trip = \App\Domains\Driver\Models\Trip::findOrFail($tripId);
-            $endTime = now();
-            $durationMinutes = $trip->start_time ? (int) round($trip->start_time->diffInMinutes($endTime)) : 0;
+        $endTime = now();
+        $durationMinutes = $trip->start_time ? (int) round($trip->start_time->diffInMinutes($endTime)) : 0;
 
-            $trip->end_time = $endTime;
-            $trip->status = 'completed';
-            $trip->end_odometer = $validated['end_odometer'] ?? null;
-            $trip->end_location = $validated['end_location'] ?? null;
-            $trip->distance_km = $validated['distance_km'] ?? null;
-            $trip->duration_minutes = $durationMinutes;
-            $trip->notes = $validated['notes'] ?? null;
-            $trip->save();
+        $trip->end_time = $endTime;
+        $trip->status = 'completed';
+        $trip->end_odometer = $validated['end_odometer'] ?? null;
+        $trip->end_location = $validated['end_location'] ?? null;
+        $trip->distance_km = $validated['distance_km'] ?? null;
+        $trip->duration_minutes = $durationMinutes;
+        $trip->notes = $validated['notes'] ?? null;
+        $trip->save();
 
-            \Log::info('endTrip success', ['trip_id' => $trip->id]);
+        Log::info('endTrip success', ['trip_id' => $trip->id]);
 
-            return redirect()->back();
-        } catch (\Exception $e) {
-            \Log::error('endTrip error', ['error' => $e->getMessage()]);
-            return redirect()->back()->with('error', $e->getMessage());
-        }
+        return redirect()->back();
     }
 
-    public function destroyTrip(\App\Domains\Driver\Models\Trip $trip)
+    public function destroyTrip(Trip $trip)
     {
         $trip->delete();
+
         return back();
     }
 
@@ -533,7 +543,7 @@ class DashboardController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
-        $query = \App\Domains\Driver\Models\Trip::with(['vehicle', 'driver.user'])->latest();
+        $query = Trip::with(['vehicle', 'driver.user'])->latest();
 
         // Filter by driver if provided
         if (request('driver_id')) {
@@ -549,7 +559,7 @@ class DashboardController extends Controller
         }
 
         $trips = $query->paginate(50);
-        $drivers = \App\Domains\Driver\Models\Driver::with('user')->get();
+        $drivers = Driver::with('user')->get();
         $vehicles = Vehicle::all();
 
         return Inertia::render('Dashboard/Trips', [
@@ -563,7 +573,7 @@ class DashboardController extends Controller
     public function maintenances()
     {
         $user = auth()->user();
-        $query = \App\Domains\Maintenance\Models\Maintenance::with(['vehicle', 'assignedTo', 'vendors'])->latest();
+        $query = Maintenance::with(['vehicle', 'assignedTo', 'vendors'])->latest();
 
         // Both admin and superadmin see ALL records (no cost-based filtering)
 
@@ -580,11 +590,12 @@ class DashboardController extends Controller
     private function getAssigneeForCost($cost)
     {
         // Always assign to admin first — admin is the first-line reviewer for all requests
-        $user = \App\Domains\Identity\Models\User::where('role', 'admin')->first();
+        $user = User::where('role', 'admin')->first();
+
         return $user ? $user->id : null;
     }
 
-    public function storeMaintenance(\Illuminate\Http\Request $request)
+    public function storeMaintenance(Request $request)
     {
         $validated = $request->validate([
             'vehicle_id' => 'required|exists:vehicles,id',
@@ -613,7 +624,7 @@ class DashboardController extends Controller
         $maintenanceData['created_by'] = auth()->id();
         $maintenanceData['company'] = null; // We can set this to null or just let it be if it's nullable
 
-        $maintenance = \App\Domains\Maintenance\Models\Maintenance::create($maintenanceData);
+        $maintenance = Maintenance::create($maintenanceData);
 
         foreach ($validated['vendors'] as $vendorData) {
             $maintenance->vendors()->create([
@@ -625,18 +636,25 @@ class DashboardController extends Controller
 
         // Notify all relevant roles about the new request
         $rolesToNotify = ['admin', 'manager', 'superadmin', 'super_admin'];
-        $usersToNotify = \App\Domains\Identity\Models\User::whereIn('role', $rolesToNotify)->get();
+        $usersToNotify = User::whereIn('role', $rolesToNotify)->get();
         foreach ($usersToNotify as $user) {
-            $user->notify(new \App\Notifications\RequestSubmitted($maintenance, 'Maintenance'));
+            $user->notify(new RequestSubmitted($maintenance, 'Maintenance'));
         }
 
         return back();
     }
 
-    public function resubmitMaintenance(\Illuminate\Http\Request $request, \App\Domains\Maintenance\Models\Maintenance $maintenance)
+    public function resubmitMaintenance(Request $request, Maintenance $maintenance)
     {
         if ($maintenance->status !== 'Rejected') {
             abort(403, 'Only rejected requests can be resubmitted.');
+        }
+
+        // Only the creator or an admin can resubmit
+        $isCreator = $maintenance->created_by === auth()->id();
+        $isAdmin = in_array(auth()->user()->role, ['admin', 'superadmin', 'super_admin']);
+        if (! $isCreator && ! $isAdmin) {
+            abort(403, 'Only the requester or an admin can resubmit.');
         }
 
         $validated = $request->validate([
@@ -653,7 +671,7 @@ class DashboardController extends Controller
         $maintenance->update([
             'cost' => $totalCost,
             'status' => 'Pending',
-            'reviewer_comment' => '[Resubmitted] ' . $validated['resubmit_comment'],
+            'reviewer_comment' => '[Resubmitted] '.$validated['resubmit_comment'],
             'assigned_to' => $this->getAssigneeForCost($totalCost),
         ]);
 
@@ -669,18 +687,23 @@ class DashboardController extends Controller
 
         // Notify all relevant roles about the resubmitted request
         $rolesToNotify = ['admin', 'manager', 'superadmin', 'super_admin'];
-        $usersToNotify = \App\Domains\Identity\Models\User::whereIn('role', $rolesToNotify)->get();
+        $usersToNotify = User::whereIn('role', $rolesToNotify)->get();
         foreach ($usersToNotify as $user) {
-            $user->notify(new \App\Notifications\RequestSubmitted($maintenance, 'Maintenance'));
+            $user->notify(new RequestSubmitted($maintenance, 'Maintenance'));
         }
 
         return back()->with('success', 'Maintenance request has been resubmitted for approval.');
     }
 
-    public function actionMaintenance(\Illuminate\Http\Request $request, \App\Domains\Maintenance\Models\Maintenance $maintenance)
+    public function actionMaintenance(Request $request, Maintenance $maintenance)
     {
         if (auth()->user()->role === 'manager') {
             abort(403, 'Managers cannot action requests.');
+        }
+
+        // Block reviewers from acting on their own requests
+        if ($maintenance->created_by === auth()->id()) {
+            abort(403, 'You cannot review your own request.');
         }
 
         $userRole = auth()->user()->role;
@@ -690,7 +713,7 @@ class DashboardController extends Controller
         // Determine if this request needs superadmin approval
         $needsSuperAdmin = $maintenance->cost > 20000;
 
-        \Log::info('actionMaintenance called', [
+        Log::info('actionMaintenance called', [
             'maintenance_id' => $maintenance->id,
             'cost' => $maintenance->cost,
             'cost_type' => gettype($maintenance->cost),
@@ -704,7 +727,7 @@ class DashboardController extends Controller
         ]);
 
         // Admin approving/rejecting low-cost requests (≤₦20,000) directly
-        if ($isAdmin && !$needsSuperAdmin && $maintenance->status === 'Pending') {
+        if ($isAdmin && ! $needsSuperAdmin && $maintenance->status === 'Pending') {
             $validated = $request->validate([
                 'status' => 'required|in:Accepted,Rejected',
                 'reviewer_comment' => 'nullable|string',
@@ -723,7 +746,7 @@ class DashboardController extends Controller
 
         // Admin forwarding high-cost request (>₦20,000) to superadmin or declining directly
         if ($isAdmin && $needsSuperAdmin && $maintenance->status === 'Pending') {
-            \Log::info('Entering maintenance high-cost block (forward or decline)');
+            Log::info('Entering maintenance high-cost block (forward or decline)');
 
             $validated = $request->validate([
                 'status' => 'nullable|in:Rejected', // 'status' will be empty if submitting for review
@@ -739,20 +762,22 @@ class DashboardController extends Controller
                 ]);
 
                 $this->notifyMaintenanceDecision($maintenance);
+
                 return back()->with('success', 'Request has been declined.');
             }
 
             // Otherwise, forward to superadmin for review
             try {
                 // Find the superadmin to assign to
-                $superadmin = \App\Domains\Identity\Models\User::whereIn('role', ['superadmin', 'super_admin'])->first();
+                $superadmin = User::whereIn('role', ['superadmin', 'super_admin'])->first();
 
-                if (!$superadmin) {
-                    \Log::warning('No superadmin found to forward maintenance request', ['maintenance_id' => $maintenance->id]);
+                if (! $superadmin) {
+                    Log::warning('No superadmin found to forward maintenance request', ['maintenance_id' => $maintenance->id]);
+
                     return back()->with('error', 'No Super Admin user found. Please contact support.');
                 }
 
-                \Log::info('Found superadmin', ['superadmin_id' => $superadmin->id, 'superadmin_role' => $superadmin->role]);
+                Log::info('Found superadmin', ['superadmin_id' => $superadmin->id, 'superadmin_role' => $superadmin->role]);
 
                 $maintenance->update([
                     'status' => 'Under Review',
@@ -760,22 +785,23 @@ class DashboardController extends Controller
                     'assigned_to' => $superadmin->id,
                 ]);
 
-                \Log::info('Maintenance status updated to Under Review', ['maintenance_id' => $maintenance->id]);
+                Log::info('Maintenance status updated to Under Review', ['maintenance_id' => $maintenance->id]);
             } catch (\Exception $e) {
-                \Log::error('Failed to update maintenance status for review', [
+                Log::error('Failed to update maintenance status for review', [
                     'maintenance_id' => $maintenance->id,
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString(),
                 ]);
-                return back()->with('error', 'Failed to forward request: ' . $e->getMessage());
+
+                return back()->with('error', 'Failed to forward request: '.$e->getMessage());
             }
 
             // Notify superadmin that review is needed (non-critical)
             try {
                 $this->notifySuperAdminForReview($maintenance, 'Maintenance');
-                \Log::info('Superadmin notified for maintenance review', ['maintenance_id' => $maintenance->id]);
+                Log::info('Superadmin notified for maintenance review', ['maintenance_id' => $maintenance->id]);
             } catch (\Exception $e) {
-                \Log::error('Failed to notify superadmin for maintenance review', [
+                Log::error('Failed to notify superadmin for maintenance review', [
                     'maintenance_id' => $maintenance->id,
                     'error' => $e->getMessage(),
                 ]);
@@ -799,10 +825,10 @@ class DashboardController extends Controller
 
             $this->notifyMaintenanceDecision($maintenance);
 
-            return back()->with('success', 'Request has been ' . strtolower($validated['status']) . '.');
+            return back()->with('success', 'Request has been '.strtolower($validated['status']).'.');
         }
 
-        \Log::warning('actionMaintenance: No condition matched', [
+        Log::warning('actionMaintenance: No condition matched', [
             'maintenance_id' => $maintenance->id,
             'status' => $maintenance->status,
             'cost' => $maintenance->cost,
@@ -819,28 +845,28 @@ class DashboardController extends Controller
     {
         // Notify the creator
         if ($maintenance->createdBy) {
-            $maintenance->createdBy->notify(new \App\Notifications\RequestActioned($maintenance, 'Maintenance'));
+            $maintenance->createdBy->notify(new RequestActioned($maintenance, 'Maintenance'));
         }
 
         // Notify the driver if possible
         $driver = $maintenance->vehicle->currentTrip?->driver ?? $maintenance->vehicle->trips()->latest()->first()?->driver;
         if ($driver && $driver->user) {
-            Mail::to($driver->user->email)->send(new MaintenanceRequestDecision($maintenance));
+            Mail::to($driver->user->email)->queue(new MaintenanceRequestDecision($maintenance));
         }
 
         // Notify the admin who processed it (if superadmin is acting)
         if (auth()->user()->role === 'superadmin' || auth()->user()->role === 'super_admin') {
             $admin = $maintenance->assignedTo;
             if ($admin && $admin->id !== auth()->id()) {
-                $admin->notify(new \App\Notifications\RequestActioned($maintenance, 'Maintenance'));
+                $admin->notify(new RequestActioned($maintenance, 'Maintenance'));
             }
         }
 
         // Notify accountants if accepted
         if ($maintenance->status === 'Accepted') {
-            $accountants = \App\Domains\Identity\Models\User::where('role', 'accountant')->get();
+            $accountants = User::where('role', 'accountant')->get();
             foreach ($accountants as $accountant) {
-                $accountant->notify(new \App\Notifications\RequestActioned($maintenance, 'Maintenance'));
+                $accountant->notify(new RequestActioned($maintenance, 'Maintenance'));
             }
         }
     }
@@ -850,7 +876,7 @@ class DashboardController extends Controller
         $adminName = auth()->user()->name;
 
         // Find all superadmins and send the forwarded review notification
-        $superadmins = \App\Domains\Identity\Models\User::whereIn('role', ['superadmin', 'super_admin'])->get();
+        $superadmins = User::whereIn('role', ['superadmin', 'super_admin'])->get();
 
         foreach ($superadmins as $superadmin) {
             $superadmin->notify(new ReviewRequestForwarded($request, $type, $adminName));
@@ -860,13 +886,13 @@ class DashboardController extends Controller
     public function fuel()
     {
         $user = auth()->user();
-        $query = \App\Domains\Telematics\Models\FuelLog::with(['vehicle', 'driver.user', 'assignedTo'])->latest();
+        $query = FuelLog::with(['vehicle', 'driver.user', 'assignedTo'])->latest();
 
         // Both admin and superadmin see ALL records (no cost-based filtering)
 
         $fuelLogs = $query->get();
         $vehicles = Vehicle::latest()->get();
-        $drivers = \App\Domains\Driver\Models\Driver::with('user')->get();
+        $drivers = Driver::with('user')->get();
 
         return Inertia::render('Dashboard/Fuel', [
             'fuelLogs' => $fuelLogs,
@@ -876,7 +902,7 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function storeFuel(\Illuminate\Http\Request $request)
+    public function storeFuel(Request $request)
     {
         $validated = $request->validate([
             'vehicle_id' => 'required|exists:vehicles,id',
@@ -891,22 +917,29 @@ class DashboardController extends Controller
         $validated['assigned_to'] = $this->getAssigneeForCost($validated['cost']);
         $validated['created_by'] = auth()->id();
 
-        $fuelLog = \App\Domains\Telematics\Models\FuelLog::create($validated);
+        $fuelLog = FuelLog::create($validated);
 
         // Notify all relevant roles about the new request
         $rolesToNotify = ['admin', 'manager', 'superadmin', 'super_admin'];
-        $usersToNotify = \App\Domains\Identity\Models\User::whereIn('role', $rolesToNotify)->get();
+        $usersToNotify = User::whereIn('role', $rolesToNotify)->get();
         foreach ($usersToNotify as $user) {
-            $user->notify(new \App\Notifications\RequestSubmitted($fuelLog, 'Fuel'));
+            $user->notify(new RequestSubmitted($fuelLog, 'Fuel'));
         }
 
         return back();
     }
 
-    public function resubmitFuel(\Illuminate\Http\Request $request, \App\Domains\Telematics\Models\FuelLog $fuelLog)
+    public function resubmitFuel(Request $request, FuelLog $fuelLog)
     {
         if ($fuelLog->status !== 'Rejected') {
             abort(403, 'Only rejected requests can be resubmitted.');
+        }
+
+        // Only the creator or an admin can resubmit
+        $isCreator = $fuelLog->created_by === auth()->id();
+        $isAdmin = in_array(auth()->user()->role, ['admin', 'superadmin', 'super_admin']);
+        if (! $isCreator && ! $isAdmin) {
+            abort(403, 'Only the requester or an admin can resubmit.');
         }
 
         $validated = $request->validate([
@@ -917,24 +950,29 @@ class DashboardController extends Controller
         $fuelLog->update([
             'cost' => $validated['cost'],
             'status' => 'Pending',
-            'reviewer_comment' => '[Resubmitted] ' . $validated['resubmit_comment'],
+            'reviewer_comment' => '[Resubmitted] '.$validated['resubmit_comment'],
             'assigned_to' => $this->getAssigneeForCost($validated['cost']),
         ]);
 
         // Notify all relevant roles about the resubmitted request
         $rolesToNotify = ['admin', 'manager', 'superadmin', 'super_admin'];
-        $usersToNotify = \App\Domains\Identity\Models\User::whereIn('role', $rolesToNotify)->get();
+        $usersToNotify = User::whereIn('role', $rolesToNotify)->get();
         foreach ($usersToNotify as $user) {
-            $user->notify(new \App\Notifications\RequestSubmitted($fuelLog, 'Fuel'));
+            $user->notify(new RequestSubmitted($fuelLog, 'Fuel'));
         }
 
         return back()->with('success', 'Fuel request has been resubmitted for approval.');
     }
 
-    public function actionFuel(\Illuminate\Http\Request $request, \App\Domains\Telematics\Models\FuelLog $fuelLog)
+    public function actionFuel(Request $request, FuelLog $fuelLog)
     {
         if (auth()->user()->role === 'manager') {
             abort(403, 'Managers cannot action requests.');
+        }
+
+        // Block reviewers from acting on their own requests
+        if ($fuelLog->created_by === auth()->id()) {
+            abort(403, 'You cannot review your own request.');
         }
 
         $userRole = auth()->user()->role;
@@ -944,7 +982,7 @@ class DashboardController extends Controller
         // Determine if this request needs superadmin approval
         $needsSuperAdmin = $fuelLog->cost > 20000;
 
-        \Log::info('actionFuel called', [
+        Log::info('actionFuel called', [
             'fuel_log_id' => $fuelLog->id,
             'cost' => $fuelLog->cost,
             'cost_type' => gettype($fuelLog->cost),
@@ -958,7 +996,7 @@ class DashboardController extends Controller
         ]);
 
         // Admin approving/rejecting low-cost requests (≤₦20,000) directly
-        if ($isAdmin && !$needsSuperAdmin && $fuelLog->status === 'Pending') {
+        if ($isAdmin && ! $needsSuperAdmin && $fuelLog->status === 'Pending') {
             $validated = $request->validate([
                 'status' => 'required|in:Accepted,Rejected',
                 'reviewer_comment' => 'nullable|string',
@@ -977,7 +1015,7 @@ class DashboardController extends Controller
 
         // Admin forwarding high-cost request (>₦20,000) to superadmin or declining directly
         if ($isAdmin && $needsSuperAdmin && $fuelLog->status === 'Pending') {
-            \Log::info('Entering fuel high-cost block (forward or decline)');
+            Log::info('Entering fuel high-cost block (forward or decline)');
 
             $validated = $request->validate([
                 'status' => 'nullable|in:Rejected', // 'status' will be empty if submitting for review
@@ -993,20 +1031,22 @@ class DashboardController extends Controller
                 ]);
 
                 $this->notifyFuelDecision($fuelLog);
+
                 return back()->with('success', 'Request has been declined.');
             }
 
             // Otherwise, forward to superadmin for review
             try {
                 // Find the superadmin to assign to
-                $superadmin = \App\Domains\Identity\Models\User::whereIn('role', ['superadmin', 'super_admin'])->first();
+                $superadmin = User::whereIn('role', ['superadmin', 'super_admin'])->first();
 
-                if (!$superadmin) {
-                    \Log::warning('No superadmin found to forward fuel request', ['fuel_log_id' => $fuelLog->id]);
+                if (! $superadmin) {
+                    Log::warning('No superadmin found to forward fuel request', ['fuel_log_id' => $fuelLog->id]);
+
                     return back()->with('error', 'No Super Admin user found. Please contact support.');
                 }
 
-                \Log::info('Found superadmin', ['superadmin_id' => $superadmin->id, 'superadmin_role' => $superadmin->role]);
+                Log::info('Found superadmin', ['superadmin_id' => $superadmin->id, 'superadmin_role' => $superadmin->role]);
 
                 $fuelLog->update([
                     'status' => 'Under Review',
@@ -1014,22 +1054,23 @@ class DashboardController extends Controller
                     'assigned_to' => $superadmin->id,
                 ]);
 
-                \Log::info('Fuel status updated to Under Review', ['fuel_log_id' => $fuelLog->id]);
+                Log::info('Fuel status updated to Under Review', ['fuel_log_id' => $fuelLog->id]);
             } catch (\Exception $e) {
-                \Log::error('Failed to update fuel log status for review', [
+                Log::error('Failed to update fuel log status for review', [
                     'fuel_log_id' => $fuelLog->id,
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString(),
                 ]);
-                return back()->with('error', 'Failed to forward request: ' . $e->getMessage());
+
+                return back()->with('error', 'Failed to forward request: '.$e->getMessage());
             }
 
             // Notify superadmin that review is needed (non-critical)
             try {
                 $this->notifySuperAdminForReview($fuelLog, 'Fuel');
-                \Log::info('Superadmin notified for fuel review', ['fuel_log_id' => $fuelLog->id]);
+                Log::info('Superadmin notified for fuel review', ['fuel_log_id' => $fuelLog->id]);
             } catch (\Exception $e) {
-                \Log::error('Failed to notify superadmin for fuel review', [
+                Log::error('Failed to notify superadmin for fuel review', [
                     'fuel_log_id' => $fuelLog->id,
                     'error' => $e->getMessage(),
                 ]);
@@ -1053,10 +1094,10 @@ class DashboardController extends Controller
 
             $this->notifyFuelDecision($fuelLog);
 
-            return back()->with('success', 'Request has been ' . strtolower($validated['status']) . '.');
+            return back()->with('success', 'Request has been '.strtolower($validated['status']).'.');
         }
 
-        \Log::warning('actionFuel: No condition matched', [
+        Log::warning('actionFuel: No condition matched', [
             'fuel_log_id' => $fuelLog->id,
             'status' => $fuelLog->status,
             'cost' => $fuelLog->cost,
@@ -1073,27 +1114,27 @@ class DashboardController extends Controller
     {
         // Notify the creator
         if ($fuelLog->createdBy) {
-            $fuelLog->createdBy->notify(new \App\Notifications\RequestActioned($fuelLog, 'Fuel'));
+            $fuelLog->createdBy->notify(new RequestActioned($fuelLog, 'Fuel'));
         }
 
         // Notify the driver
         if ($fuelLog->driver && $fuelLog->driver->user) {
-            Mail::to($fuelLog->driver->user->email)->send(new FuelRequestDecision($fuelLog));
+            Mail::to($fuelLog->driver->user->email)->queue(new FuelRequestDecision($fuelLog));
         }
 
         // Notify the admin who processed it (if superadmin is acting)
         if (auth()->user()->role === 'superadmin' || auth()->user()->role === 'super_admin') {
             $admin = $fuelLog->assignedTo;
             if ($admin && $admin->id !== auth()->id()) {
-                $admin->notify(new \App\Notifications\RequestActioned($fuelLog, 'Fuel'));
+                $admin->notify(new RequestActioned($fuelLog, 'Fuel'));
             }
         }
 
         // Notify accountants if accepted
         if ($fuelLog->status === 'Accepted') {
-            $accountants = \App\Domains\Identity\Models\User::where('role', 'accountant')->get();
+            $accountants = User::where('role', 'accountant')->get();
             foreach ($accountants as $accountant) {
-                $accountant->notify(new \App\Notifications\RequestActioned($fuelLog, 'Fuel'));
+                $accountant->notify(new RequestActioned($fuelLog, 'Fuel'));
             }
         }
     }
@@ -1103,11 +1144,12 @@ class DashboardController extends Controller
         $data = [];
         if (($handle = fopen($file->getRealPath(), 'r')) !== false) {
             $headers = fgetcsv($handle, 1000, ',');
-            
+
             if ($headers !== false) {
                 $headers = array_map(function ($header) {
                     $header = str_replace(["\xA0", "\xC2\xA0"], ' ', $header);
                     $header = mb_convert_encoding($header, 'UTF-8', 'UTF-8, ISO-8859-1, Windows-1252');
+
                     return str_replace(' ', '_', trim(strtolower($header)));
                 }, $headers);
 
@@ -1115,6 +1157,7 @@ class DashboardController extends Controller
                     if (count($headers) == count($row)) {
                         $row = array_map(function ($val) {
                             $val = str_replace(["\xA0", "\xC2\xA0"], ' ', $val);
+
                             return mb_convert_encoding($val, 'UTF-8', 'UTF-8, ISO-8859-1, Windows-1252');
                         }, $row);
                         $data[] = array_combine($headers, $row);
@@ -1123,10 +1166,11 @@ class DashboardController extends Controller
             }
             fclose($handle);
         }
+
         return $data;
     }
 
-    public function importVehicles(\Illuminate\Http\Request $request)
+    public function importVehicles(Request $request)
     {
         $request->validate(['file' => 'required|mimes:csv,txt|max:2048']);
         $rows = $this->parseCsv($request->file('file'));
@@ -1137,15 +1181,15 @@ class DashboardController extends Controller
             }
 
             $departmentId = null;
-            if (!empty($row['user'])) {
-                $dept = \App\Domains\Identity\Models\Department::where('name', 'like', trim($row['user']))->first();
+            if (! empty($row['user'])) {
+                $dept = Department::where('name', 'like', trim($row['user']))->first();
                 $departmentId = $dept ? $dept->id : (is_numeric($row['user']) ? $row['user'] : null);
             }
 
             $baseLoc = strtolower(trim($row['location'] ?? ''));
             $lat = null;
             $lng = null;
-            
+
             if ($baseLoc) {
                 if (str_contains($baseLoc, 'lagos')) {
                     $lat = 6.574368986524661;
@@ -1169,20 +1213,20 @@ class DashboardController extends Controller
 
             $attributes = [
                 'name' => $row['vehicle_name'] ?? 'Unknown',
-                'chassis_number' => !empty(trim($row['chasis'] ?? '')) ? trim($row['chasis']) : null,
-                'vin' => !empty(trim($row['vin'] ?? '')) ? trim($row['vin']) : null,
-                'vendor' => !empty(trim($row['vendor'] ?? '')) ? trim($row['vendor']) : null,
-                'year' => !empty(trim($row['year'] ?? '')) ? trim($row['year']) : null,
+                'chassis_number' => ! empty(trim($row['chasis'] ?? '')) ? trim($row['chasis']) : null,
+                'vin' => ! empty(trim($row['vin'] ?? '')) ? trim($row['vin']) : null,
+                'vendor' => ! empty(trim($row['vendor'] ?? '')) ? trim($row['vendor']) : null,
+                'year' => ! empty(trim($row['year'] ?? '')) ? trim($row['year']) : null,
                 'base_location' => $row['location'] ?? null,
                 'color' => $row['colour'] ?? null,
                 'department_id' => $departmentId,
 
                 'latitude' => $lat,
                 'longitude' => $lng,
-                'status' => 'active'
+                'status' => 'active',
             ];
 
-            if (!empty($row['id'])) {
+            if (! empty($row['id'])) {
                 $attributes['vehicle_id'] = $row['id'];
             }
 
@@ -1192,33 +1236,41 @@ class DashboardController extends Controller
             );
 
             if (($vehicle->wasRecentlyCreated || $vehicle->wasChanged('latitude') || $vehicle->wasChanged('longitude')) && $vehicle->latitude !== null && $vehicle->longitude !== null) {
-                $job = new \App\Jobs\ProcessVehicleLocation($vehicle->id, $vehicle->latitude, $vehicle->longitude, 0);
-                $job->handle();
+                ProcessVehicleLocation::dispatch($vehicle->id, $vehicle->latitude, $vehicle->longitude, 0);
             }
         }
 
         return back();
     }
 
-    public function importDrivers(\Illuminate\Http\Request $request)
+    public function importDrivers(Request $request)
     {
         $request->validate(['file' => 'required|mimes:csv,txt|max:2048']);
         $rows = $this->parseCsv($request->file('file'));
 
         foreach ($rows as $row) {
-            if (!isset($row['email']) || !isset($row['license_no']))
+            if (! isset($row['email']) || ! isset($row['license_no'])) {
                 continue;
+            }
 
-            $user = \App\Domains\Identity\Models\User::firstOrCreate(
+            // Generate a secure random password and send a reset link
+            $user = User::firstOrCreate(
                 ['email' => $row['email']],
                 [
                     'name' => $row['name'] ?? 'Unknown',
-                    'password' => \Illuminate\Support\Facades\Hash::make($row['password'] ?? 'password'),
+                    'password' => Hash::make(Str::password(16)),
                     'role' => 'driver',
                 ]
             );
 
-            \App\Domains\Driver\Models\Driver::updateOrCreate(
+            // Only send the reset link for newly created users
+            if ($user->wasRecentlyCreated) {
+                $user->sendPasswordResetNotification(
+                    app('auth.password.broker')->createToken($user)
+                );
+            }
+
+            Driver::updateOrCreate(
                 ['license_no' => $row['license_no']],
                 [
                     'user_id' => $user->id,
@@ -1230,7 +1282,7 @@ class DashboardController extends Controller
         return back();
     }
 
-    public function importMaintenance(\Illuminate\Http\Request $request)
+    public function importMaintenance(Request $request)
     {
         $request->validate(['file' => 'required|mimes:csv,txt|max:2048']);
         $rows = $this->parseCsv($request->file('file'));
@@ -1246,12 +1298,14 @@ class DashboardController extends Controller
                 }
             }
 
-            if (!$plateKey || empty($row[$plateKey]))
+            if (! $plateKey || empty($row[$plateKey])) {
                 continue;
+            }
 
             $vehicle = Vehicle::where('license_plate', trim($row[$plateKey]))->first();
-            if (!$vehicle)
+            if (! $vehicle) {
                 continue;
+            }
 
             // Helper to find a field robustly
             $findField = function ($names) use ($row) {
@@ -1261,6 +1315,7 @@ class DashboardController extends Controller
                         return $value;
                     }
                 }
+
                 return null;
             };
 
@@ -1268,7 +1323,7 @@ class DashboardController extends Controller
 
             $parsedCost = is_numeric($cost) ? $cost : (float) preg_replace('/[^0-9.]/', '', $cost);
 
-            $maintenance = \App\Domains\Maintenance\Models\Maintenance::create([
+            $maintenance = Maintenance::create([
                 'vehicle_id' => $vehicle->id,
                 'type' => $findField(['type']) ?? 'Regular Servicing',
                 'service_type' => $findField(['service_type']) ?? 'General Service',
@@ -1297,31 +1352,34 @@ class DashboardController extends Controller
         return back();
     }
 
-    public function importFuel(\Illuminate\Http\Request $request)
+    public function importFuel(Request $request)
     {
         $request->validate(['file' => 'required|mimes:csv,txt|max:2048']);
         $rows = $this->parseCsv($request->file('file'));
 
         foreach ($rows as $row) {
-            if (!isset($row['license_plate']) || !isset($row['liters']) || !isset($row['cost']))
+            if (! isset($row['license_plate']) || ! isset($row['liters']) || ! isset($row['cost'])) {
                 continue;
+            }
 
             $vehicle = Vehicle::where('license_plate', $row['license_plate'])->first();
-            if (!$vehicle)
+            if (! $vehicle) {
                 continue;
+            }
 
             $driverId = null;
-            if (!empty($row['driver_email'])) {
-                $user = \App\Domains\Identity\Models\User::where('email', $row['driver_email'])->first();
+            if (! empty($row['driver_email'])) {
+                $user = User::where('email', $row['driver_email'])->first();
                 if ($user) {
-                    $driver = \App\Domains\Driver\Models\Driver::where('user_id', $user->id)->first();
-                    if ($driver)
+                    $driver = Driver::where('user_id', $user->id)->first();
+                    if ($driver) {
                         $driverId = $driver->id;
+                    }
                 }
             }
 
             $cost = $row['cost'];
-            \App\Domains\Telematics\Models\FuelLog::create([
+            FuelLog::create([
                 'vehicle_id' => $vehicle->id,
                 'driver_id' => $driverId,
                 'liters' => $row['liters'],
@@ -1336,14 +1394,15 @@ class DashboardController extends Controller
         return back();
     }
 
-    public function importCompliance(\Illuminate\Http\Request $request)
+    public function importCompliance(Request $request)
     {
         $request->validate(['file' => 'required|mimes:csv,txt|max:2048']);
         $rows = $this->parseCsv($request->file('file'));
 
         foreach ($rows as $row) {
-            if (!isset($row['entity_type']) || !isset($row['entity_identifier']) || !isset($row['document_type']))
+            if (! isset($row['entity_type']) || ! isset($row['entity_identifier']) || ! isset($row['document_type'])) {
                 continue;
+            }
 
             $type = strtolower($row['entity_type']);
             $morphClass = null;
@@ -1352,28 +1411,29 @@ class DashboardController extends Controller
             if ($type === 'vehicle' || $type === 'v') {
                 $vehicle = Vehicle::where('license_plate', $row['entity_identifier'])->first();
                 if ($vehicle) {
-                    $morphClass = \App\Domains\Fleet\Models\Vehicle::class;
+                    $morphClass = (new Vehicle)->getMorphClass();
                     $morphId = $vehicle->id;
                 }
             } elseif ($type === 'driver' || $type === 'd') {
-                $user = \App\Domains\Identity\Models\User::where('email', $row['entity_identifier'])->first();
+                $user = User::where('email', $row['entity_identifier'])->first();
                 if ($user) {
-                    $driver = \App\Domains\Driver\Models\Driver::where('user_id', $user->id)->first();
+                    $driver = Driver::where('user_id', $user->id)->first();
                     if ($driver) {
-                        $morphClass = \App\Domains\Driver\Models\Driver::class;
+                        $morphClass = (new Driver)->getMorphClass();
                         $morphId = $driver->id;
                     }
                 }
             }
 
-            if (!$morphClass || !$morphId)
+            if (! $morphClass || ! $morphId) {
                 continue;
+            }
 
-            \App\Domains\Fleet\Models\Document::create([
+            Document::create([
                 'documentable_type' => $morphClass,
                 'documentable_id' => $morphId,
                 'document_type' => $row['document_type'],
-                'expiry_date' => !empty($row['expiry_date']) ? $row['expiry_date'] : null,
+                'expiry_date' => ! empty($row['expiry_date']) ? $row['expiry_date'] : null,
                 'url' => null,
             ]);
         }
@@ -1387,18 +1447,24 @@ class DashboardController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
-        $documents = \App\Domains\Fleet\Models\Document::with('documentable')->where('is_archived', false)->latest()->get();
+        $documents = Document::with('documentable')->where('is_archived', false)->latest()->get();
         $vehicles = Vehicle::latest()->get();
-        $drivers = \App\Domains\Driver\Models\Driver::with('user')->get();
+        $drivers = Driver::with('user')->get();
 
         $documents = $documents->map(function ($doc) {
             $docName = 'Unknown';
-            if ($doc->documentable_type === \App\Domains\Fleet\Models\Vehicle::class && $doc->documentable) {
-                $docName = $doc->documentable->name . ' (' . $doc->documentable->license_plate . ')';
-            } elseif ($doc->documentable_type === \App\Domains\Driver\Models\Driver::class && $doc->documentable && $doc->documentable->user) {
+            if ($doc->documentable_type === Vehicle::class && $doc->documentable) {
+                $docName = $doc->documentable->name.' ('.$doc->documentable->license_plate.')';
+            } elseif ($doc->documentable_type === Driver::class && $doc->documentable && $doc->documentable->user) {
                 $docName = $doc->documentable->user->name;
             }
             $doc->entity_name = $docName;
+
+            // Generate temporary URL from stored path
+            if ($doc->url) {
+                $doc->url = route('files.show', ['disk' => 'r2', 'path' => $doc->url]);
+            }
+
             return $doc;
         });
 
@@ -1413,23 +1479,23 @@ class DashboardController extends Controller
             $vehicleDocs = $documents->where('documentable_type', $vehicleMorph)->where('documentable_id', $vehicle->id);
             $missing = [];
             $hasMinimum = true;
-            
+
             foreach ($allVehicles as $docType) {
-                $hasValid = $vehicleDocs->where('document_type', $docType)->where('status', '!=', 'Rejected')->filter(function($d) {
-                    return !$d->expiry_date || \Carbon\Carbon::parse($d->expiry_date)->isFuture();
+                $hasValid = $vehicleDocs->where('document_type', $docType)->where('status', '!=', 'Rejected')->filter(function ($d) {
+                    return ! $d->expiry_date || Carbon::parse($d->expiry_date)->isFuture();
                 })->isNotEmpty();
-                
-                if (!$hasValid) {
+
+                if (! $hasValid) {
                     $missing[] = $docType;
                     if (in_array($docType, $mandatoryVehicles)) {
                         $hasMinimum = false;
                     }
                 }
             }
-            if (!empty($missing)) {
+            if (! empty($missing)) {
                 $missingDocuments[] = [
                     'entity_type' => 'Vehicle',
-                    'entity_name' => $vehicle->name . ' (' . $vehicle->license_plate . ')',
+                    'entity_name' => $vehicle->name.' ('.$vehicle->license_plate.')',
                     'missing' => $missing,
                     'is_active' => $hasMinimum,
                 ];
@@ -1441,20 +1507,20 @@ class DashboardController extends Controller
             $driverDocs = $documents->where('documentable_type', $driverMorph)->where('documentable_id', $driver->id);
             $missing = [];
             $hasMinimum = true;
-            
+
             foreach ($allDrivers as $docType) {
-                $hasValid = $driverDocs->where('document_type', $docType)->where('status', '!=', 'Rejected')->filter(function($d) {
-                    return !$d->expiry_date || \Carbon\Carbon::parse($d->expiry_date)->isFuture();
+                $hasValid = $driverDocs->where('document_type', $docType)->where('status', '!=', 'Rejected')->filter(function ($d) {
+                    return ! $d->expiry_date || Carbon::parse($d->expiry_date)->isFuture();
                 })->isNotEmpty();
-                
-                if (!$hasValid) {
+
+                if (! $hasValid) {
                     $missing[] = $docType;
                     if (in_array($docType, $mandatoryDrivers)) {
                         $hasMinimum = false;
                     }
                 }
             }
-            if (!empty($missing)) {
+            if (! empty($missing)) {
                 $missingDocuments[] = [
                     'entity_type' => 'Driver',
                     'entity_name' => $driver->user ? $driver->user->name : 'Unknown Driver',
@@ -1472,7 +1538,7 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function storeCompliance(\Illuminate\Http\Request $request)
+    public function storeCompliance(Request $request)
     {
         $validated = $request->validate([
             'documentable_type' => 'required|in:vehicle,driver',
@@ -1486,22 +1552,36 @@ class DashboardController extends Controller
         ]);
 
         $typeMap = [
-            'vehicle' => (new \App\Domains\Fleet\Models\Vehicle)->getMorphClass(),
-            'driver' => (new \App\Domains\Driver\Models\Driver)->getMorphClass(),
+            'vehicle' => (new Vehicle)->getMorphClass(),
+            'driver' => (new Driver)->getMorphClass(),
         ];
 
         $morphClass = $typeMap[$validated['documentable_type']];
 
+        // Verify the referenced vehicle or driver actually exists
+        if ($validated['documentable_type'] === 'vehicle') {
+            if (! Vehicle::whereKey($validated['documentable_id'])->exists()) {
+                throw ValidationException::withMessages([
+                    'documentable_id' => 'The selected vehicle does not exist.',
+                ]);
+            }
+        } elseif ($validated['documentable_type'] === 'driver') {
+            if (! Driver::whereKey($validated['documentable_id'])->exists()) {
+                throw ValidationException::withMessages([
+                    'documentable_id' => 'The selected driver does not exist.',
+                ]);
+            }
+        }
+
         $url = $validated['url'] ?? null;
         if ($request->hasFile('document_file')) {
-            $path = $request->file('document_file')->store('documents');
-            $url = \Illuminate\Support\Facades\Storage::url($path);
+            $url = $request->file('document_file')->store('documents', 'r2');
         }
 
         $userRole = auth()->user()->role;
         $isAdmin = in_array($userRole, ['admin', 'superadmin', 'super_admin']);
 
-        \App\Domains\Fleet\Models\Document::create([
+        Document::create([
             'documentable_type' => $morphClass,
             'documentable_id' => $validated['documentable_id'],
             'document_type' => $validated['document_type'],
@@ -1515,10 +1595,10 @@ class DashboardController extends Controller
         return back();
     }
 
-    public function actionCompliance(\Illuminate\Http\Request $request, \App\Domains\Fleet\Models\Document $document)
+    public function actionCompliance(Request $request, Document $document)
     {
         $userRole = auth()->user()->role;
-        if (!in_array($userRole, ['admin', 'superadmin', 'super_admin', 'manager'])) {
+        if (! in_array($userRole, ['admin', 'superadmin', 'super_admin', 'manager'])) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -1528,7 +1608,7 @@ class DashboardController extends Controller
 
         if ($validated['action'] === 'verify') {
             // Archive other documents of the same type for this entity upon verification
-            \App\Domains\Fleet\Models\Document::where('documentable_type', $document->documentable_type)
+            Document::where('documentable_type', $document->documentable_type)
                 ->where('documentable_id', $document->documentable_id)
                 ->where('document_type', $document->document_type)
                 ->where('id', '!=', $document->id)
@@ -1544,19 +1624,20 @@ class DashboardController extends Controller
 
     public function vendors()
     {
-        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin', 'manager'])) {
+        if (! in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin', 'manager'])) {
             abort(403, 'Unauthorized access.');
         }
 
-        $vendors = \App\Domains\Fleet\Models\Vendor::all();
+        $vendors = Vendor::all();
+
         return Inertia::render('Dashboard/Vendors', [
-            'vendors' => $vendors
+            'vendors' => $vendors,
         ]);
     }
 
-    public function storeVendor(\Illuminate\Http\Request $request)
+    public function storeVendor(Request $request)
     {
-        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin', 'manager'])) {
+        if (! in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin', 'manager'])) {
             abort(403, 'Unauthorized access.');
         }
 
@@ -1568,14 +1649,14 @@ class DashboardController extends Controller
             'tax_id' => 'nullable|string|max:255',
         ]);
 
-        \App\Domains\Fleet\Models\Vendor::create($validated);
+        Vendor::create($validated);
 
         return back()->with('success', 'Vendor added successfully.');
     }
 
-    public function updateVendor(\Illuminate\Http\Request $request, \App\Domains\Fleet\Models\Vendor $vendor)
+    public function updateVendor(Request $request, Vendor $vendor)
     {
-        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin', 'manager'])) {
+        if (! in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin', 'manager'])) {
             abort(403, 'Unauthorized access.');
         }
 
@@ -1592,9 +1673,9 @@ class DashboardController extends Controller
         return back()->with('success', 'Vendor updated successfully.');
     }
 
-    public function destroyVendor(\App\Domains\Fleet\Models\Vendor $vendor)
+    public function destroyVendor(Vendor $vendor)
     {
-        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin', 'manager'])) {
+        if (! in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin', 'manager'])) {
             abort(403, 'Unauthorized access.');
         }
 
@@ -1605,19 +1686,20 @@ class DashboardController extends Controller
 
     public function users()
     {
-        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin'])) {
+        if (! in_array(auth()->user()->role, ['super_admin', 'superadmin'])) {
             abort(403, 'Unauthorized access.');
         }
 
-        $users = \App\Domains\Identity\Models\User::all();
+        $users = User::all();
+
         return Inertia::render('Dashboard/Users', [
-            'users' => $users
+            'users' => $users,
         ]);
     }
 
-    public function updateUser(\Illuminate\Http\Request $request, User $user)
+    public function updateUser(Request $request, User $user)
     {
-        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin'])) {
+        if (! in_array(auth()->user()->role, ['super_admin', 'superadmin'])) {
             abort(403, 'Unauthorized access.');
         }
 
@@ -1638,27 +1720,35 @@ class DashboardController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
-        // Simple aggregate data for reports. 
+        // Validate date filters before parsing to avoid server errors on bad input
+        if (request()->has('start')) {
+            request()->validate(['start' => 'required|date']);
+        }
+        if (request()->has('end')) {
+            request()->validate(['end' => 'required|date']);
+        }
+
+        // Simple aggregate data for reports.
         // We could filter by a date range, but we'll return overall summaries and let the frontend do lightweight filtering or we can accept 'start' and 'end' dates.
-        $start = request('start') ? \Carbon\Carbon::parse(request('start')) : now()->startOfMonth();
-        $end = request('end') ? \Carbon\Carbon::parse(request('end')) : now()->endOfMonth();
+        $start = request('start') ? Carbon::parse(request('start'))->startOfDay() : now()->startOfMonth();
+        $end = request('end') ? Carbon::parse(request('end'))->endOfDay() : now()->endOfMonth();
 
         $totalVehicles = Vehicle::count();
-        $activeDrivers = \App\Domains\Driver\Models\Driver::count();
+        $activeDrivers = Driver::count();
 
-        $totalMaintenanceCost = \App\Domains\Maintenance\Models\Maintenance::whereBetween('date', [$start, $end])
+        $totalMaintenanceCost = Maintenance::whereBetween('date', [$start, $end])
             ->where('status', 'Accepted')
             ->sum('cost');
 
-        $totalFuelCost = \App\Domains\Telematics\Models\FuelLog::whereBetween('date', [$start, $end])
+        $totalFuelCost = FuelLog::whereBetween('date', [$start, $end])
             ->where('status', 'Accepted')
             ->sum('cost');
 
-        $maintenanceRecords = \App\Domains\Maintenance\Models\Maintenance::with('vehicle')
+        $maintenanceRecords = Maintenance::with('vehicle')
             ->whereBetween('date', [$start, $end])
             ->latest()->get();
 
-        $fuelRecords = \App\Domains\Telematics\Models\FuelLog::with('vehicle')
+        $fuelRecords = FuelLog::with('vehicle')
             ->whereBetween('date', [$start, $end])
             ->latest()->get();
 
@@ -1678,7 +1768,7 @@ class DashboardController extends Controller
 
     public function financialReports()
     {
-        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin', 'accountant'])) {
+        if (! in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin', 'accountant'])) {
             abort(403, 'Unauthorized access.');
         }
 
@@ -1687,11 +1777,25 @@ class DashboardController extends Controller
         $month = (int) request('month', now()->month);
         $vehicleId = request('vehicle_id');
 
-        $maintenanceQuery = \App\Domains\Maintenance\Models\Maintenance::with('vehicle')
+        // Validate filters to prevent server errors on bad input
+        if (request()->has('year')) {
+            $year = (int) request()->validate(['year' => 'required|integer|min:2000|max:2100'])['year'];
+        }
+        if (request()->has('month')) {
+            $month = (int) request()->validate(['month' => 'required|integer|min:1|max:12'])['month'];
+        }
+        if (request()->has('view_mode')) {
+            request()->validate(['view_mode' => 'required|in:monthly,yearly']);
+        }
+        if (request()->has('vehicle_id')) {
+            request()->validate(['vehicle_id' => 'nullable|exists:vehicles,id']);
+        }
+
+        $maintenanceQuery = Maintenance::with('vehicle')
             ->where('status', 'Accepted')
             ->whereYear('date', $year);
 
-        $fuelQuery = \App\Domains\Telematics\Models\FuelLog::with('vehicle')
+        $fuelQuery = FuelLog::with('vehicle')
             ->where('status', 'Accepted')
             ->whereYear('date', $year);
 
@@ -1705,7 +1809,7 @@ class DashboardController extends Controller
             $fuelQuery->where('vehicle_id', $vehicleId);
         }
 
-        $vehicles = \App\Domains\Fleet\Models\Vehicle::select('id', 'make', 'model', 'license_plate')->get();
+        $vehicles = Vehicle::select('id', 'name', 'license_plate')->get();
 
         return Inertia::render('Dashboard/FinancialReports', [
             'maintenance_records' => $maintenanceQuery->latest('date')->get(),
@@ -1720,15 +1824,15 @@ class DashboardController extends Controller
 
     public function approvalDesk()
     {
-        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin', 'accountant'])) {
+        if (! in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin', 'accountant'])) {
             abort(403, 'Unauthorized access.');
         }
 
-        $maintenances = \App\Domains\Maintenance\Models\Maintenance::with(['vehicle', 'assignedTo', 'createdBy', 'vendors'])
+        $maintenances = Maintenance::with(['vehicle', 'assignedTo', 'createdBy', 'vendors'])
             ->latest()
             ->get();
 
-        $fuelLogs = \App\Domains\Telematics\Models\FuelLog::with(['vehicle', 'driver.user', 'assignedTo'])
+        $fuelLogs = FuelLog::with(['vehicle', 'driver.user', 'assignedTo'])
             ->latest()
             ->get();
 
@@ -1752,17 +1856,17 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function sendInvoiceEmail(\Illuminate\Http\Request $request, string $type, int $id)
+    public function sendInvoiceEmail(Request $request, string $type, int $id)
     {
-        if (!in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin', 'accountant'])) {
+        if (! in_array(auth()->user()->role, ['super_admin', 'superadmin', 'admin', 'accountant'])) {
             abort(403, 'Unauthorized access.');
         }
 
         if ($type === 'maintenance') {
-            $record = \App\Domains\Maintenance\Models\Maintenance::with(['vehicle', 'vendors'])->findOrFail($id);
+            $record = Maintenance::with(['vehicle', 'vendors'])->findOrFail($id);
             $recordType = 'Maintenance';
         } elseif ($type === 'fuel') {
-            $record = \App\Domains\Telematics\Models\FuelLog::with(['vehicle', 'driver.user'])->findOrFail($id);
+            $record = FuelLog::with(['vehicle', 'driver.user'])->findOrFail($id);
             $recordType = 'Fuel';
         } else {
             abort(400, 'Invalid request type.');
@@ -1785,11 +1889,11 @@ class DashboardController extends Controller
         $ccRecipients[] = auth()->user()->email;
 
         $mail = Mail::to($primaryRecipient->email);
-        if (!empty($ccRecipients)) {
+        if (! empty($ccRecipients)) {
             $mail->cc($ccRecipients);
         }
 
-        $mail->send(new InvoiceForwarded($record, $recordType, $senderName));
+        $mail->queue(new InvoiceForwarded($record, $recordType, $senderName));
 
         return back()->with('success', "Invoice for {$recordType} Request #{$id} has been sent successfully.");
     }

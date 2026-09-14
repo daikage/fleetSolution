@@ -2,9 +2,9 @@
 
 namespace App\Domains\Identity\Models;
 
+use App\Domains\Fleet\Models\Vehicle;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Domains\Fleet\Models\Vehicle;
 
 class Department extends Model
 {

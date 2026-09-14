@@ -2,11 +2,9 @@
 
 namespace App\Domains\Telematics\Models;
 
-use App\Domains\Fleet\Models\Vehicle;
 use App\Domains\Driver\Models\Driver;
+use App\Domains\Fleet\Models\Vehicle;
 use App\Domains\Identity\Models\User;
-
-
 use Illuminate\Database\Eloquent\Model;
 
 class FuelLog extends Model
